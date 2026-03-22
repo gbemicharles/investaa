@@ -149,6 +149,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '.'))); // Changed to '.' for Replit root static serving
+app.use('/css', express.static(path.join(__dirname, 'css')));
+app.use('/js', express.static(path.join(__dirname, 'js')));
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 function formatUser(user) {
     if (!user) return null;
@@ -163,7 +167,7 @@ function formatUser(user) {
 // FIXED: Support BOTH x-auth-token AND standard Authorization header
 function authenticate(req, res, next) {
     let token = req.headers['x-auth-token'];
-    
+
     // Fallback to Bearer token in Authorization header
     if (!token && req.headers['authorization']) {
         const parts = req.headers['authorization'].split(' ');
@@ -173,7 +177,7 @@ function authenticate(req, res, next) {
     }
 
     if (!token) return res.status(401).json({ msg: 'No token provided' });
-    
+
     try {
         req.user = jwt.verify(token, JWT_SECRET);
         next();
@@ -201,12 +205,12 @@ app.post('/api/auth/register', async (req, res) => {
         const hashed = await bcrypt.hash(password, 10);
         const hashedPin = await bcrypt.hash(pin, 10);
         const is_admin = username.toLowerCase() === 'john' ? 1 : 0;
-        
+
         const result = await dbRunReturning(
             'INSERT INTO users (username, email, password, pin, phone, country, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [username, email, hashed, hashedPin, phone || '', country || 'United States', is_admin]
         );
-        
+
         const userToken = jwt.sign({ id: result.lastID, username, is_admin: is_admin }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token: userToken, msg: 'Registration successful' });
     } catch (e) {
@@ -422,7 +426,21 @@ app.get('/api/market/prices', async (req, res) => {
     res.json({ bitcoin: { usd: 65420.50 }, ethereum: { usd: 3520.15 }, 'the-open-network': { usd: 5.20 } });
 });
 
-app.use((req, res) => { res.sendFile(path.join(__dirname, 'index.html')); }); // Final correction for static file path
+app.get('*', (req, res) => {
+    // If the request looks like an asset (has a dot) but wasn't caught by static middleware, return 404
+    if (req.path.includes('.') || req.path.startsWith('/api')) {
+        return res.status(404).send('Not Found');
+    }
+
+    const indexPath = path.join(__dirname, 'index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error('CRITICAL: Failed to serve index.html from:', indexPath);
+            console.error('If you see this, make sure index.html is in the SAME folder as server.js!');
+            res.status(500).send('Project Error: index.html is missing from the server root. File structure audit required.');
+        }
+    });
+});
 app.listen(PORT, '0.0.0.0', () => { 
     console.log(`Server running on port ${PORT}`); 
     console.log('*** PRODUCTION BUILD V3.0.1 (POSTGRES READY) ACTIVE ***');
