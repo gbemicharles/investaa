@@ -426,7 +426,7 @@ app.get('/api/market/prices', async (req, res) => {
     res.json({ bitcoin: { usd: 65420.50 }, ethereum: { usd: 3520.15 }, 'the-open-network': { usd: 5.20 } });
 });
 
-app.get('*', (req, res) => {
+app.get('*path', (req, res) => {
     // If the request looks like an asset (has a dot) but wasn't caught by static middleware, return 404
     if (req.path.includes('.') || req.path.startsWith('/api')) {
         return res.status(404).send('Not Found');
