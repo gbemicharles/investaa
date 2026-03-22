@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deposit Assets v1.4 | Investment Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .deposit-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .network-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .network-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .network-card:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .network-card.selected {
+            border-color: var(--accent-primary);
+            background: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+
+        .network-card i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .network-card .name {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .notice-box {
+            background: rgba(245, 158, 11, 0.05);
+            border-left: 4px solid var(--warning);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .notice-box h4 {
+            color: var(--warning);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notice-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .notice-box li {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .summary-card {
+            background: var(--sidebar-bg);
+            border: 1px solid var(--glass-border);
+            padding: 25px;
+            border-radius: 20px;
+            margin-top: 30px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+        }
+
+        .summary-item .label {
+            color: var(--text-muted);
+        }
+
+        .summary-item .value {
+            font-weight: 600;
+        }
+
+        .summary-total {
+            border-top: 1px solid var(--glass-border);
+            padding-top: 15px;
+            margin-top: 15px;
+            font-size: 1.2rem;
+            font-weight: 800;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 15px;
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            outline: none;
+            margin-bottom: 30px;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--accent-primary);
+        }
+
+        /* Back Button Styling */
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .back-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            transform: scale(1.1);
+        }
+    </style>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/auth-guard.js"></script>
+    <script src="js/crypto-api.js"></script>
+</head>
+
+<body class="dark-theme">
+
+    <!-- Sidebar (Shared structure) -->
+    <aside class="sidebar">
+        <div class="logo-container">
+            <h1 class="logo"><span></span></h1>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="index.html"><i class="fas fa-th-large"></i> Dashboard</a></li>
+                <li><a href="wallet.html"><i class="fas fa-wallet"></i> Wallet</a></li>
+                <li class="active"><a href="deposit.html"><i class="fas fa-download"></i> Deposit</a></li>
+                <li><a href="withdraw.html"><i class="fas fa-upload"></i> Withdraw</a></li>
+                <li><a href="transfer.html"><i class="fas fa-exchange-alt"></i> Transfer</a></li>
+                <li id="admin-link" style="display: none;"><a href="admin.html"><i class="fas fa-user-shield"></i> Admin Panel</a></li>
+                <li class="nav-divider"></li>
+                <li><a href="vip.html"><i class="fas fa-gem"></i> VIP Club</a></li>
+                <li><a href="support.html"><i class="fas fa-headset"></i> Support</a></li>
+                <li><a href="help.html"><i class="fas fa-question-circle"></i> Help</a></li>
+                <li><a href="#" id="logout-btn" style="color: #ff4d4d;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left" style="display: flex; align-items: center; gap: 20px;">
+                <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+                <div>
+                    <h2>Deposit Assets</h2>
+                    <p>Transfer funds to your secure wallet.</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+            </div>
+        </header>
+
+        <section class="deposit-container">
+            <div class="card glass">
+                <h3>1. Select Network</h3>
+                <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Choose the blockchain
+                    network for your deposit.</p>
+
+                <div class="network-grid">
+                    <div class="network-card selected" data-network="usdt" data-fee="0" data-address="TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo">
+                        <i class="fab fa-ethereum" style="color: #26a17b;"></i>
+                        <span class="name">USDT (TRC-20)</span>
+                    </div>
+                    <div class="network-card" data-network="bitcoin" data-fee="0" data-address="bc1qn0xn6576hzhf7reqee3dqglvcm0305xn9l5eja">
+                        <i class="fab fa-bitcoin" style="color: #f7931a;"></i>
+                        <span class="name">BITCOIN</span>
+                    </div>
+                    <div class="network-card" data-network="ethereum" data-fee="5" data-address="0xB596C691f35b55ee095879Ecf52da180017464D7">
+                        <i class="fab fa-ethereum" style="color: #627eea;"></i>
+                        <span class="name">ETH (ERC-20)</span>
+                    </div>
+                    <div class="network-card" data-network="ton" data-fee="0" data-address="UQCgH4hfIo5VbYpEiSQO0cqwypmT5KtGxgxHr8Yp88SSMXPU">
+                        <i class="fas fa-gem" style="color: #0088cc;"></i>
+                        <span class="name">TON</span>
+                    </div>
+                </div>
+
+                <h3>2. Deposit Amount (Min 50 USD)</h3>
+                <input type="number" id="deposit-amount" placeholder="50.00" min="50">
+
+                <div class="notice-box">
+                    <h4><i class="fas fa-exclamation-triangle"></i> IMPORTANT NOTICE</h4>
+                    <ul>
+                        <li>• Please make sure your wallet supports the selected network.</li>
+                        <li>• Deposit asset only supporting the network.</li>
+                        <li>• Deposit crediting time depends on blockchain network confirmation speed.</li>
+                        <li>• <strong>ALL ERC20 NETWORK PAYMENTS INCUR A 5 USDT FEE.</strong></li>
+                    </ul>
+                </div>
+
+                <div id="manual-deposit-container" style="display: block; margin-top: 30px; text-align: center;">
+                    <div
+                        style="background: white; padding: 20px; display: inline-block; border-radius: 12px; margin-bottom: 20px;">
+                        <img id="qr-code"
+                            src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo"
+                            alt="Deposit Address QR" style="display: block;">
+                    </div>
+                    <div
+                        style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                        <code id="manual-address"
+                            style="font-size: 0.8rem; color: var(--accent-primary);">TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo</code>
+                        <button class="btn secondary" style="padding: 5px 10px; font-size: 0.7rem;"
+                            onclick="copyAddress()">Copy</button>
+                    </div>
+
+                    <h3>3. Payment Details</h3>
+                    <p id="txid-description" style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Submit your transaction
+                        ID (TXID) after sending BTC.</p>
+                    <input type="text" id="txid-input" placeholder="Paste TXID block hash here..."
+                        style="width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; color: var(--text-main); font-size: 1rem; margin-bottom: 20px; outline: none;">
+                    
+                    <h3>4. Proof of Payment (Optional)</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Upload a screenshot of your successful transaction.</p>
+                    <input type="file" id="screenshot-input" accept="image/*" style="width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; color: var(--text-main); font-size: 1rem; margin-bottom: 20px; outline: none;">
+                </div>
+
+                <div class="summary-card">
+                    <h4>Order Summary</h4>
+                    <div class="summary-item">
+                        <span class="label">Network</span>
+                        <span class="value" id="summary-network">USDT (TRC-20)</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Amount (USDT)</span>
+                        <span class="value" id="summary-amount">0.00 USDT</span>
+                    </div>
+                    <div class="summary-item" id="crypto-price-row" style="display: none;">
+                        <span class="label">Exchange Rate</span>
+                        <span class="value" id="summary-crypto-price">-</span>
+                    </div>
+                    <div class="summary-item" id="crypto-amount-row" style="display: none;">
+                        <span class="label" id="crypto-label">Amount (BTC)</span>
+                        <span class="value" id="summary-crypto-amount">0.000000 BTC</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Network Fee</span>
+                        <span class="value" id="summary-fee">0.00 USDT</span>
+                    </div>
+                    <div class="summary-total">
+                        <span class="label">Total to Receive (USDT)</span>
+                        <span class="value" id="summary-total">0.00 USDT</span>
+                    </div>
+                    <!-- Debug Diagnostics -->
+                    <div id="debug-info" style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; font-family: monospace; font-size: 0.7rem; color: #aaa; display: block; border: 1px dashed rgba(255,255,255,0.1);">
+                        Initializing diagnostics...
+                    </div>
+                </div>
+
+                <button class="btn primary btn-auth" style="margin-top: 30px;" id="confirm-btn">Confirm Deposit</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        const amountInput = document.getElementById('deposit-amount');
+        const summaryAmount = document.getElementById('summary-amount');
+        const summaryFee = document.getElementById('summary-fee');
+        const summaryTotal = document.getElementById('summary-total');
+        const summaryNetwork = document.getElementById('summary-network');
+        const networkCards = document.querySelectorAll('.network-card');
+        const manualContainer = document.getElementById('manual-deposit-container');
+        const manualAddress = document.getElementById('manual-address');
+        const qrCode = document.getElementById('qr-code');
+        const txidDescription = document.getElementById('txid-description');
+        const txidInput = document.getElementById('txid-input');
+        
+        const cryptoAmountRow = document.getElementById('crypto-amount-row');
+        const cryptoLabel = document.getElementById('crypto-label');
+        const summaryCryptoAmount = document.getElementById('summary-crypto-amount');
+        const summaryCryptoPrice = document.getElementById('summary-crypto-price');
+        const cryptoPriceRow = document.getElementById('crypto-price-row');
+
+        let selectedFee = 0;
+        let selectedNetwork = "USDT (TRC-20)";
+        let netType = "usdt";
+        let isManual = false;
+        let cryptoPrices = {
+            'bitcoin': { usd: 65420.50 },
+            'ethereum': { usd: 3520.15 },
+            'the-open-network': { usd: 5.20 }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Initial Load Balance
+                const user = await API.getProfile();
+                if (user) {
+                    // Admin Link
+                    if (user.role === 'ADMIN') {
+                        const adminLink = document.getElementById('admin-link');
+                        if (adminLink) adminLink.style.display = 'block';
+                    }
+                    const balEl = document.querySelector('.balance-brief .amount');
+                    if (balEl) balEl.innerText = `$${user.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                }
+
+                // Fetch Crypto Prices
+                console.log('[DEPOSIT] Fetching prices...');
+                try {
+                    cryptoPrices = await CryptoAPI.getMarketPrices(['bitcoin', 'ethereum', 'the-open-network']);
+                    console.log('[DEPOSIT] Prices loaded:', cryptoPrices);
+                } catch (pErr) {
+                    console.error('Price fetch failed, using fallback:', pErr);
+                }
+                
+                // Refresh Prices Every 30 seconds
+                setInterval(async () => {
+                    try {
+                        const newPrices = await CryptoAPI.getMarketPrices(['bitcoin', 'ethereum', 'the-open-network']);
+                        cryptoPrices = { ...cryptoPrices, ...newPrices };
+                        updateSummary();
+                    } catch (e) {}
+                }, 30000);
+                
+                selectNetwork(networkCards[0]);
+                
+                // Also trigger updateSummary in case it was missed
+                updateSummary();
+                
+            } catch (err) {
+                console.error('Initialization error:', err);
+            }
+        });
+
+        function getCryptoData() {
+            let data = { price: 1, cryptoId: '', unit: 'USDT', cryptoAmount: 0 };
+            const amount = parseFloat(amountInput.value) || 0;
+            const type = (netType || '').toLowerCase().trim();
+
+            if (type === 'usdt') {
+                data.price = 1;
+                data.unit = 'USDT';
+                data.cryptoAmount = amount;
+            } else if (type === 'bitcoin') {
+                data.cryptoId = 'bitcoin';
+                data.unit = 'BTC';
+                data.price = cryptoPrices['bitcoin'] ? cryptoPrices['bitcoin'].usd : 0;
+            } else if (type === 'ethereum') {
+                data.cryptoId = 'ethereum';
+                data.unit = 'ETH';
+                data.price = cryptoPrices['ethereum'] ? cryptoPrices['ethereum'].usd : 0;
+            } else if (type === 'ton') {
+                data.cryptoId = 'the-open-network';
+                data.unit = 'TON';
+                data.price = cryptoPrices['the-open-network'] ? cryptoPrices['the-open-network'].usd : 0;
+            }
+
+            if (data.price > 0 && type !== 'usdt') {
+                data.cryptoAmount = amount / data.price;
+            }
+            return data;
+        }
+
+        function selectNetwork(card) {
+            networkCards.forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            
+            selectedFee = parseFloat(card.dataset.fee) || 0;
+            selectedNetwork = card.querySelector('.name').innerText;
+            netType = (card.dataset.network || '').toLowerCase().trim();
+            
+            console.log('[DEPOSIT] Selected Network:', selectedNetwork, 'Type:', netType);
+
+            // Show/Hide Manual submission form
+            if (card.dataset.address) {
+                isManual = true;
+                manualContainer.style.display = 'block';
+                const addr = card.dataset.address;
+                manualAddress.innerText = addr;
+                qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${addr}`;
+                txidDescription.innerText = `Submit your transaction ID (TXID) after sending ${selectedNetwork}.`;
+            } else {
+                isManual = false;
+                manualContainer.style.display = 'none';
+            }
+            
+            updateSummary();
+        }
+
+        networkCards.forEach(card => {
+            card.addEventListener('click', () => selectNetwork(card));
+        });
+
+        amountInput.addEventListener('input', updateSummary);
+
+        function updateSummary() {
+            const amount = parseFloat(amountInput.value) || 0;
+            const total = Math.max(0, amount - selectedFee);
+            
+            summaryNetwork.innerText = selectedNetwork;
+            summaryAmount.innerText = `${amount.toFixed(2)} USDT`;
+            summaryFee.innerText = `${selectedFee.toFixed(2)} USDT`;
+            summaryTotal.innerText = `${total.toFixed(2)} USDT`;
+
+            const cryptoData = getCryptoData();
+            document.getElementById('debug-info').innerText = `DEBUG: type=${netType}, price=${cryptoData.price}, amount=${cryptoData.cryptoAmount.toFixed(8)}`;
+
+            // Update Crypto Amount if not USDT
+            if (netType !== 'usdt') {
+                cryptoPriceRow.style.display = 'flex';
+                cryptoAmountRow.style.display = 'flex';
+                
+                if (cryptoData.price > 0) {
+                    summaryCryptoPrice.innerText = `1 ${cryptoData.unit} = $${cryptoData.price.toLocaleString()}`;
+                    cryptoLabel.innerText = `Amount (${cryptoData.unit})`;
+                    summaryCryptoAmount.innerText = `${cryptoData.cryptoAmount.toFixed(8)} ${cryptoData.unit}`;
+                } else {
+                    summaryCryptoPrice.innerText = 'Calculating...';
+                    summaryCryptoAmount.innerText = 'Calculating...';
+                }
+            } else {
+                cryptoPriceRow.style.display = 'none';
+                cryptoAmountRow.style.display = 'none';
+            }
+        }
+
+        async function copyAddress() {
+            const addr = manualAddress.innerText;
+            await navigator.clipboard.writeText(addr);
+            alert('Address copied to clipboard!');
+        }
+
+        document.getElementById('confirm-btn').addEventListener('click', async () => {
+            const amount = parseFloat(amountInput.value);
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount.');
+                return;
+            }
+
+            if (isManual) {
+                const txid = txidInput.value.trim();
+                const screenshotFile = document.getElementById('screenshot-input').files[0];
+
+                if (!txid) {
+                    alert('Please submit your TXID after making the payment.');
+                    return;
+                }
+                
+                const btn = document.getElementById('confirm-btn');
+                btn.disabled = true;
+                btn.innerText = 'Submitting...';
+
+                try {
+                    const cryptoData = getCryptoData();
+                    console.log('[DEPOSIT] Submitting with crypto data:', cryptoData);
+
+                    const formData = new FormData();
+                    formData.append('txid', txid);
+                    formData.append('usdt_amount', amount);
+                    formData.append('btc_amount', amount); // Backward compatibility
+                    formData.append('network', selectedNetwork);
+                    formData.append('crypto_amount', cryptoData.cryptoAmount.toFixed(8));
+                    formData.append('exchange_rate', cryptoData.price);
+
+                    if (screenshotFile) {
+                        formData.append('screenshot', screenshotFile);
+                    }
+
+                    const res = await API.submitDeposit(formData);
+                    if (res.id) {
+                        alert('Deposit request submitted! Our team will verify it soon.');
+                        window.location.href = 'index.html';
+                    } else {
+                        alert(res.msg || 'Submission failed');
+                    }
+                } catch (err) {
+                    alert('Network error. Please try again.');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = 'Confirm Deposit';
+                }
+            } else {
+                alert(`Redirecting to automated ${selectedNetwork} payment gateway...`);
+            }
+        });
+    </script>
+    <script src="js/chat.js"></script>
+</body>
+
+</html>

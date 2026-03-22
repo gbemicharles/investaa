@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Secure Access</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            justify-content: center;
+            align-items: center;
+            background: #0a0b10;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 20px;
+        }
+        .auth-card {
+            text-align: center;
+        }
+        .auth-header h2 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        .auth-header p {
+            color: var(--text-muted);
+            margin-bottom: 35px;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .input-wrapper {
+            position: relative;
+        }
+        .input-wrapper i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        .input-wrapper input {
+            width: 100%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 14px 14px 14px 45px;
+            border-radius: 12px;
+            color: var(--text-main);
+            outline: none;
+            transition: var(--transition);
+        }
+        .input-wrapper input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        }
+        .captcha-container {
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .captcha-box {
+            background: var(--glass-border);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: var(--accent-primary);
+            user-select: none;
+        }
+        .btn-auth {
+            width: 100%;
+            justify-content: center;
+            padding: 15px;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+        .auth-footer {
+            margin-top: 25px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        .auth-footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-nav {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+        }
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: var(--transition);
+            backdrop-filter: blur(10px);
+        }
+        .back-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    
+    <div class="back-nav">
+        <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    </div>
+    
+    <div class="auth-container">
+        <div class="card auth-card glass">
+            <div class="auth-header">
+                <h2>Welcome Back</h2>
+                <p>Please enter your details to sign in.</p>
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Username</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="username" placeholder="Enter your username" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Bot Verification: <span id="captcha-eq"></span></label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-robot"></i>
+                        <input type="number" id="captcha-input" placeholder="Your answer" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-auth primary">Sign In</button>
+            </form>
+
+            <div class="auth-footer">
+                Don't have an account? <a href="register.html">Sign up for free</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        // Simple Bot Verification
+        const num1 = Math.floor(Math.random() * 10) + 1;
+        const num2 = Math.floor(Math.random() * 10) + 1;
+        const answer = num1 + num2;
+        document.getElementById('captcha-eq').innerText = `${num1} + ${num2} = ?`;
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const login = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const userInput = parseInt(document.getElementById('captcha-input').value);
+            
+            if (userInput !== answer) {
+                alert('Captcha incorrect! Are you a bot?');
+                return;
+            }
+
+            try {
+                const data = await API.login({ login, password });
+                if (data.token) {
+                    window.location.href = 'index.html';
+                } else {
+                    alert(data.msg || 'Login failed');
+                }
+            } catch (err) {
+                console.error('[LOGIN_ERROR]', err);
+                if (err.message.includes('Failed to fetch')) {
+                    alert('Connection Error: The backend server is not responding. Please ensure your Replit is running.');
+                } else {
+                    alert('Login Error: ' + (err.message || 'Verification failed'));
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | Join Us</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            justify-content: center;
+            align-items: center;
+            background: #0a0b10;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 40px 20px;
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+        .auth-card {
+            text-align: center;
+        }
+        .auth-header h2 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        .auth-header p {
+            color: var(--text-muted);
+            margin-bottom: 35px;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .input-wrapper {
+            position: relative;
+        }
+        .input-wrapper i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        .input-wrapper input {
+            width: 100%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 14px 14px 14px 45px;
+            border-radius: 12px;
+            color: var(--text-main);
+            outline: none;
+            transition: var(--transition);
+        }
+        .input-wrapper input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        }
+        .phone-input-container {
+            display: flex;
+            gap: 10px;
+        }
+        .country-select {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: var(--text-main);
+            padding: 0 10px;
+            outline: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            width: 100px; /* Fixed width for better layout */
+            flex-shrink: 0;
+        }
+        .country-select option {
+            background: var(--sidebar-bg);
+            color: var(--text-main);
+        }
+        .captcha-container {
+            width: 100%;
+            justify-content: center;
+            padding: 15px;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+        .btn-auth {
+            width: 100%;
+            justify-content: center;
+            padding: 15px;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+        .auth-footer {
+            margin-top: 25px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        .auth-footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-nav {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+        }
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: var(--transition);
+            backdrop-filter: blur(10px);
+        }
+        .back-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="dark-theme">
+
+    <div class="back-nav">
+        <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    </div>
+    
+    <div class="auth-container">
+        <div class="card auth-card glass">
+            <div class="auth-header">
+                <h2>Create Account</h2>
+                <p>Start your investment journey today.</p>
+            </div>
+            
+            <form id="registerForm">
+                <div class="form-group">
+                    <label>Username</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="username" placeholder="Choose a username" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="email" placeholder="name@example.com" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <div class="input-wrapper phone-input-container">
+                        <select id="country-code" class="country-select">
+                            <!-- Populated by JS -->
+                        </select>
+                        <input type="tel" id="phone" placeholder="Phone Number" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" placeholder="Create a strong password" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-check-double"></i>
+                        <input type="password" id="confirm-password" placeholder="Repeat your password" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Transaction PIN (4-6 digits)</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-key"></i>
+                        <input type="password" id="pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Confirm Transaction PIN</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-check-circle"></i>
+                        <input type="password" id="confirm-pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-auth primary">Register Now</button>
+            </form>
+
+            <div class="auth-footer">
+                Already have an account? <a href="login.html">Sign in</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        const countries = [
+            { name: "United States", code: "+1", emoji: "🇺🇸" },
+            { name: "United Kingdom", code: "+44", emoji: "🇬🇧" },
+            { name: "Canada", code: "+1", emoji: "🇨🇦" },
+            { name: "Australia", code: "+61", emoji: "🇦🇺" },
+            { name: "Nigeria", code: "+234", emoji: "🇳🇬" },
+            { name: "Germany", code: "+49", emoji: "🇩🇪" },
+            { name: "France", code: "+33", emoji: "🇫🇷" },
+            { name: "China", code: "+86", emoji: "🇨🇳" },
+            { name: "India", code: "+91", emoji: "🇮🇳" },
+            { name: "Brazil", code: "+55", emoji: "🇧🇷" }
+        ];
+
+        const select = document.getElementById('country-code');
+        countries.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.code;
+            opt.innerText = `${c.emoji} ${c.code}`;
+            select.appendChild(opt);
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const pin = document.getElementById('pin').value;
+            const confirmPin = document.getElementById('confirm-pin').value;
+            const phone = document.getElementById('phone').value;
+            const countryCode = document.getElementById('country-code').value;
+            
+            if (password !== confirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+
+            if (pin !== confirmPin) {
+                alert('Transaction PINs do not match!');
+                return;
+            }
+
+            try {
+                const data = await API.register({ 
+                    username, email, password, pin,
+                    phone: `${countryCode}${phone}`,
+                    country: "United States"
+                });
+                
+                if (data.token) {
+                    alert('Registration successful! Please login.');
+                    window.location.href = 'login.html';
+                } else {
+                    alert(data.msg || 'Registration failed');
+                }
+            } catch (err) {
+                console.error('[REGISTER_ERROR]', err);
+                if (err.message.includes('Failed to fetch')) {
+                    alert('Connection Error: The backend server is not responding. Please ensure your Replit is running.');
+                } else {
+                    alert('Registration Error: ' + (err.message || 'Submission failed'));
+                }
+            }
+        });
+    </script>
+</body>
+</html>

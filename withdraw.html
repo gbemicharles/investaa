@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdraw Funds | Secure Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .withdraw-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .balance-brief {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid var(--accent-primary);
+            padding: 15px 25px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .balance-brief .label { color: var(--text-muted); font-size: 0.9rem; }
+        .balance-brief .amount { font-weight: 800; font-size: 1.2rem; }
+
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; margin-bottom: 10px; color: var(--text-muted); font-size: 0.9rem; }
+        
+        .network-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .network-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .network-card.selected {
+            border-color: var(--accent-primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .network-card i { font-size: 1.8rem; margin-bottom: 10px; display: block; }
+        .network-card .name { font-weight: 700; font-size: 0.85rem; }
+
+        input {
+            width: 100%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 15px;
+            border-radius: 12px;
+            color: var(--text-main);
+            outline: none;
+            transition: var(--transition);
+        }
+        input:focus { border-color: var(--accent-primary); }
+
+        .notice-box {
+            background: rgba(239, 68, 68, 0.05);
+            border-left: 4px solid var(--danger);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 30px 0;
+        }
+        .notice-box h4 { color: var(--danger); margin-bottom: 10px; }
+        .notice-box ul { list-style: none; padding: 0; }
+        .notice-box li { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
+
+        .summary-card {
+            background: var(--sidebar-bg);
+            border: 1px solid var(--glass-border);
+            padding: 25px;
+            border-radius: 20px;
+        }
+        .summary-item { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .summary-total { border-top: 1px solid var(--glass-border); padding-top: 15px; margin-top: 15px; font-weight: 800; font-size: 1.1rem; }
+/* Back Button Styling */
+.back-btn {
+    width: 40px;
+    height: 40px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-main);
+    text-decoration: none;
+    transition: var(--transition);
+}
+.back-btn:hover {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    transform: scale(1.1);
+}
+/* Modal Styling */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+.modal-content {
+    background: var(--sidebar-bg);
+    border: 1px solid var(--glass-border);
+    padding: 35px;
+    border-radius: 24px;
+    max-width: 450px;
+    width: 100%;
+    text-align: center;
+}
+.modal-content h3 { margin-bottom: 15px; font-family: 'Outfit'; font-size: 1.5rem; }
+.modal-content p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5; }
+.modal-note {
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: left;
+    margin-bottom: 25px;
+    line-height: 1.4;
+}
+.modal-actions { display: flex; gap: 15px; margin-top: 25px; }
+.pin-input-group { position: relative; margin-bottom: 20px; }
+.pin-input-group input { 
+    text-align: center; 
+    letter-spacing: 15px; 
+    font-size: 1.5rem; 
+    font-weight: 800; 
+}
+    </style>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/auth-guard.js"></script>
+</head>
+<body class="dark-theme">
+    
+    <aside class="sidebar">
+        <div class="logo-container">
+            <h1 class="logo"><span></span></h1>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="wallet.html"><i class="fas fa-wallet"></i> Wallet</a></li>
+                <li><a href="deposit.html"><i class="fas fa-download"></i> Deposit</a></li>
+                <li><a href="withdraw.html" class="active"><i class="fas fa-upload"></i> Withdraw</a></li>
+                <li><a href="transfer.html"><i class="fas fa-exchange-alt"></i> Transfer</a></li>
+                <li id="admin-link" style="display: none;"><a href="admin.html"><i class="fas fa-user-shield"></i> Admin Panel</a></li>
+                <li class="nav-divider"></li>
+                <li><a href="vip.html"><i class="fas fa-gem"></i> VIP Club</a></li>
+                <li><a href="notifications.html"><i class="fas fa-comment-dots"></i> Messages <span class="badge" id="messages-badge" style="display: none;">0</span></a></li>
+                <li><a href="support.html"><i class="fas fa-headset"></i> Support</a></li>
+                <li><a href="help.html"><i class="fas fa-question-circle"></i> Help</a></li>
+                <li><a href="#" id="logout-btn" style="color: #ff4d4d;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left" style="display: flex; align-items: center; gap: 20px;">
+                <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+                <div>
+                    <h2>Withdraw Funds</h2>
+                    <p>Transfer your assets to an external wallet.</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+            </div>
+        </header>
+
+        <section class="withdraw-container">
+            <div class="card glass">
+                <div class="balance-brief">
+                    <div>
+                        <span class="label">Available Balance</span>
+                        <div class="amount" id="available-balance">$0.00</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="label" id="rank-badge">RANK: REGULAR</span>
+                        <div style="font-size: 0.75rem; color: var(--accent-primary); margin-top: 5px;" id="limits-summary">
+                            Daily: $0 / $0 | Monthly: $0 / $0
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Network</label>
+                    <div class="network-grid">
+                        <div class="network-card selected" data-network="USDT (TRC-20)">
+                            <i class="fab fa-ethereum" style="color: #26a17b;"></i>
+                            <span class="name">USDT (TRC-20)</span>
+                        </div>
+                        <div class="network-card" data-network="BITCOIN">
+                            <i class="fab fa-bitcoin" style="color: #f7931a;"></i>
+                            <span class="name">BITCOIN</span>
+                        </div>
+                        <div class="network-card" data-network="ETH (ERC-20)">
+                            <i class="fab fa-ethereum" style="color: #627eea;"></i>
+                            <span class="name">ETH (ERC-20)</span>
+                        </div>
+                        <div class="network-card" data-network="TON">
+                            <i class="fas fa-gem" style="color: #0088cc;"></i>
+                            <span class="name">TON</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Destination Wallet Address</label>
+                    <input type="text" id="wallet-address" placeholder="Paste your address here...">
+                </div>
+
+                <div class="form-group">
+                    <label>Withdraw Amount</label>
+                    <input type="number" id="withdraw-amount" placeholder="0.00">
+                </div>
+
+                <div class="notice-box">
+                    <h4><i class="fas fa-shield-alt"></i> IMPORTANT NOTICE</h4>
+                    <ul>
+                        <li>• Double check the destination address. Transactions cannot be reversed.</li>
+                        <li>• Ensure your wallet supports the selected blockchain network.</li>
+                        <li>• Large withdrawals may undergo additional security reviews.</li>
+                        <li>• <strong>A FIXED FEE OF 1 USDT APPLIES TO ALL WITHDRAWALS.</strong></li>
+                    </ul>
+                </div>
+
+                <div class="summary-card">
+                    <h4>Withdrawal Summary</h4>
+                    <div class="summary-item">
+                        <span class="label">Selected Network</span>
+                        <span class="value" id="summary-network">USDT (TRC-20)</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Gross Withdrawal</span>
+                        <span class="value" id="summary-amount">0.00 USDT</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Withdrawal Fee</span>
+                        <span class="value">1.00 USDT</span>
+                    </div>
+                    <div class="summary-total">
+                        <span class="label">Total to be Sent</span>
+                        <span class="value" id="summary-total">0.00 USDT</span>
+                    </div>
+                </div>
+
+                <button class="btn primary btn-auth" style="margin-top: 30px;" id="confirm-withdrawal">Confirm Withdrawal</button>
+            </div>
+        </section>
+
+        <!-- PIN Verification Modal -->
+        <div class="modal-overlay" id="pin-modal">
+            <div class="modal-content glass">
+                <i class="fas fa-shield-check" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 20px; display: block;"></i>
+                <h3>Authorize Withdrawal</h3>
+                <p>Withdrawal Amount: <strong id="modal-confirm-amount" style="color: var(--accent-primary);">0.00</strong> USDT</p>
+                <p style="font-size: 0.8rem; margin-top: -15px;">(A 1.00 USDT network fee will apply)</p>
+                
+                <div class="pin-input-group">
+                    <input type="password" id="withdrawal-pin" placeholder="••••" maxlength="6" pattern="\d{4,6}">
+                </div>
+
+                <div class="modal-note">
+                    <strong>Forgot your transaction pin?</strong><br>
+                    The transaction pin is the security layer you set when creating your account. It cannot be changed or retrieved. If you have forgotten your pin, we recommend registering a new account and transferring your funds quickly using the internal transfer function, which does not require a transaction pin.
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn secondary" style="flex: 1;" onclick="closePinModal()">Cancel</button>
+                    <button class="btn primary" style="flex: 1;" id="submit-withdrawal-final">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const user = await API.getProfile();
+                if (user) {
+                    // Admin Link
+                    if (user.role === 'ADMIN') {
+                        const adminLink = document.getElementById('admin-link');
+                        if (adminLink) adminLink.style.display = 'block';
+                    }
+                    document.getElementById('available-balance').innerText = `$${user.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    document.getElementById('rank-badge').innerText = `RANK: ${user.vip_rank}`;
+                }
+            } catch (error) {
+                console.error('Failed to fetch user profile:', error);
+                window.location.href = 'login.html';
+            }
+
+            try {
+                // Fetch limits
+                const limitData = await API.getLimits();
+                if (limitData && limitData.limits) {
+                    const { usage, limits } = limitData;
+                    if (limits.daily === 0 && limits.monthly === 0) {
+                        document.getElementById('limits-summary').innerHTML = `
+                            <span style="color: var(--danger); font-weight: 800;">WITHDRAWAL LOCKED</span><br>
+                            Upgrade VIP to enable withdrawals.
+                        `;
+                        document.getElementById('confirm-withdrawal').disabled = true;
+                        document.getElementById('confirm-withdrawal').innerText = 'Upgrade to Withdraw';
+                    } else {
+                        document.getElementById('limits-summary').innerHTML = `
+                            Daily: <strong>$${usage.daily.toFixed(0)}</strong> / $${limits.daily.toLocaleString()} <br>
+                            Monthly: <strong>$${usage.monthly.toFixed(0)}</strong> / $${limits.monthly.toLocaleString()}
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch limits:', error);
+            }
+        });
+
+        const amountInput = document.getElementById('withdraw-amount');
+        const networkCards = document.querySelectorAll('.network-card');
+        const summaryNetwork = document.getElementById('summary-network');
+        const summaryAmount = document.getElementById('summary-amount');
+        const summaryTotal = document.getElementById('summary-total');
+        
+        let selectedNetwork = "USDT (TRC-20)";
+
+        networkCards.forEach(card => {
+            card.addEventListener('click', () => {
+                networkCards.forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedNetwork = card.dataset.network;
+                summaryNetwork.innerText = selectedNetwork;
+            });
+        });
+
+        amountInput.addEventListener('input', () => {
+            const amount = parseFloat(amountInput.value) || 0;
+            const fee = 1.00;
+            const total = Math.max(0, amount - fee);
+            
+            summaryAmount.innerText = `${amount.toFixed(2)} USDT`;
+            summaryTotal.innerText = `${total.toFixed(2)} USDT`;
+        });
+
+        const pinModal = document.getElementById('pin-modal');
+        const pinInput = document.getElementById('withdrawal-pin');
+
+        window.closePinModal = () => {
+            pinModal.style.display = 'none';
+            pinInput.value = '';
+        };
+
+        let pendingAmount = 0;
+        let pendingDetails = '';
+
+        document.getElementById('confirm-withdrawal').addEventListener('click', () => {
+            const address = document.getElementById('wallet-address').value;
+            const amount = parseFloat(amountInput.value);
+            
+            if (!amount || amount <= 1) { alert('Minimum withdrawal is 1.01 USDT.'); return; }
+            if (!address) { alert('Please enter a destination address.'); return; }
+            
+            pendingAmount = amount;
+            pendingDetails = `To: ${address} (${selectedNetwork})`;
+            
+            document.getElementById('modal-confirm-amount').innerText = amount.toFixed(2);
+            pinModal.style.display = 'flex';
+        });
+
+        document.getElementById('submit-withdrawal-final').addEventListener('click', async () => {
+            const pin = pinInput.value;
+
+            if (!pin || pin.length < 4) { alert('Please enter a valid Transaction PIN.'); return; }
+
+            console.log('[DEBUG_FRONTEND] Submitting Withdrawal:', { amount: pendingAmount, details: pendingDetails, pinLength: pin.length });
+
+            const btn = document.getElementById('submit-withdrawal-final');
+            btn.disabled = true;
+            btn.innerText = 'Processing...';
+
+            try {
+                const data = await API.withdraw(pendingAmount, pendingDetails, pin);
+                console.log('[DEBUG_FRONTEND] Server Response:', data);
+                if (data.transactionId) {
+                    alert(`Withdrawal request for ${pendingAmount} USDT submitted successfully!`);
+                    window.location.href = 'index.html';
+                } else {
+                    alert(data.msg || 'Withdrawal failed');
+                    btn.disabled = false;
+                    btn.innerText = 'Confirm';
+                }
+            } catch (err) {
+                console.error('[WITHDRAW_ERROR]', err);
+                if (err.message.includes('Failed to fetch')) {
+                    alert('Connection Error: The server is not responding. Please ensure the backend (node server.js) is running on port 5000.');
+                } else {
+                    alert('Verification Error: ' + err.message);
+                }
+                btn.disabled = false;
+                btn.innerText = 'Confirm';
+            }
+        });
+    </script>
+    <script src="js/chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel | Deposit Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .admin-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .deposit-list {
+            margin-top: 20px;
+        }
+        .deposit-item {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .deposit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 15px;
+        }
+        .deposit-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+        .detail-label { color: var(--text-muted); }
+        .detail-value { font-weight: 600; }
+        
+        .action-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .action-area input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            padding: 10px;
+            border-radius: 8px;
+            color: white;
+            outline: none;
+            width: 150px;
+        }
+        .txid-link {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+    </style>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/auth-guard.js"></script>
+</head>
+<body class="dark-theme" style="display: block; overflow-y: auto; min-height: 100vh;">
+    <main class="main-content" style="margin-left: 0; padding: 40px; max-width: 1200px; margin: 0 auto; min-height: 100vh;">
+        <header class="top-header" style="background: transparent; border: none; margin-bottom: 40px;">
+            <div class="header-left">
+                <h2 style="font-size: 2.5rem; background: linear-gradient(to right, #fff, var(--accent-primary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Admin Control Center</h2>
+                <p style="color: var(--text-muted);">Manage deposits and direct user funding operations.</p>
+            </div>
+            <div class="header-right">
+                <a href="index.html" class="btn secondary" style="backdrop-filter: blur(10px);"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+            </div>
+        </header>
+
+        <section class="admin-container">
+            <!-- Direct Funding Section -->
+            <div class="card glass" style="margin-bottom: 40px; padding: 30px; border-left: 4px solid var(--accent-primary);">
+                <h3 style="margin-top: 0; color: var(--accent-primary); font-size: 1.4rem;"><i class="fas fa-hand-holding-usd"></i> Direct User Funding</h3>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px;">Search for a user by their identifier and credit their balance instantly.</p>
+                <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 20px; align-items: end;">
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">User Identifier (UID, Name, Email, or Phone)</label>
+                        <div style="position: relative;">
+                            <i class="fas fa-search" style="position: absolute; left: 15px; top: 15px; color: var(--text-muted);"></i>
+                            <input type="text" id="fund-identifier" placeholder="e.g., 00000003 or alexmcdonald" style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 12px 12px 12px 45px; border-radius: 12px; color: white; font-size: 1rem;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">USDT Amount</label>
+                        <input type="number" id="fund-amount" placeholder="0.00" step="0.01" style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 12px; border-radius: 12px; color: white; font-size: 1rem;">
+                    </div>
+                    <button class="btn primary" id="fund-btn" style="padding: 12px 30px; border-radius: 12px; height: 48px;">Fund Account</button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-clock"></i> Pending Deposit Requests</h3>
+                <button class="btn secondary" onclick="loadPending()" style="padding: 8px 15px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+            
+            <div id="pending-list" class="deposit-list" style="padding-bottom: 100px;">
+                <div style="text-align: center; padding: 50px; color: var(--text-muted);">Loading pending deposits...</div>
+            </div>
+            <div class="card glass" style="margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <h3>Withdrawal Requests</h3>
+                    <button class="btn secondary" onclick="loadWithdrawals()"><i class="fas fa-sync"></i> Refresh</button>
+                </div>
+                <div id="withdrawals-list">
+                    <!-- Withdrawals will be loaded here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function loadPending() {
+            const list = document.getElementById('pending-list');
+            try {
+                const deposits = await API.getPendingDeposits();
+                
+                if (deposits.msg) { // Probably access denied
+                    list.innerHTML = `<div style="text-align: center; padding: 50px; color: #ff4d4d;">${deposits.msg}</div>`;
+                    return;
+                }
+
+                if (deposits.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; padding: 50px; color: var(--text-muted);">No pending deposits.</div>';
+                    return;
+                }
+
+                list.innerHTML = '';
+                deposits.forEach(d => {
+                    const item = document.createElement('div');
+                    item.className = 'deposit-item';
+                    item.innerHTML = `
+                        <div class="deposit-header">
+                            <div>
+                                <h4 style="margin: 0;">#${d.id} | User: ${d.username}</h4>
+                                <small style="color: var(--text-muted)">${d.email}</small>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <span class="status-badge" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-radius: 4px; padding: 2px 8px; font-size: 0.7rem;">${d.network || 'BITCOIN'}</span>
+                                <span class="status-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">PENDING</span>
+                            </div>
+                        </div>
+                        <div class="deposit-details">
+                            <div>
+                                <span class="detail-label">USDT Amount:</span>
+                                <span class="detail-value" style="color: var(--accent-primary);">${d.usdt_amount || d.btc_amount} USDT</span>
+                            </div>
+                            <div>
+                                <span class="detail-label">Equivalent Crypto:</span>
+                                <span class="detail-value">${(d.crypto_amount || d.btc_amount).toFixed(8)} ${d.network.split(' ')[0]}</span>
+                            </div>
+                            <div>
+                                <span class="detail-label">Exchange Rate:</span>
+                                <span class="detail-value" style="font-size: 0.8rem; color: var(--accent-secondary);">$${d.exchange_rate ? d.exchange_rate.toLocaleString() : 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span class="detail-label">Date:</span>
+                                <span class="detail-value">${new Date(d.created_at).toLocaleString()}</span>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <span class="detail-label">TXID:</span><br>
+                                <a href="${d.network === 'TON' ? `https://tonscan.org/tx/${d.txid}` : (d.network === 'USDT (TRC-20)' ? `https://tronscan.org/#/transaction/${d.txid}` : (d.network === 'ETH (ERC-20)' ? `https://etherscan.io/tx/${d.txid}` : `https://www.blockchain.com/explorer/transactions/btc/${d.txid}`))}" target="_blank" class="txid-link">${d.txid}</a>
+                            </div>
+                            ${d.screenshot ? `
+                            <div style="grid-column: span 2; margin-top: 10px;">
+                                <span class="detail-label">Proof of Payment:</span><br>
+                                <a href="${d.screenshot}" target="_blank">
+                                    <img src="${d.screenshot}" style="max-width: 200px; border-radius: 8px; margin-top: 5px; border: 1px solid var(--glass-border);">
+                                </a>
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="action-area">
+                            <input type="number" id="usdt-${d.id}" placeholder="USDT to credit" step="0.01" value="${d.usdt_amount || d.btc_amount}">
+                            <button class="btn primary" onclick="approve(${d.id})" style="padding: 10px 20px;">Approve</button>
+                            <button class="btn secondary" onclick="reject(${d.id})" style="padding: 10px 20px; color: #ff4d4d;">Reject</button>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (err) {
+                list.innerHTML = '<div style="text-align: center; padding: 50px; color: #ff4d4d;">Failed to load deposits.</div>';
+            }
+        }
+
+        async function approve(id) {
+            const amountInput = document.getElementById(`usdt-${id}`);
+            const amount = parseFloat(amountInput.value);
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid USDT amount to credit.');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to approve this deposit and credit ${amount} USDT?`)) return;
+
+            try {
+                const res = await API.approveDeposit(id, amount);
+                if (res.msg.includes('approved')) {
+                    alert('Deposit approved!');
+                    loadPending();
+                } else {
+                    alert(res.msg);
+                }
+            } catch (err) {
+                alert('Error approving deposit.');
+            }
+        }
+
+        async function reject(id) {
+            if (!confirm('Are you sure you want to reject this deposit?')) return;
+
+            try {
+                const res = await API.rejectDeposit(id);
+                if (res.msg.includes('rejected')) {
+                    alert('Deposit rejected.');
+                    loadPending();
+                } else {
+                    alert(res.msg);
+                }
+            } catch (err) {
+                alert('Error rejecting deposit.');
+            }
+        }
+
+        async function loadWithdrawals() {
+            const list = document.getElementById('withdrawals-list');
+            try {
+                const withdrawals = await API.adminGetPendingWithdrawals();
+                console.log('[DEBUG_ADMIN] Pending Withdrawals:', withdrawals);
+                
+                if (withdrawals.msg) {
+                    list.innerHTML = `<div style="text-align: center; padding: 20px; color: #ff4d4d;">${withdrawals.msg}</div>`;
+                    return;
+                }
+
+                if (withdrawals.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No pending withdrawals.</div>';
+                    return;
+                }
+
+                list.innerHTML = '';
+                withdrawals.forEach(w => {
+                    const item = document.createElement('div');
+                    item.className = 'deposit-item'; // Reuse styling
+                    item.style.borderLeft = '4px solid #f59e0b';
+                    item.innerHTML = `
+                        <div class="deposit-header">
+                            <div>
+                                <h4 style="margin: 0;">#${w.id} | User: ${w.username}</h4>
+                                <small style="color: var(--text-muted)">${w.email}</small>
+                            </div>
+                            <span class="status-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">PENDING</span>
+                        </div>
+                        <div class="deposit-details">
+                            <div>
+                                <span class="detail-label">Gross Amount:</span>
+                                <span class="detail-value" style="color: var(--danger);">${w.amount} USDT</span>
+                            </div>
+                            <div>
+                                <span class="detail-label">Net (After Fee):</span>
+                                <span class="detail-value" style="color: var(--accent-primary);">${(w.amount - 1).toFixed(2)} USDT</span>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <span class="detail-label">Details:</span>
+                                <span class="detail-value">${w.details}</span>
+                            </div>
+                            <div>
+                                <span class="detail-label">Date:</span>
+                                <span class="detail-value">${new Date(w.created_at).toLocaleString()}</span>
+                            </div>
+                        </div>
+                        <div class="action-area">
+                            <button class="btn primary" onclick="approveWithdrawal(${w.id})" style="padding: 10px 20px;">Approve</button>
+                            <button class="btn secondary" onclick="rejectWithdrawal(${w.id})" style="padding: 10px 20px; color: #ff4d4d;">Reject</button>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (err) {
+                console.error('[ADMIN_LOAD_WITHDRAWALS_ERROR]', err);
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ff4d4d;">Failed to load withdrawals.</div>';
+            }
+        }
+
+        async function approveWithdrawal(id) {
+            if (!confirm(`Are you sure you want to approve withdrawal #${id}?`)) return;
+
+            try {
+                const res = await API.adminApproveWithdrawal(id);
+                alert(res.msg);
+                loadWithdrawals();
+                loadPending();
+            } catch (err) {
+                alert('Error approving withdrawal.');
+            }
+        }
+
+        async function rejectWithdrawal(id) {
+            if (!confirm(`Are you sure you want to reject and refund withdrawal #${id}?`)) return;
+
+            try {
+                const res = await API.adminRejectWithdrawal(id);
+                alert(res.msg);
+                loadWithdrawals();
+                loadPending();
+            } catch (err) {
+                alert('Error rejecting withdrawal.');
+            }
+        }
+
+        // Initial load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadPending();
+            loadWithdrawals();
+
+            document.getElementById('fund-btn').addEventListener('click', async () => {
+                const identifier = document.getElementById('fund-identifier').value.trim();
+                const amount = parseFloat(document.getElementById('fund-amount').value);
+
+                if (!identifier || !amount || amount <= 0) {
+                    alert('Please enter a valid user identifier and amount.');
+                    return;
+                }
+
+                if (!confirm(`Are you sure you want to fund ${identifier} with ${amount} USDT?`)) return;
+
+                const btn = document.getElementById('fund-btn');
+                btn.disabled = true;
+                btn.innerText = 'Funding...';
+
+                try {
+                    const res = await API.adminFundUser(identifier, amount);
+                    alert(res.msg);
+                    if (res.msg.includes('Successfully')) {
+                        document.getElementById('fund-identifier').value = '';
+                        document.getElementById('fund-amount').value = '';
+                    }
+                } catch (err) {
+                    alert('Failed to fund user. Check identifier and try again.');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = 'Fund Account';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

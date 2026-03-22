@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Wallet | Secure Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/auth-guard.js"></script>
+    <style>
+        .wallet-container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        
+        /* Profile Header */
+        .profile-hero {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(147, 51, 234, 0.2) 100%);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            margin-bottom: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            background: var(--accent-primary);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3);
+        }
+        .profile-info h1 { font-family: 'Outfit', sans-serif; font-size: 2.2rem; margin-bottom: 5px; }
+        .profile-info p { color: var(--text-muted); margin-bottom: 15px; }
+        .vip-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffd700;
+            color: #333;
+            padding: 6px 15px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        /* Asset Grid */
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .asset-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 25px;
+            border-radius: 20px;
+            transition: var(--transition);
+        }
+        .asset-card:hover { border-color: var(--accent-primary); transform: translateY(-5px); }
+        .asset-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .asset-header img { width: 32px; height: 32px; }
+        .asset-balance .val { font-size: 1.5rem; font-weight: 700; display: block; }
+        .asset-balance .usd { font-size: 0.85rem; color: var(--text-muted); }
+
+        /* Action Grid */
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+        .action-item {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: var(--transition);
+        }
+        .action-item:hover { background: var(--accent-primary); border-color: var(--accent-primary); color: white; transform: scale(1.05); }
+        .action-item i { font-size: 1.5rem; margin-bottom: 10px; display: block; }
+        .action-item span { font-size: 0.85rem; font-weight: 600; }
+
+        /* Profile Sections */
+        .profile-sections {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 30px;
+        }
+        .section-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            border-radius: 24px;
+        }
+        .section-card h3 { margin-bottom: 25px; display: flex; align-items: center; gap: 10px; }
+        
+        .info-list { list-style: none; padding: 0; }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .info-item:last-child { border-bottom: none; }
+        .info-item .label { color: var(--text-muted); }
+        .info-item .value { font-weight: 600; }
+
+        .security-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .security-btn:hover { border-color: var(--accent-primary); background: rgba(59, 130, 246, 0.1); }
+
+        /* Quick Buy Modal/Section */
+        .exchange-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .exchange-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: var(--transition);
+        }
+        .exchange-card:hover { 
+            background: rgba(59, 130, 246, 0.1); 
+            border-color: var(--accent-primary);
+            transform: scale(1.02);
+        }
+        .exchange-card i { font-size: 1.2rem; color: var(--accent-primary); }
+        .exchange-card span { font-weight: 600; font-size: 0.9rem; }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+        .back-btn:hover { background: var(--accent-primary); border-color: var(--accent-primary); transform: scale(1.1); }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .profile-hero {
+                flex-direction: column;
+                text-align: center;
+                gap: 20px;
+                padding: 30px 20px;
+            }
+            .profile-hero div[style*="margin-left: auto"] {
+                margin-left: 0 !important;
+                text-align: center !important;
+                width: 100%;
+                border-top: 1px solid var(--glass-border);
+                padding-top: 20px;
+            }
+            .profile-sections {
+                grid-template-columns: 1fr;
+            }
+            .action-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .exchange-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="index.html"><i class="fas fa-th-large"></i> Dashboard</a></li>
+                <li class="active"><a href="wallet.html"><i class="fas fa-wallet"></i> Wallet</a></li>
+                <li><a href="deposit.html"><i class="fas fa-download"></i> Deposit</a></li>
+                <li><a href="withdraw.html"><i class="fas fa-upload"></i> Withdraw</a></li>
+                <li><a href="transfer.html"><i class="fas fa-exchange-alt"></i> Transfer</a></li>
+                <li id="admin-link" style="display: none;"><a href="admin.html"><i class="fas fa-user-shield"></i> Admin Panel</a></li>
+                <li class="nav-divider"></li>
+                <li><a href="vip.html"><i class="fas fa-gem"></i> VIP Club</a></li>
+                <li><a href="support.html"><i class="fas fa-headset"></i> Support</a></li>
+                <li><a href="help.html"><i class="fas fa-question-circle"></i> Help</a></li>
+                <li><a href="#" id="logout-btn" style="color: #ff4d4d;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left" style="display: flex; align-items: center; gap: 20px;">
+                <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+                <div>
+                    <h2>My Wallet</h2>
+                    <p>Manage your assets and account profile.</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="wallet-container">
+            <!-- Profile Hero -->
+            <div class="profile-hero">
+                <div class="profile-avatar"><i class="fas fa-user"></i></div>
+                <div class="profile-info">
+                    <h1>Loading...</h1>
+                    <p>UID: 82739410 • Joined March 2026</p>
+                    <div class="vip-badge"><i class="fas fa-crown"></i> Loading... VIP</div>
+                </div>
+                <div style="margin-left: auto; text-align: right;">
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">Total Balance</span>
+                    <h2 id="total-balance" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-primary); margin-bottom: 5px;">$0.00</h2>
+                    <div style="background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 8px; border: 1px solid var(--glass-border); display: inline-block;">
+                        <span style="color: var(--text-muted); font-size: 0.75rem;">VIP Eligible:</span>
+                        <span id="deposit-balance" style="color: var(--success); font-size: 0.85rem; font-weight: 700; margin-left: 5px;">$0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="action-grid">
+                <a href="deposit.html" class="action-item"><i class="fas fa-download"></i><span>Deposit</span></a>
+                <a href="withdraw.html" class="action-item"><i class="fas fa-upload"></i><span>Withdraw</span></a>
+                <a href="transfer.html" class="action-item"><i class="fas fa-exchange-alt"></i><span>Transfer</span></a>
+                <a href="vip.html" class="action-item"><i class="fas fa-gem"></i><span>VIP Club</span></a>
+            </div>
+
+            <!-- Quick Buy Exchanges -->
+            <div class="section-card" style="margin-bottom: 40px;">
+                <h3><i class="fas fa-shopping-cart"></i> Quick Buy Crypto (Recommended)</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Use these trusted platforms to acquire crypto for your deposits.</p>
+                <div class="exchange-grid">
+                    <a href="https://www.coinbase.com" target="_blank" class="exchange-card">
+                        <i class="fas fa-coins"></i>
+                        <span>Coinbase</span>
+                    </a>
+                    <a href="https://www.kraken.com" target="_blank" class="exchange-card">
+                        <i class="fas fa-water"></i>
+                        <span>Kraken</span>
+                    </a>
+                    <a href="https://www.binance.us" target="_blank" class="exchange-card">
+                        <i class="fas fa-border-all"></i>
+                        <span>Binance.US</span>
+                    </a>
+                    <a href="https://cash.app" target="_blank" class="exchange-card">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>CashApp</span>
+                    </a>
+                    <a href="https://www.moonpay.com" target="_blank" class="exchange-card">
+                        <i class="fas fa-moon"></i>
+                        <span>MoonPay</span>
+                    </a>
+                    <a href="https://www.okx.com" target="_blank" class="exchange-card">
+                        <i class="fas fa-chart-line"></i>
+                        <span>OKX</span>
+                    </a>
+                    <a href="https://www.bybit.com" target="_blank" class="exchange-card">
+                        <i class="fas fa-bolt"></i>
+                        <span>Bybit</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Profile & Security -->
+            <div class="profile-sections">
+                <div class="section-card">
+                    <h3><i class="fas fa-user-circle"></i> Personal Information</h3>
+                    <div class="info-list">
+                        <div class="info-item"><span class="label">Username</span><span class="value">audrey_invest</span></div>
+                        <div class="info-item"><span class="label">Email Address</span><span class="value">audrey.williams@example.com</span></div>
+                        <div class="info-item"><span class="label">Phone Number</span><span class="value">+1 212 555 0198</span></div>
+                        <div class="info-item"><span class="label">Country</span><span class="value">United States</span></div>
+                        <div class="info-item"><span class="label">KYC Status</span><span class="value" style="color: var(--success);"><i class="fas fa-check-circle"></i> Verified</span></div>
+                    </div>
+                </div>
+                <div class="section-card">
+                    <h3><i class="fas fa-shield-alt"></i> Security Center</h3>
+                    <button class="security-btn">
+                        <span>Change Login Password</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="security-btn">
+                        <span>Two-Factor Auth (2FA)</span>
+                        <span style="font-size: 0.7rem; background: var(--danger); padding: 2px 8px; border-radius: 4px;">Disabled</span>
+                    </button>
+                    <button class="security-btn logout-btn" style="margin-top: 20px; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);">
+                        <span>Logout of Account</span>
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            <!-- Transaction History Section -->
+            <div class="section-card" style="margin-top: 40px;">
+                <h3><i class="fas fa-history"></i> Recent Transaction History</h3>
+                <div class="transaction-list" id="wallet-transactions">
+                    <!-- Transactions will be loaded here via JS -->
+                    <div style="padding: 20px; text-align: center; color: var(--text-muted);">Loading transactions...</div>
+                </div>
+                <!-- Pagination Controls -->
+                <div class="pagination-controls glass" id="wallet-pagination-controls" style="margin-top: 20px; padding: 15px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid var(--glass-border);">
+                    <!-- Buttons will be injected here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const user = await API.getProfile();
+                if (user && user.username) {
+                    // Admin Link
+                    if (user.role === 'ADMIN') {
+                        const adminLink = document.getElementById('admin-link');
+                        if (adminLink) adminLink.style.display = 'block';
+                    }
+                    // Update Hero
+                    document.querySelector('.profile-info h1').innerText = user.username;
+                    document.querySelector('.profile-info p').innerText = `UID: ${user.id.toString().padStart(8, '0')} • Joined ${new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+                    
+                    const vipConfig = {
+                        'REGULAR': { icon: 'fas fa-user-circle', color: '#94a3b8' },
+                        'BRONZE': { icon: 'fas fa-medal', color: '#cd7f32' },
+                        'SILVER': { icon: 'fas fa-medal', color: '#c0c0c0' },
+                        'GOLD': { icon: 'fas fa-medal', color: '#ffd700' },
+                        'PLATINUM': { icon: 'fas fa-gem', color: '#e5e4e2' },
+                        'DIAMOND': { icon: 'fas fa-crown', color: '#b9f2ff' }
+                    };
+                    const config = vipConfig[user.vip_rank] || vipConfig['REGULAR'];
+                    const badgeLabel = user.vip_rank === 'REGULAR' ? 'REGULAR' : `${user.vip_rank} VIP`;
+                    
+                    document.querySelector('.vip-badge').innerHTML = `<i class="${config.icon}" style="color: ${config.color}"></i> ${badgeLabel}`;
+                    document.getElementById('total-balance').innerText = `$${user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    document.getElementById('deposit-balance').innerText = `$${user.deposit_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+ 
+                    // Update Personal Info
+                    const infoItems = document.querySelectorAll('.info-item .value');
+                    infoItems[0].innerText = user.username;
+                    infoItems[1].innerText = user.email;
+                    infoItems[2].innerText = user.phone || 'Not set';
+                    infoItems[3].innerText = user.country || 'Not set';
+
+                    // Fetch & Render Transactions
+                    async function loadWalletTransactions(page = 1) {
+                        const data = await API.getTransactions(page, 5);
+                        const transactions = Array.isArray(data) ? data : (data.transactions || []);
+                        const pagination = data.pagination || null;
+                        const txList = document.getElementById('wallet-transactions');
+                        if (txList) {
+                            txList.innerHTML = '';
+                            if (!transactions || transactions.length === 0) {
+                                txList.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); opacity: 0.7;">No transactions yet</div>';
+                            } else {
+                                transactions.forEach(tx => {
+                                    const date = new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                    const isNegative = tx.type.includes('OUT') || tx.type === 'WITHDRAW' || tx.type === 'VIP_UPGRADE' || tx.type === 'FEE';
+                                    const amountClass = isNegative ? 'negative' : 'positive';
+                                    const prefix = isNegative ? '-' : '+';
+                                    
+                                    let iconClass = 'deposit';
+                                    let icon = 'fa-arrow-down';
+                                    if (tx.type === 'WITHDRAW') { iconClass = 'withdraw'; icon = 'fa-arrow-up'; }
+                                    if (tx.type.includes('TRANSFER')) { iconClass = 'transfer'; icon = 'fa-sync-alt'; }
+                                    if (tx.type === 'VIP_UPGRADE') { iconClass = 'withdraw'; icon = 'fa-gem'; }
+                                    if (tx.type === 'FEE') { iconClass = 'withdraw'; icon = 'fa-receipt'; }
+                                    
+                                    const item = document.createElement('div');
+                                    item.className = 'transaction';
+                                    item.style.padding = '15px 0';
+                                    item.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                                    item.innerHTML = `
+                                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                                            <div style="display: flex; align-items: center; gap: 15px;">
+                                                <div class="icon ${iconClass}" style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;"><i class="fas ${icon}"></i></div>
+                                                <div>
+                                                    <p style="font-weight: 600; font-size: 0.95rem; margin: 0;">${tx.type.replace(/_/g, ' ')}</p>
+                                                    <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0;">${date} • ${tx.details || ''}</p>
+                                                </div>
+                                            </div>
+                                            <div class="amount ${amountClass}" style="font-weight: 700; font-size: 1rem;">${prefix}$${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                        </div>
+                                    `;
+                                    txList.appendChild(item);
+                                });
+                            }
+                        }
+
+                        // Render Pagination Controls
+                        const controls = document.getElementById('wallet-pagination-controls');
+                        if (controls && pagination) {
+                            controls.innerHTML = '';
+                            const { totalPages, currentPage } = pagination;
+                            
+                            if (totalPages > 1) {
+                                for (let i = 1; i <= totalPages; i++) {
+                                    const btn = document.createElement('button');
+                                    btn.innerText = i;
+                                    btn.style.cssText = `
+                                        padding: 8px 16px;
+                                        border: 1px solid var(--glass-border);
+                                        background: ${i === currentPage ? 'var(--accent-primary)' : 'var(--glass-bg)'};
+                                        color: white;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 0.85rem;
+                                        transition: 0.2s;
+                                    `;
+                                    btn.onclick = () => loadWalletTransactions(i);
+                                    controls.appendChild(btn);
+                                }
+                            }
+                        }
+                    }
+
+                    await loadWalletTransactions(1);
+                }
+            } catch (err) {
+                console.error('Failed to load profile', err);
+            }
+        });
+    </script>
+    <script src="js/chat.js"></script>
+</body>
+</html>

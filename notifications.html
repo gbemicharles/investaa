@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications | Investment Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .notifications-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .notif-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 20px;
+            transition: var(--transition);
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        .notif-card.unread {
+            border-left: 4px solid var(--accent-primary);
+            background: rgba(59, 130, 246, 0.05);
+        }
+        .notif-card:hover {
+            transform: translateX(5px);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        .notif-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .notif-icon.SUCCESS { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .notif-icon.PENDING { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .notif-icon.FAILED { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .notif-icon.SYSTEM { background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); }
+        
+        .notif-content { flex: 1; }
+        .notif-title { font-weight: 700; margin-bottom: 5px; font-family: 'Outfit'; }
+        .notif-message { color: var(--text-muted); font-size: 0.95rem; line-height: 1.4; }
+        .notif-time { font-size: 0.75rem; color: var(--text-muted); margin-top: 10px; display: block; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 100px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state i { font-size: 4rem; margin-bottom: 20px; opacity: 0.2; }
+    </style>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/auth-guard.js"></script>
+</head>
+<body class="dark-theme">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="logo-container">
+            <h1 class="logo"><span></span></h1>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="index.html"><i class="fas fa-th-large"></i> Dashboard</a></li>
+                <li><a href="wallet.html"><i class="fas fa-wallet"></i> Wallet</a></li>
+                <li><a href="deposit.html"><i class="fas fa-download"></i> Deposit</a></li>
+                <li><a href="withdraw.html"><i class="fas fa-upload"></i> Withdraw</a></li>
+                <li><a href="transfer.html"><i class="fas fa-exchange-alt"></i> Transfer</a></li>
+                <li id="admin-link" style="display: none;"><a href="admin.html"><i class="fas fa-user-shield"></i> Admin Panel</a></li>
+                <li class="nav-divider"></li>
+                <li><a href="vip.html"><i class="fas fa-gem"></i> VIP Club</a></li>
+                <li class="active"><a href="notifications.html"><i class="fas fa-comment-dots"></i> Messages <span class="badge" id="messages-badge" style="display: none;">0</span></a></li>
+                <li><a href="support.html"><i class="fas fa-headset"></i> Support</a></li>
+                <li><a href="help.html"><i class="fas fa-question-circle"></i> Help</a></li>
+                <li><a href="#" id="logout-btn" style="color: #ff4d4d;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-brief">
+                <div class="avatar">JS</div>
+                <div class="user-info">
+                    <p class="name">User Profile</p>
+                    <p class="role">Pro Member</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <h2>Notifications</h2>
+                <p>Stay updated with your account activity.</p>
+            </div>
+            <div class="header-right">
+                <button class="btn secondary" onclick="markAllRead()"><i class="fas fa-check-double"></i> Mark All as Read</button>
+                <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+            </div>
+        </header>
+
+        <section class="notifications-container">
+            <div id="notifications-list">
+                <!-- Notifications will be loaded here -->
+                <div style="text-align: center; padding: 50px;">
+                    <div class="skeleton" style="height: 100px; margin-bottom: 15px;"></div>
+                    <div class="skeleton" style="height: 100px; margin-bottom: 15px;"></div>
+                    <div class="skeleton" style="height: 100px;"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function loadNotifications() {
+            const list = document.getElementById('notifications-list');
+            try {
+                const notifications = await API.getNotifications();
+                
+                if (!notifications || notifications.length === 0) {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-bell-slash"></i>
+                            <h3>No notifications yet</h3>
+                            <p>We'll notify you when something important happens.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = '';
+                notifications.forEach(n => {
+                    const card = document.createElement('div');
+                    card.className = `notif-card ${n.is_read ? '' : 'unread'}`;
+                    
+                    let icon = 'fa-bell';
+                    if (n.type === 'DEPOSIT') icon = 'fa-arrow-down';
+                    if (n.type === 'WITHDRAWAL') icon = 'fa-arrow-up';
+                    if (n.type === 'UPGRADE') icon = 'fa-gem';
+                    if (n.type === 'SYSTEM') icon = 'fa-info-circle';
+
+                    card.innerHTML = `
+                        <div class="notif-icon ${n.status || n.type}">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="notif-content">
+                            <h4 class="notif-title">${n.title}</h4>
+                            <p class="notif-message">${n.message}</p>
+                            <span class="notif-time">${new Date(n.created_at).toLocaleString()}</span>
+                        </div>
+                    `;
+                    
+                    if (!n.is_read) {
+                        card.onclick = () => markAsRead(n.id);
+                    }
+                    
+                    list.appendChild(card);
+                });
+            } catch (err) {
+                list.innerHTML = '<p style="text-align: center; color: var(--danger);">Failed to load notifications.</p>';
+            }
+        }
+
+        async function markAsRead(id) {
+            try {
+                await API.markNotificationsRead(id);
+                loadNotifications();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function markAllRead() {
+            try {
+                await API.markNotificationsRead();
+                loadNotifications();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const user = await API.getProfile();
+                if (user && user.username) {
+                    // Admin Link
+                    if (user.role === 'ADMIN') {
+                        const adminLink = document.getElementById('admin-link');
+                        if (adminLink) adminLink.style.display = 'block';
+                    }
+                    // Update User Profile
+                    document.querySelectorAll('.user-info .name').forEach(el => el.innerText = user.username);
+                    document.querySelector('.sidebar-footer .avatar').innerText = user.username.substring(0, 2).toUpperCase();
+                }
+            } catch (e) {}
+            loadNotifications();
+        });
+    </script>
+</body>
+</html>
