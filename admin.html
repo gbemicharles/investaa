@@ -156,11 +156,11 @@
                         <div class="deposit-details">
                             <div>
                                 <span class="detail-label">USDT Amount:</span>
-                                <span class="detail-value" style="color: var(--accent-primary);">${d.usdt_amount || d.btc_amount} USDT</span>
+                                <span class="detail-value" style="color: var(--accent-primary);">${parseFloat(d.usdt_amount || d.btc_amount || 0).toFixed(2)} USDT</span>
                             </div>
                             <div>
                                 <span class="detail-label">Equivalent Crypto:</span>
-                                <span class="detail-value">${(d.crypto_amount || d.btc_amount).toFixed(8)} ${d.network.split(' ')[0]}</span>
+                                <span class="detail-value">${parseFloat(d.crypto_amount || d.btc_amount || 0).toFixed(8)} ${(d.network || '').split(' ')[0]}</span>
                             </div>
                             <div>
                                 <span class="detail-label">Exchange Rate:</span>
@@ -184,7 +184,7 @@
                             ` : ''}
                         </div>
                         <div class="action-area">
-                            <input type="number" id="usdt-${d.id}" placeholder="USDT to credit" step="0.01" value="${d.usdt_amount || d.btc_amount}">
+                            <input type="number" id="usdt-${d.id}" placeholder="USDT to credit" step="0.01" value="${parseFloat(d.usdt_amount || d.btc_amount || 0).toFixed(2)}">
                             <button class="btn primary" onclick="approve(${d.id})" style="padding: 10px 20px;">Approve</button>
                             <button class="btn secondary" onclick="reject(${d.id})" style="padding: 10px 20px; color: #ff4d4d;">Reject</button>
                         </div>
