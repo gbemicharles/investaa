@@ -403,8 +403,9 @@ app.post('/api/transactions/transfer', authenticate, async (req, res) => {
         const amt = parseFloat(amount);
         const sender = await dbGet('SELECT id, username, balance FROM users WHERE id = ?', [req.user.id]);
         if (parseFloat(sender.balance) < (amt + 1)) return res.status(400).json({ msg: 'Insufficient balance' });
-        const recip = await dbGet('SELECT id, username FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR id = ?', [recipient, recipient, parseInt(recipient) || 0]);
+        const recip = await dbGet('SELECT id, username, vip_rank FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR id = ?', [recipient, recipient, parseInt(recipient) || 0]);
         if (!recip || recip.id === req.user.id) return res.status(404).json({ msg: 'Recipient not found' });
+        if (!recip.vip_rank || recip.vip_rank === 'REGULAR') return res.status(400).json({ msg: `Transfer failed. The recipient's account is not eligible to receive funds. They must upgrade to at least VIP Bronze rank before they can receive transfers.` });
         await dbRun('UPDATE users SET balance = balance - ? WHERE id = ?', [amt + 1, req.user.id]);
         await dbRun('UPDATE users SET balance = balance + ? WHERE id = ?', [amt, recip.id]);
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'TRANSFER_OUT', amt, `To: ${recip.username}`, 'COMPLETED']);
