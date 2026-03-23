@@ -60,6 +60,11 @@
             color: var(--text-muted);
         }
         .empty-state i { font-size: 4rem; margin-bottom: 20px; opacity: 0.2; }
+
+        @media (max-width: 991px) {
+            .mobile-back-btn { display: inline-flex !important; }
+            .menu-toggle { display: none !important; }
+        }
     </style>
     <link rel="stylesheet" href="css/style.css">
     <script src="js/auth-guard.js"></script>
@@ -105,6 +110,7 @@
             </div>
             <div class="header-right">
                 <button class="btn secondary" onclick="markAllRead()"><i class="fas fa-check-double"></i> Mark All as Read</button>
+                <a href="index.html" class="btn secondary mobile-back-btn" style="display: none;"><i class="fas fa-arrow-left"></i> Back</a>
                 <button class="menu-toggle"><i class="fas fa-bars"></i></button>
             </div>
         </header>

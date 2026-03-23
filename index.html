@@ -147,8 +147,8 @@
                 <h3>Need Assistance?</h3>
                 <p>Our VIP support team is online 24/7 dedicated to your success.</p>
                 <div class="support-btns">
-                    <button class="btn btn-sm"><i class="fas fa-comment"></i> Chat Now</button>
-                    <button class="btn btn-sm outline"><i class="fas fa-envelope"></i> Email Support</button>
+                    <button class="btn btn-sm" onclick="document.getElementById('chat-toggle').click()"><i class="fas fa-comment"></i> Chat Now</button>
+                    <button class="btn btn-sm outline" onclick="window.location.href='mailto:investaa.pro@gmail.com'"><i class="fas fa-envelope"></i> Email Support</button>
                 </div>
             </div>
         </section>
@@ -157,10 +157,10 @@
     <!-- Mobile Bottom Navigation -->
     <nav class="mobile-nav">
         <a href="index.html" class="active"><i class="fas fa-home"></i></a>
-        <a href="#"><i class="fas fa-wallet"></i></a>
-        <a href="#"><i class="fas fa-exchange-alt"></i></a>
-        <a href="#"><i class="fas fa-comment-dots"></i></a>
-        <a href="#"><i class="fas fa-user-circle"></i></a>
+        <a href="wallet.html"><i class="fas fa-wallet"></i></a>
+        <a href="transfer.html"><i class="fas fa-exchange-alt"></i></a>
+        <a href="notifications.html"><i class="fas fa-comment-dots"></i></a>
+        <a href="vip.html"><i class="fas fa-gem"></i></a>
     </nav>
 
     <script src="js/crypto-api.js"></script>
@@ -182,18 +182,6 @@
                     
                     // Update Balance
                     document.querySelector('.balance-card .value').innerText = user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    
-                    // Show Admin Link if Role is ADMIN
-                    if (user.role === 'ADMIN') {
-                        const adminLi = document.createElement('li');
-                        adminLi.innerHTML = '<a href="admin.html" style="color: var(--accent-primary); font-weight: bold; border: 1px solid rgba(59, 130, 246, 0.2); background: rgba(59, 130, 246, 0.05);"><i class="fas fa-user-shield"></i> Admin Panel</a>';
-                        const firstDivider = document.querySelector('.nav-divider');
-                        if (firstDivider) {
-                            firstDivider.parentNode.insertBefore(adminLi, firstDivider);
-                        } else {
-                            document.querySelector('.sidebar-nav ul').appendChild(adminLi);
-                        }
-                    }
                     
                     // Update VIP / Role
                     const vipIcons = {
