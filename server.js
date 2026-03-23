@@ -212,6 +212,20 @@ app.post('/api/auth/register', async (req, res) => {
         );
 
         const userToken = jwt.sign({ id: result.lastID, username, is_admin: is_admin }, JWT_SECRET, { expiresIn: '7d' });
+
+        // Notify all admin users about new registration
+        try {
+            const admins = await dbAll('SELECT id FROM users WHERE is_admin = 1');
+            for (const admin of admins) {
+                await dbRun(
+                    'INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
+                    [admin.id, 'New User Registered', `${username} (${email}) just created an account.`, 'SYSTEM', 'SUCCESS']
+                );
+            }
+        } catch (notifErr) {
+            console.error('Failed to notify admins of new registration:', notifErr.message);
+        }
+
         res.json({ token: userToken, msg: 'Registration successful' });
     } catch (e) {
         console.error('Registration failed:', e.message);
@@ -306,6 +320,15 @@ app.post('/api/admin/reject-withdrawal/:id', authenticateAdmin, async (req, res)
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
+app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
+    try {
+        const users = await dbAll(
+            'SELECT id, username, email, phone, country, balance, deposit_balance, vip_rank, is_admin, created_at FROM users ORDER BY created_at DESC'
+        );
+        res.json(users.map(u => ({ ...u, balance: parseFloat(u.balance || 0), deposit_balance: parseFloat(u.deposit_balance || 0) })));
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
 app.post('/api/admin/fund-user', authenticateAdmin, async (req, res) => {
     try {
         const { identifier, amount } = req.body;
@@ -355,13 +378,17 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
     try {
         const { amount, details, pin } = req.body;
         const amt = parseFloat(amount);
+        const FEE = 1;
+        const totalDeducted = amt + FEE;
         const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.user.id]);
         if (!(await bcrypt.compare(String(pin), user.pin))) return res.status(401).json({ msg: 'Invalid transaction PIN' });
-        if (amt > parseFloat(user.balance)) return res.status(400).json({ msg: 'Insufficient balance' });
-        await dbRun('UPDATE users SET balance = balance - ? WHERE id = ?', [amt, req.user.id]);
+        if (amt < 10) return res.status(400).json({ msg: 'Minimum withdrawal amount is $10.00' });
+        if (totalDeducted > parseFloat(user.balance)) return res.status(400).json({ msg: `Insufficient balance. A $${FEE} fee applies — you need $${totalDeducted.toFixed(2)} total.` });
+        await dbRun('UPDATE users SET balance = balance - ? WHERE id = ?', [totalDeducted, req.user.id]);
         await dbRun('INSERT INTO withdrawals (user_id, amount, details) VALUES (?, ?, ?)', [req.user.id, amt, details || '']);
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'WITHDRAW', amt, details || '', 'PENDING']);
-        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Withdrawal Requested', 'Your withdrawal is being processed.', 'WITHDRAWAL', 'PENDING']);
+        await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'FEE', FEE, 'Withdrawal processing fee', 'COMPLETED']);
+        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Withdrawal Requested', `Your withdrawal of $${amt.toFixed(2)} is being processed. A $${FEE} fee was applied.`, 'WITHDRAWAL', 'PENDING']);
         res.json({ msg: 'Withdrawal submitted' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });

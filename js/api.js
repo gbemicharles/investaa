@@ -224,6 +224,14 @@ const API = {
         return res.json();
     },
 
+    async adminGetUsers() {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/users`, {
+            headers: { 'x-auth-token': token }
+        });
+        return res.json();
+    },
+
     async adminGetPendingWithdrawals() {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_URL}/admin/pending-withdrawals`, {
