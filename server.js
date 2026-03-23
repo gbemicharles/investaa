@@ -368,9 +368,10 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
     try {
         const { amount, network, txid, usdt_amount, crypto_amount, exchange_rate } = req.body;
         const proof_path = req.file ? req.file.path : null;
-        await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', proof_path, parseFloat(usdt_amount || amount), parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
-        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit via ${network} is under review.`, 'DEPOSIT', 'PENDING']);
-        res.json({ msg: 'Deposit submitted for review' });
+        const usdtAmt = parseFloat(usdt_amount || amount);
+        await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', proof_path, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
+        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit of $${usdtAmt.toFixed(2)} USDT via ${network} has been received and is currently under review. Our team will verify your transaction and credit your account within 10–30 minutes. You will be notified once it is approved.`, 'DEPOSIT', 'PENDING']);
+        res.json({ msg: 'Deposit submitted for review', amount: usdtAmt });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
@@ -388,7 +389,10 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
         await dbRun('INSERT INTO withdrawals (user_id, amount, details) VALUES (?, ?, ?)', [req.user.id, amt, details || '']);
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'WITHDRAW', amt, details || '', 'PENDING']);
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'FEE', FEE, 'Withdrawal processing fee', 'COMPLETED']);
-        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Withdrawal Requested', `Your withdrawal of $${amt.toFixed(2)} is being processed. A $${FEE} fee was applied.`, 'WITHDRAWAL', 'PENDING']);
+        const withdrawalNote = amt > 100
+            ? `Your withdrawal of $${amt.toFixed(2)} USDT is being processed (a $${FEE} fee was applied). Please be aware that withdrawals above $100 may be subject to additional security review and could take up to 24 hours or more to complete. For faster, instant withdrawals, consider upgrading to a higher VIP tier — Gold, Platinum, or Diamond members enjoy priority processing.`
+            : `Your withdrawal of $${amt.toFixed(2)} USDT has been submitted successfully. A $${FEE} processing fee was applied. Your funds are on the way.`;
+        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Withdrawal Requested', withdrawalNote, 'WITHDRAWAL', 'PENDING']);
         res.json({ msg: 'Withdrawal submitted' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -415,7 +419,7 @@ app.post('/api/user/upgrade', authenticate, async (req, res) => {
         const costs = { BRONZE: 50, SILVER: 1000, GOLD: 3000, PLATINUM: 30000, DIAMOND: 50000 };
         const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.user.id]);
         const cost = costs[rank];
-        if (parseFloat(user.deposit_balance) < cost) return res.status(400).json({ msg: 'Insufficient funds' });
+        if (parseFloat(user.deposit_balance) < cost) return res.status(400).json({ msg: `Your current deposit balance is insufficient for this upgrade. Please note that only funds deposited directly into your account count toward VIP eligibility — internal transfers received from other users do not qualify. To unlock ${rank} status, you need a cumulative deposit of at least $${cost.toLocaleString()} USDT. Please make a deposit to your account and try again.` });
         await dbRun('UPDATE users SET balance = balance - ?, deposit_balance = deposit_balance - ?, vip_rank = ? WHERE id = ?', [cost, cost, rank, req.user.id]);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP Upgrade', `Status: ${rank}`, 'UPGRADE', 'SUCCESS']);
         res.json({ msg: `Upgraded to ${rank}!` });

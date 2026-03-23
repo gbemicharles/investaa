@@ -503,11 +503,12 @@
                     }
 
                     const res = await API.submitDeposit(formData);
-                    if (res.id) {
-                        alert('Deposit request submitted! Our team will verify it soon.');
+                    if (res.msg && res.msg.includes('submitted')) {
+                        const creditedAmount = res.amount ? res.amount.toFixed(2) : amount.toFixed(2);
+                        alert(`✅ Deposit of $${creditedAmount} USDT submitted successfully!\n\nYour transaction via ${selectedNetwork} is now under review. Our team will verify it and credit your account within 10–30 minutes. You'll receive a notification once it's approved.`);
                         window.location.href = 'index.html';
                     } else {
-                        alert(res.msg || 'Submission failed');
+                        alert(res.msg || 'Submission failed. Please try again.');
                     }
                 } catch (err) {
                     alert('Network error. Please try again.');
