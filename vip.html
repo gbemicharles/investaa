@@ -128,6 +128,67 @@
             transition: var(--transition);
         }
         .back-btn:hover { background: var(--accent-primary); border-color: var(--accent-primary); transform: scale(1.1); }
+
+        .earnings-banner {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            border-radius: 20px;
+            padding: 30px 35px;
+            margin-bottom: 35px;
+        }
+        .earnings-banner-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 18px;
+        }
+        .earnings-banner-header i {
+            font-size: 2rem;
+            color: #10b981;
+        }
+        .earnings-banner-header h3 {
+            font-size: 1.25rem;
+            margin: 0;
+        }
+        .earnings-banner p {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        .earnings-rate-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .rate-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .rate-badge .rate-val {
+            color: #10b981;
+            font-weight: 800;
+        }
+        .earning-highlight {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #10b981 !important;
+            display: flex !important;
+            align-items: center;
+            gap: 6px;
+        }
+        .earning-highlight i { color: #10b981 !important; }
     </style>
 </head>
 <body class="dark-theme">
@@ -176,6 +237,28 @@
         </header>
 
         <section class="vip-container">
+
+            <!-- Daily Earnings Explanation Banner -->
+            <div class="earnings-banner">
+                <div class="earnings-banner-header">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>Daily Compounding Investment Returns</h3>
+                </div>
+                <p>
+                    Every VIP member earns an automatic daily return on their full account balance — credited every 24 hours, compounding automatically. Your balance grows each day without you lifting a finger. The higher your VIP rank, the higher your daily rate.
+                </p>
+                <p style="margin-bottom: 15px;">
+                    Returns are calculated on your total account balance at the time of each payout. Since earnings compound, each cycle pays out slightly more than the last. You'll see every payout as a <strong>"Daily Investment Return"</strong> in your transaction history and receive a notification each time funds are credited.
+                </p>
+                <div class="earnings-rate-row">
+                    <div class="rate-badge"><span style="color:#cd7f32;">🥉 Bronze</span> <span class="rate-val">1% / day</span></div>
+                    <div class="rate-badge"><span style="color:#c0c0c0;">🥈 Silver</span> <span class="rate-val">2% / day</span></div>
+                    <div class="rate-badge"><span style="color:#ffd700;">🥇 Gold</span> <span class="rate-val">2.5% / day</span></div>
+                    <div class="rate-badge"><span style="color:#e5e4e2;">💎 Platinum</span> <span class="rate-val">4% / day</span></div>
+                    <div class="rate-badge"><span style="color:#b9f2ff;">👑 Diamond</span> <span class="rate-val">5% / day</span></div>
+                </div>
+            </div>
+
             <div class="vip-grid">
                 <!-- Bronze -->
                 <div class="vip-card bronze">
@@ -186,6 +269,7 @@
                         <span>50 USDT</span>
                     </div>
                     <ul class="benefits-list">
+                        <li class="earning-highlight"><i class="fas fa-chart-line"></i> <strong>1% Daily Investment Return</strong></li>
                         <li><i class="fas fa-check-circle"></i> Daily Limit: <strong>10 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Monthly Limit: <strong>30 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Standard Support</li>
@@ -202,6 +286,7 @@
                         <span>1,000 USDT</span>
                     </div>
                     <ul class="benefits-list">
+                        <li class="earning-highlight"><i class="fas fa-chart-line"></i> <strong>2% Daily Investment Return</strong></li>
                         <li><i class="fas fa-check-circle"></i> Daily Limit: <strong>100 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Monthly Limit: <strong>3,000 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Priority Support</li>
@@ -218,6 +303,7 @@
                         <span>3,000 USDT</span>
                     </div>
                     <ul class="benefits-list">
+                        <li class="earning-highlight"><i class="fas fa-chart-line"></i> <strong>2.5% Daily Investment Return</strong></li>
                         <li><i class="fas fa-check-circle"></i> Daily Limit: <strong>30,000 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Monthly Limit: <strong>200,000 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Dedicated Manager</li>
@@ -234,6 +320,7 @@
                         <span>30,000 USDT</span>
                     </div>
                     <ul class="benefits-list">
+                        <li class="earning-highlight"><i class="fas fa-chart-line"></i> <strong>4% Daily Investment Return</strong></li>
                         <li><i class="fas fa-check-circle"></i> Daily Limit: <strong>200,000 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Monthly Limit: <strong>6,000,000 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> VIP Networking</li>
@@ -250,6 +337,7 @@
                         <span>50,000 USDT</span>
                     </div>
                     <ul class="benefits-list">
+                        <li class="earning-highlight"><i class="fas fa-chart-line"></i> <strong>5% Daily Investment Return</strong></li>
                         <li><i class="fas fa-check-circle"></i> Daily Limit: <strong>1,000,000 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Monthly Limit: <strong>30,000,000 USDT</strong></li>
                         <li><i class="fas fa-check-circle"></i> Unlimited Access</li>
