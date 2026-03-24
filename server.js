@@ -501,8 +501,9 @@ app.post('/api/user/upgrade', authenticate, async (req, res) => {
         const cost = costs[rank];
         if (parseFloat(user.deposit_balance) < cost) return res.status(400).json({ msg: `Your current deposit balance is insufficient for this upgrade. Please note that only funds deposited directly into your account count toward VIP eligibility — internal transfers received from other users do not qualify. To unlock ${rank} status, you need a cumulative deposit of at least $${cost.toLocaleString()} USDT. Please make a deposit to your account and try again.` });
         await dbRun('UPDATE users SET balance = balance - ?, deposit_balance = deposit_balance - ?, vip_rank = ? WHERE id = ?', [cost, cost, rank, req.user.id]);
-        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP Upgrade', `Status: ${rank}`, 'UPGRADE', 'SUCCESS']);
-        res.json({ msg: `Upgraded to ${rank}!` });
+        await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP_UPGRADE', cost, `Upgraded to ${rank} VIP rank`, 'COMPLETED']);
+        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP Upgrade Successful', `Congratulations! Your account has been upgraded to ${rank} VIP status. You now earn a daily investment return and enjoy all ${rank} benefits.`, 'UPGRADE', 'SUCCESS']);
+        res.json({ msg: `Successfully upgraded to ${rank}!` });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
