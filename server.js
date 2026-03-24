@@ -88,13 +88,92 @@ async function initDb() {
         // Ensure 'john' has admin panel access (Case-Insensitive)
         await pool.query("UPDATE users SET is_admin = 1 WHERE LOWER(username) = LOWER('john') AND is_admin = 0");
 
+        // Add last_earning_at column if it doesn't exist (safe migration)
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_earning_at TIMESTAMP`);
+
         console.log('PostgreSQL database initialized.');
     } catch (err) {
         console.error('CRITICAL: Database initialization failed!', err);
     }
 }
 
-initDb();
+const EARNING_RATES = {
+    BRONZE:   0.01,
+    SILVER:   0.02,
+    GOLD:     0.025,
+    PLATINUM: 0.04,
+    DIAMOND:  0.05
+};
+
+async function applyDailyEarnings() {
+    try {
+        const now = new Date();
+        const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+        // Fetch all VIP users with a positive balance whose last earning was >24h ago (or never)
+        const eligibleUsers = await dbAll(
+            `SELECT * FROM users WHERE vip_rank != 'REGULAR' AND balance > 0 AND (last_earning_at IS NULL OR last_earning_at <= $1)`,
+            [cutoff]
+        );
+
+        if (eligibleUsers.length === 0) {
+            console.log('[EARNINGS] No eligible users at this time.');
+            return;
+        }
+
+        console.log(`[EARNINGS] Processing ${eligibleUsers.length} eligible users...`);
+
+        for (const user of eligibleUsers) {
+            const rate = EARNING_RATES[user.vip_rank];
+            if (!rate) continue;
+
+            const balance = parseFloat(user.balance);
+            const earning = parseFloat((balance * rate).toFixed(2));
+            if (earning <= 0) continue;
+
+            const ratePercent = (rate * 100).toFixed(1).replace(/\.0$/, '');
+
+            // Credit balance and record timestamp
+            await pool.query(
+                `UPDATE users SET balance = balance + $1, last_earning_at = $2 WHERE id = $3`,
+                [earning, now, user.id]
+            );
+
+            // Transaction record
+            await pool.query(
+                `INSERT INTO transactions (user_id, type, amount, details, status) VALUES ($1, 'EARNING', $2, $3, 'COMPLETED')`,
+                [user.id, earning, `Daily ${ratePercent}% ${user.vip_rank} investment return on $${balance.toFixed(2)}`]
+            );
+
+            // Notification
+            await pool.query(
+                `INSERT INTO notifications (user_id, title, message, type, status) VALUES ($1, $2, $3, 'SYSTEM', 'SUCCESS')`,
+                [
+                    user.id,
+                    '💰 Daily Investment Return',
+                    `You earned $${earning.toFixed(2)} USDT today — your ${ratePercent}% daily ${user.vip_rank} return on a balance of $${balance.toFixed(2)} USDT. This earning has been added to your account and will compound in the next cycle. Keep growing!`
+                ]
+            );
+
+            console.log(`[EARNINGS] Credited ${user.username}: +$${earning} (${ratePercent}% of $${balance})`);
+        }
+
+        console.log('[EARNINGS] Daily earnings cycle complete.');
+    } catch (err) {
+        console.error('[EARNINGS] Error during daily earnings run:', err.message);
+    }
+}
+
+async function startEarningsScheduler() {
+    // Run once immediately after startup (catches any users past-due)
+    await applyDailyEarnings();
+    // Then check every hour — only users past the 24h mark will be credited
+    setInterval(applyDailyEarnings, 60 * 60 * 1000);
+}
+
+initDb().then(() => {
+    startEarningsScheduler();
+});
 
 const dbGet = async (sql, params) => {
     try {

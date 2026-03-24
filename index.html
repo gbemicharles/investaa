@@ -225,13 +225,16 @@
                                     if (tx.type.includes('TRANSFER')) { iconClass = 'transfer'; icon = 'fa-sync-alt'; }
                                     if (tx.type === 'VIP_UPGRADE') { iconClass = 'withdraw'; icon = 'fa-gem'; }
                                     if (tx.type === 'FEE') { iconClass = 'withdraw'; icon = 'fa-receipt'; }
+                                    if (tx.type === 'EARNING') { iconClass = 'deposit'; icon = 'fa-chart-line'; }
                                     
+                                    const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Fee', EARNING: 'Daily Investment Return' };
+                                    const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
                                     const item = document.createElement('div');
                                     item.className = 'transaction';
                                     item.innerHTML = `
                                         <div class="icon ${iconClass}"><i class="fas ${icon}"></i></div>
                                         <div class="details">
-                                            <p class="title">${tx.type.replace(/_/g, ' ')}</p>
+                                            <p class="title">${txLabel}</p>
                                             <p class="date">${date}</p>
                                         </div>
                                         <div class="amount ${amountClass}">${prefix}$${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
