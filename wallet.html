@@ -249,10 +249,17 @@
                 </div>
                 <div style="margin-left: auto; text-align: right;">
                     <span style="color: var(--text-muted); font-size: 0.9rem;">Total Balance</span>
-                    <h2 id="total-balance" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-primary); margin-bottom: 5px;">$0.00</h2>
-                    <div style="background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 8px; border: 1px solid var(--glass-border); display: inline-block;">
-                        <span style="color: var(--text-muted); font-size: 0.75rem;">VIP Eligible:</span>
-                        <span id="deposit-balance" style="color: var(--success); font-size: 0.85rem; font-weight: 700; margin-left: 5px;">$0.00</span>
+                    <h2 id="total-balance" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-primary); margin-bottom: 8px;">$0.00</h2>
+                    <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+                        <div style="background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 8px; border: 1px solid var(--glass-border); display: inline-block;">
+                            <span style="color: var(--text-muted); font-size: 0.75rem;">VIP Eligible:</span>
+                            <span id="deposit-balance" style="color: var(--success); font-size: 0.85rem; font-weight: 700; margin-left: 5px;">$0.00</span>
+                        </div>
+                        <div style="background: rgba(16,185,129,0.1); padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(16,185,129,0.3); display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-chart-line" style="color: #10b981; font-size: 0.75rem;"></i>
+                            <span style="color: var(--text-muted); font-size: 0.75rem;">Total Profit:</span>
+                            <span id="wallet-total-profit" style="color: #10b981; font-size: 0.85rem; font-weight: 700; margin-left: 2px;">+$0.00</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -372,6 +379,8 @@
                     document.querySelector('.vip-badge').innerHTML = `<i class="${config.icon}" style="color: ${config.color}"></i> ${badgeLabel}`;
                     document.getElementById('total-balance').innerText = `$${user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                     document.getElementById('deposit-balance').innerText = `$${user.deposit_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    const walletProfit = user.total_earnings || 0;
+                    document.getElementById('wallet-total-profit').innerText = `+$${walletProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
  
                     // Update Personal Info
                     const infoItems = document.querySelectorAll('.info-item .value');

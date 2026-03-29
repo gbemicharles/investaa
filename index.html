@@ -86,6 +86,13 @@
                     <span class="stat positive"><i class="fas fa-caret-up"></i> +12.5%</span>
                     <span class="stat-period">vs last month</span>
                 </div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 25px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 12px; padding: 12px 18px;">
+                    <i class="fas fa-chart-line" style="color: #10b981; font-size: 1.2rem;"></i>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.78rem; margin-bottom: 2px;">Total Investment Profit</div>
+                        <div id="total-profit" style="color: #10b981; font-weight: 800; font-size: 1.15rem;">$0.00</div>
+                    </div>
+                </div>
                 <div class="quick-actions">
                     <button class="btn btn-action primary" onclick="window.location.href='deposit.html'"><i class="fas fa-plus"></i> Deposit</button>
                     <button class="btn btn-action secondary" onclick="window.location.href='withdraw.html'"><i class="fas fa-minus"></i> Withdraw</button>
@@ -182,6 +189,10 @@
                     
                     // Update Balance
                     document.querySelector('.balance-card .value').innerText = user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    // Update Total Profit
+                    const profit = user.total_earnings || 0;
+                    document.getElementById('total-profit').innerText = `+$${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                     
                     // Update VIP / Role
                     const vipIcons = {

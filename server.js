@@ -331,7 +331,10 @@ app.get('/api/user/profile', authenticate, async (req, res) => {
     try {
         const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.user.id]);
         if (!user) return res.status(404).json({ msg: 'User not found' });
-        res.json(formatUser(user));
+        const earningsRow = await dbGet('SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = ? AND type = ?', [req.user.id, 'EARNING']);
+        const formatted = formatUser(user);
+        formatted.total_earnings = parseFloat(earningsRow ? earningsRow.total : 0);
+        res.json(formatted);
     } catch (e) {
         res.status(500).json({ msg: 'Server error' });
     }
