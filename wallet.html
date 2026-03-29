@@ -497,37 +497,26 @@
                         });
 
                         // Pagination
-                const controls = document.getElementById('wallet-pagination-controls');
+                        const controls = document.getElementById('wallet-pagination-controls');
 
-                if (controls && pagination) {
-                    controls.innerHTML = '';
+                        if (controls && pagination) {
+                            controls.innerHTML = '';
 
-                    const { totalPages, currentPage } = pagination;
+                            const { totalPages, currentPage } = pagination;
 
-                    if (totalPages > 1) {
-                        for (let i = 1; i <= totalPages; i++) {
-                            const btn = document.createElement('button');
-                            btn.innerText = i;
+                            if (totalPages > 1) {
+                                for (let i = 1; i <= totalPages; i++) {
+                                    const btn = document.createElement('button');
+                                    btn.innerText = i;
 
-                            // ✅ Restore styling
-                            btn.style.cssText = `
-                                padding: 8px 16px;
-                                border: 1px solid var(--glass-border);
-                                background: ${i === currentPage ? 'var(--accent-primary)' : 'var(--glass-bg)'};
-                                color: white;
-                                border-radius: 8px;
-                                cursor: pointer;
-                                font-size: 0.85rem;
-                                transition: 0.2s;
-                            `;
+                                    btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
 
-                            // ✅ Fix click
-                            btn.onclick = () => loadTransactions(i);
+                                    btn.onclick = () => loadTransactions(i);
 
-                            controls.appendChild(btn);
+                                    controls.appendChild(btn);
+                                }
+                            }
                         }
-                    }
-                }
 
                 // ✅ CORRECT CALL
                 await loadTransactions(1);
