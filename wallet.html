@@ -346,119 +346,192 @@
 
     <script src="js/api.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const user = await API.getProfile();
-                if (user && user.username) {
-                    // Admin Link
-                    if (user.role === 'ADMIN') {
-                        const adminLink = document.getElementById('admin-link');
-                        if (adminLink) adminLink.style.display = 'block';
-                    }
-                    // Update Hero
-                    document.querySelector('.profile-info h1').innerText = user.username;
-                    document.querySelector('.profile-info p').innerText = `UID: ${user.id.toString().padStart(8, '0')} • Joined ${new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
-                    
-                    const vipConfig = {
-                        'REGULAR': { icon: 'fas fa-user-circle', color: '#94a3b8' },
-                        'BRONZE': { icon: 'fas fa-medal', color: '#cd7f32' },
-                        'SILVER': { icon: 'fas fa-medal', color: '#c0c0c0' },
-                        'GOLD': { icon: 'fas fa-medal', color: '#ffd700' },
-                        'PLATINUM': { icon: 'fas fa-gem', color: '#e5e4e2' },
-                        'DIAMOND': { icon: 'fas fa-crown', color: '#b9f2ff' }
-                    };
-                    const config = vipConfig[user.vip_rank] || vipConfig['REGULAR'];
-                    const badgeLabel = user.vip_rank === 'REGULAR' ? 'REGULAR' : `${user.vip_rank} VIP`;
-                    
-                    document.querySelector('.vip-badge').innerHTML = `<i class="${config.icon}" style="color: ${config.color}"></i> ${badgeLabel}`;
-                    document.getElementById('total-balance').innerText = `$${user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    document.getElementById('deposit-balance').innerText = `$${user.deposit_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    const walletProfit = user.total_earnings || 0;
-                    document.getElementById('wallet-total-profit').innerText = `+$${walletProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
- 
-                    // Update Personal Info
-                    const infoItems = document.querySelectorAll('.info-item .value');
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const user = await API.getProfile();
+
+            if (user && user.username) {
+
+                // Admin Link
+                if (user.role === 'ADMIN') {
+                    const adminLink = document.getElementById('admin-link');
+                    if (adminLink) adminLink.style.display = 'block';
+                }
+
+                // Update Hero
+                document.querySelector('.profile-info h1').innerText = user.username;
+                document.querySelector('.profile-info p').innerText =
+                    `UID: ${user.id.toString().padStart(8, '0')} • Joined ${
+                        new Date(user.created_at).toLocaleDateString('en-US', {
+                            month: 'long',
+                            year: 'numeric'
+                        })
+                    }`;
+
+                // VIP Badge
+                const vipConfig = {
+                    REGULAR: { icon: 'fas fa-user-circle', color: '#94a3b8' },
+                    BRONZE: { icon: 'fas fa-medal', color: '#cd7f32' },
+                    SILVER: { icon: 'fas fa-medal', color: '#c0c0c0' },
+                    GOLD: { icon: 'fas fa-medal', color: '#ffd700' },
+                    PLATINUM: { icon: 'fas fa-gem', color: '#e5e4e2' },
+                    DIAMOND: { icon: 'fas fa-crown', color: '#b9f2ff' }
+                };
+
+                const config = vipConfig[user.vip_rank] || vipConfig.REGULAR;
+                const badgeLabel = user.vip_rank === 'REGULAR'
+                    ? 'REGULAR'
+                    : `${user.vip_rank} VIP`;
+
+                document.querySelector('.vip-badge').innerHTML =
+                    `<i class="${config.icon}" style="color:${config.color}"></i> ${badgeLabel}`;
+
+                // Balance
+                document.getElementById('total-balance').innerText =
+                    `$${user.balance.toLocaleString(undefined, {
+                        minimumFractionDigits: 2
+                    })}`;
+
+                // Profit
+                const walletProfit = user.total_earnings || 0;
+                document.getElementById('wallet-total-profit').innerText =
+                    `+$${walletProfit.toLocaleString(undefined, {
+                        minimumFractionDigits: 2
+                    })}`;
+
+                // Personal Info (SAFE)
+                const infoItems = document.querySelectorAll('.info-item .value');
+                if (infoItems.length >= 4) {
                     infoItems[0].innerText = user.username;
                     infoItems[1].innerText = user.email;
                     infoItems[2].innerText = user.phone || 'Not set';
                     infoItems[3].innerText = user.country || 'Not set';
+                }
 
-                    // Fetch & Render Transactions
-                        async function loadTransactions(page = 1) {
+                // =========================
+                // LOAD TRANSACTIONS
+                // =========================
+                async function loadTransactions(page = 1) {
+                    try {
                         const data = await API.getTransactions(page, 5);
-                        const transactions = Array.isArray(data) ? data : (data.transactions || []);
+
+                        console.log("Wallet TX:", data);
+
+                        const transactions = data.data || data.transactions || [];
                         const pagination = data.pagination || null;
 
-                        const list = document.querySelector('.transaction-list');
-                        if (list) {
-                            list.innerHTML = '';
-                            if (!transactions || transactions.length === 0) {
-                                list.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); opacity: 0.7;">No transactions yet</div>';
-                            } else {
-                                transactions.forEach(tx => {
-                                    const date = new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                                    const isNegative = tx.type.includes('OUT') || tx.type === 'WITHDRAW' || tx.type === 'VIP_UPGRADE' || tx.type === 'FEE';
-                                    const amountClass = isNegative ? 'negative' : 'positive';
-                                    const prefix = isNegative ? '-' : '+';
+                        const list = document.getElementById('wallet-transactions');
 
-                                    let iconClass = 'deposit';
-                                    let icon = 'fa-arrow-down';
-                                    if (tx.type === 'WITHDRAW') { iconClass = 'withdraw'; icon = 'fa-arrow-up'; }
-                                    if (tx.type.includes('TRANSFER')) { iconClass = 'transfer'; icon = 'fa-sync-alt'; }
-                                    if (tx.type === 'VIP_UPGRADE') { iconClass = 'withdraw'; icon = 'fa-gem'; }
-                                    if (tx.type === 'FEE') { iconClass = 'withdraw'; icon = 'fa-receipt'; }
-                                    if (tx.type === 'EARNING') { iconClass = 'deposit'; icon = 'fa-chart-line'; }
+                        if (!list) return;
 
-                                    const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Fee', EARNING: 'Daily Investment Return' };
-                                    const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
-                                    const item = document.createElement('div');
-                                    item.className = 'transaction';
-                                    item.innerHTML = `
-                                        <div class="icon ${iconClass}"><i class="fas ${icon}"></i></div>
-                                        <div class="details">
-                                            <p class="title">${txLabel}</p>
-                                            <p class="date">${date}</p>
-                                        </div>
-                                        <div class="amount ${amountClass}">${prefix}$${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                                    `;
-                                    list.appendChild(item);
-                                });
-                            }
+                        list.innerHTML = '';
+
+                        if (!transactions.length) {
+                            list.innerHTML =
+                                '<div style="padding:20px;text-align:center;color:gray;">No transactions yet</div>';
+                            return;
                         }
 
-                        // Render Pagination Controls
+                        transactions.forEach(tx => {
+                            const date = new Date(tx.created_at).toLocaleString(
+                                'en-US',
+                                {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }
+                            );
+
+                            const isNegative =
+                                tx.type.includes('OUT') ||
+                                tx.type === 'WITHDRAW' ||
+                                tx.type === 'VIP_UPGRADE' ||
+                                tx.type === 'FEE';
+
+                            const amountClass = isNegative ? 'negative' : 'positive';
+                            const prefix = isNegative ? '-' : '+';
+
+                            let iconClass = 'deposit';
+                            let icon = 'fa-arrow-down';
+
+                            if (tx.type === 'WITHDRAW') {
+                                iconClass = 'withdraw';
+                                icon = 'fa-arrow-up';
+                            }
+                            if (tx.type.includes('TRANSFER')) {
+                                iconClass = 'transfer';
+                                icon = 'fa-sync-alt';
+                            }
+                            if (tx.type === 'VIP_UPGRADE') {
+                                icon = 'fa-gem';
+                            }
+                            if (tx.type === 'FEE') {
+                                icon = 'fa-receipt';
+                            }
+                            if (tx.type === 'EARNING') {
+                                icon = 'fa-chart-line';
+                            }
+
+                            const item = document.createElement('div');
+                            item.className = 'transaction';
+
+                            item.innerHTML = `
+                                <div style="display:flex;justify-content:space-between;width:100%;">
+                                    <div style="display:flex;gap:15px;">
+                                        <div class="icon ${iconClass}">
+                                            <i class="fas ${icon}"></i>
+                                        </div>
+                                        <div>
+                                            <p>${tx.type.replace(/_/g, ' ')}</p>
+                                            <small>${date}</small>
+                                        </div>
+                                    </div>
+                                    <div class="${amountClass}">
+                                        ${prefix}$${tx.amount.toLocaleString()}
+                                    </div>
+                                </div>
+                            `;
+
+                            list.appendChild(item);
+                        });
+
+                        // Pagination
                         const controls = document.getElementById('wallet-pagination-controls');
+
                         if (controls && pagination) {
                             controls.innerHTML = '';
+
                             const { totalPages, currentPage } = pagination;
-                            
+
                             if (totalPages > 1) {
                                 for (let i = 1; i <= totalPages; i++) {
                                     const btn = document.createElement('button');
                                     btn.innerText = i;
-                                    btn.style.cssText = `
-                                        padding: 8px 16px;
-                                        border: 1px solid var(--glass-border);
-                                        background: ${i === currentPage ? 'var(--accent-primary)' : 'var(--glass-bg)'};
-                                        color: white;
-                                        border-radius: 8px;
-                                        cursor: pointer;
-                                        font-size: 0.85rem;
-                                        transition: 0.2s;
-                                    `;
-                                    btn.onclick = () => loadWalletTransactions(i);
+
+                                    btn.onclick = () => loadTransactions(i);
+
                                     controls.appendChild(btn);
                                 }
                             }
                         }
-                    }
 
-                    await loadWalletTransactions(1);
+                    } catch (err) {
+                        console.error("TX error:", err);
+
+                        document.getElementById('wallet-transactions').innerHTML =
+                            '<div style="color:red;text-align:center;">Failed to load transactions</div>';
+                    }
                 }
-            } catch (err) {
-                console.error('Failed to load profile', err);
+
+                // ✅ CORRECT CALL
+                await loadTransactions(1);
             }
-        });
+
+        } catch (err) {
+            console.error('Profile error:', err);
+        }
+    });
     </script>
     <script src="js/chat.js"></script>
 </body>
