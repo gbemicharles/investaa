@@ -259,6 +259,25 @@
                 </div>
             </div>
 
+            <!-- VIP Eligibility Status -->
+            <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px 30px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="width: 50px; height: 50px; background: rgba(59,130,246,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-gem" style="color: var(--accent-primary); font-size: 1.3rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 3px;">Your VIP Upgrade Balance</div>
+                        <div id="vip-deposit-balance" style="font-size: 1.6rem; font-weight: 800; color: var(--accent-primary);">$0.00</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Cumulative direct deposits only — transfers not counted</div>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">Current Rank</div>
+                    <div id="vip-current-rank-label" style="font-size: 1rem; font-weight: 700;">Loading...</div>
+                    <a href="deposit.html" style="display: inline-block; margin-top: 10px; font-size: 0.8rem; color: var(--accent-primary); font-weight: 600; text-decoration: none;">+ Make a Deposit <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+
             <div class="vip-grid">
                 <!-- Bronze -->
                 <div class="vip-card bronze">
@@ -362,7 +381,16 @@
                     // Update User Profile
                     document.querySelectorAll('.user-info .name').forEach(el => el.innerText = user.username);
                     document.querySelector('.sidebar-footer .avatar').innerText = user.username.substring(0, 2).toUpperCase();
-                    
+
+                    // Populate VIP eligibility card
+                    const depBal = user.deposit_balance || 0;
+                    document.getElementById('vip-deposit-balance').innerText = `$${depBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    const rankColors = { REGULAR: '#94a3b8', BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700', PLATINUM: '#e5e4e2', DIAMOND: '#b9f2ff' };
+                    const rankIcons = { REGULAR: '👤', BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎', DIAMOND: '👑' };
+                    const rankEl = document.getElementById('vip-current-rank-label');
+                    rankEl.innerText = `${rankIcons[user.vip_rank] || '👤'} ${user.vip_rank}`;
+                    rankEl.style.color = rankColors[user.vip_rank] || '#94a3b8';
+
                     updateVIPButtons(user.vip_rank);
                 }
             } catch (err) {
