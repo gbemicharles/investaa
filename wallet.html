@@ -509,7 +509,10 @@
                                     const btn = document.createElement('button');
                                     btn.innerText = i;
 
-                                    btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                                    // Original inline style / behavior
+                                    if (i === currentPage) {
+                                        btn.style.fontWeight = 'bold';
+                                    }
 
                                     btn.onclick = () => loadTransactions(i);
 
