@@ -384,46 +384,44 @@
                     infoItems[3].innerText = user.country || 'Not set';
 
                     // Fetch & Render Transactions
-                    async function loadWalletTransactions(page = 1) {
+                        async function loadTransactions(page = 1) {
                         const data = await API.getTransactions(page, 5);
                         const transactions = Array.isArray(data) ? data : (data.transactions || []);
                         const pagination = data.pagination || null;
-                        const txList = document.getElementById('wallet-transactions');
-                        if (txList) {
-                            txList.innerHTML = '';
+
+                        const list = document.querySelector('.transaction-list');
+                        if (list) {
+                            list.innerHTML = '';
                             if (!transactions || transactions.length === 0) {
-                                txList.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); opacity: 0.7;">No transactions yet</div>';
+                                list.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); opacity: 0.7;">No transactions yet</div>';
                             } else {
                                 transactions.forEach(tx => {
                                     const date = new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                                     const isNegative = tx.type.includes('OUT') || tx.type === 'WITHDRAW' || tx.type === 'VIP_UPGRADE' || tx.type === 'FEE';
                                     const amountClass = isNegative ? 'negative' : 'positive';
                                     const prefix = isNegative ? '-' : '+';
-                                    
+
                                     let iconClass = 'deposit';
                                     let icon = 'fa-arrow-down';
                                     if (tx.type === 'WITHDRAW') { iconClass = 'withdraw'; icon = 'fa-arrow-up'; }
                                     if (tx.type.includes('TRANSFER')) { iconClass = 'transfer'; icon = 'fa-sync-alt'; }
                                     if (tx.type === 'VIP_UPGRADE') { iconClass = 'withdraw'; icon = 'fa-gem'; }
                                     if (tx.type === 'FEE') { iconClass = 'withdraw'; icon = 'fa-receipt'; }
-                                    
+                                    if (tx.type === 'EARNING') { iconClass = 'deposit'; icon = 'fa-chart-line'; }
+
+                                    const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Fee', EARNING: 'Daily Investment Return' };
+                                    const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
                                     const item = document.createElement('div');
                                     item.className = 'transaction';
-                                    item.style.padding = '15px 0';
-                                    item.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
                                     item.innerHTML = `
-                                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                                            <div style="display: flex; align-items: center; gap: 15px;">
-                                                <div class="icon ${iconClass}" style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;"><i class="fas ${icon}"></i></div>
-                                                <div>
-                                                    <p style="font-weight: 600; font-size: 0.95rem; margin: 0;">${tx.type.replace(/_/g, ' ')}</p>
-                                                    <p style="color: var(--text-muted); font-size: 0.8rem; margin: 0;">${date} • ${tx.details || ''}</p>
-                                                </div>
-                                            </div>
-                                            <div class="amount ${amountClass}" style="font-weight: 700; font-size: 1rem;">${prefix}$${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                        <div class="icon ${iconClass}"><i class="fas ${icon}"></i></div>
+                                        <div class="details">
+                                            <p class="title">${txLabel}</p>
+                                            <p class="date">${date}</p>
                                         </div>
+                                        <div class="amount ${amountClass}">${prefix}$${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                                     `;
-                                    txList.appendChild(item);
+                                    list.appendChild(item);
                                 });
                             }
                         }
