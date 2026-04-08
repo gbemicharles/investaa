@@ -463,20 +463,103 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
         const amt = parseFloat(amount);
         const FEE = 1;
         const totalDeducted = amt + FEE;
+
         const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.user.id]);
-        if (!(await bcrypt.compare(String(pin), user.pin))) return res.status(401).json({ msg: 'Invalid transaction PIN' });
-        if (amt < 10) return res.status(400).json({ msg: 'Minimum withdrawal amount is $10.00' });
-        if (totalDeducted > parseFloat(user.balance)) return res.status(400).json({ msg: `Insufficient balance. A $${FEE} fee applies — you need $${totalDeducted.toFixed(2)} total.` });
-        await dbRun('UPDATE users SET balance = balance - ? WHERE id = ?', [totalDeducted, req.user.id]);
-        await dbRun('INSERT INTO withdrawals (user_id, amount, details) VALUES (?, ?, ?)', [req.user.id, amt, details || '']);
-        await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'WITHDRAW', amt, details || '', 'PENDING']);
-        await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'FEE', FEE, 'Withdrawal processing fee', 'COMPLETED']);
-        const withdrawalNote = amt > 100
-            ? `Your withdrawal of $${amt.toFixed(2)} USDT is being processed (a $${FEE} fee was applied). Please be aware that withdrawals above $100 may be subject to additional security review and could take up to 24 hours or more to complete. For faster, instant withdrawals, consider upgrading to a higher VIP tier — Gold, Platinum, or Diamond members enjoy priority processing.`
-            : `Your withdrawal of $${amt.toFixed(2)} USDT has been submitted successfully. A $${FEE} processing fee was applied. Your funds are on the way.`;
-        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Withdrawal Requested', withdrawalNote, 'WITHDRAWAL', 'PENDING']);
+
+        // ✅ PIN check
+        if (!(await bcrypt.compare(String(pin), user.pin))) {
+            return res.status(401).json({ msg: 'Invalid transaction PIN' });
+        }
+
+        // ✅ Minimum
+        if (amt < 10) {
+            return res.status(400).json({ msg: 'Minimum withdrawal amount is $10.00' });
+        }
+
+        // ✅ VIP LIMITS
+        const vipLimits = {
+            REGULAR: { daily: 0, monthly: 0 },
+            BRONZE: { daily: 10, monthly: 30 },
+            SILVER: { daily: 100, monthly: 3000 },
+            GOLD: { daily: 30000, monthly: 200000 },
+            PLATINUM: { daily: 200000, monthly: 6000000 },
+            DIAMOND: { daily: 1000000, monthly: 30000000 }
+        };
+
+        const limits = vipLimits[user.vip_rank] || vipLimits['REGULAR'];
+
+        // ❌ Block REGULAR users completely
+        if (user.vip_rank === 'REGULAR') {
+            return res.status(403).json({
+                msg: 'Upgrade to VIP to enable withdrawals'
+            });
+        }
+
+        // ✅ Get usage
+        const daily = await dbGet(
+            `SELECT COALESCE(SUM(amount), 0) as total 
+             FROM withdrawals 
+             WHERE user_id = ? 
+             AND status != 'REJECTED' 
+             AND created_at >= DATE_TRUNC('day', NOW())`,
+            [user.id]
+        );
+
+        const monthly = await dbGet(
+            `SELECT COALESCE(SUM(amount), 0) as total 
+             FROM withdrawals 
+             WHERE user_id = ? 
+             AND status != 'REJECTED' 
+             AND created_at >= DATE_TRUNC('month', NOW())`,
+            [user.id]
+        );
+
+        const dailyUsed = parseFloat(daily.total);
+        const monthlyUsed = parseFloat(monthly.total);
+
+        // ❌ Check daily limit
+        if (dailyUsed + amt > limits.daily) {
+            return res.status(400).json({
+                msg: `Daily withdrawal limit exceeded. Limit: $${limits.daily}`
+            });
+        }
+
+        // ❌ Check monthly limit
+        if (monthlyUsed + amt > limits.monthly) {
+            return res.status(400).json({
+                msg: `Monthly withdrawal limit exceeded. Limit: $${limits.monthly}`
+            });
+        }
+
+        // ❌ Balance check
+        if (totalDeducted > parseFloat(user.balance)) {
+            return res.status(400).json({
+                msg: `Insufficient balance. A $${FEE} fee applies — you need $${totalDeducted.toFixed(2)}`
+            });
+        }
+
+        // ✅ Deduct balance
+        await dbRun('UPDATE users SET balance = balance - ? WHERE id = ?', [totalDeducted, user.id]);
+
+        // ✅ Save withdrawal
+        await dbRun('INSERT INTO withdrawals (user_id, amount, details) VALUES (?, ?, ?)', [user.id, amt, details || '']);
+
+        await dbRun(
+            'INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)',
+            [user.id, 'WITHDRAW', amt, details || '', 'PENDING']
+        );
+
+        await dbRun(
+            'INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)',
+            [user.id, 'FEE', FEE, 'Withdrawal processing fee', 'COMPLETED']
+        );
+
         res.json({ msg: 'Withdrawal submitted' });
-    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ msg: 'Server error' });
+    }
 });
 
 app.post('/api/transactions/transfer', authenticate, async (req, res) => {
