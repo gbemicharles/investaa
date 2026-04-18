@@ -10,6 +10,15 @@ const API = {
         return res.json();
     },
 
+    async resetPassword(data) {
+        const res = await fetch(`${API_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return res.json();
+    },
+
     async login(loginData) {
         const res = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',

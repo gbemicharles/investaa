@@ -318,6 +318,45 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
+// Reset password using transaction PIN as verification
+app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+        let { login, pin, newPassword } = req.body;
+        if (!login || !pin || !newPassword) {
+            return res.status(400).json({ msg: 'All fields are required' });
+        }
+        if (String(newPassword).length < 6) {
+            return res.status(400).json({ msg: 'New password must be at least 6 characters' });
+        }
+        login = String(login).trim();
+        const user = await dbGet(
+            'SELECT * FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)',
+            [login, login]
+        );
+        if (!user) {
+            return res.status(400).json({ msg: 'Account not found or PIN is incorrect' });
+        }
+        const pinOk = await bcrypt.compare(String(pin), user.pin);
+        if (!pinOk) {
+            return res.status(400).json({ msg: 'Account not found or PIN is incorrect' });
+        }
+        const hashed = await bcrypt.hash(String(newPassword), 10);
+        await dbRun('UPDATE users SET password = ? WHERE id = ?', [hashed, user.id]);
+
+        try {
+            await dbRun(
+                'INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
+                [user.id, 'Password Changed', 'Your account password was reset successfully. If this was not you, please contact support immediately.', 'SYSTEM', 'WARNING']
+            );
+        } catch (_) { /* notifications table may differ; ignore */ }
+
+        res.json({ msg: 'Password reset successful. You can now sign in with your new password.' });
+    } catch (e) {
+        console.error('Reset password failed:', e.message);
+        res.status(500).json({ msg: 'Server error during password reset' });
+    }
+});
+
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { login, password } = req.body;
