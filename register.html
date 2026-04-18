@@ -419,6 +419,7 @@
         countries.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.code;
+            opt.dataset.country = c.name;
             opt.innerText = `${c.emoji} ${c.name} (${c.code})`;
             select.appendChild(opt);
         });
@@ -432,7 +433,14 @@
             const pin = document.getElementById('pin').value;
             const confirmPin = document.getElementById('confirm-pin').value;
             const phone = document.getElementById('phone').value;
-            const countryCode = document.getElementById('country-code').value;
+            const countrySelect = document.getElementById('country-code');
+            const countryCode = countrySelect.value;
+            const country = countrySelect.options[countrySelect.selectedIndex]?.dataset.country || '';
+
+            if (!country) {
+                alert('Please select your country.');
+                return;
+            }
             
             if (password !== confirmPassword) {
                 alert('Passwords do not match!');
@@ -448,7 +456,7 @@
                 const data = await API.register({ 
                     username, email, password, pin,
                     phone: `${countryCode}${phone}`,
-                    country: "United States"
+                    country
                 });
                 
                 if (data.token) {
