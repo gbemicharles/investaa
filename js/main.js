@@ -9,16 +9,45 @@ async function initDashboard() {
     // Set interval for updates (every 60 seconds to avoid rate limits)
     setInterval(updateCryptoPrices, 60000);
 
-    // Sidebar Toggle for Mobile
+    initSidebarToggle();
+}
+
+function initSidebarToggle() {
     const menuToggle = document.querySelector('.menu-toggle');
     const sidebar = document.querySelector('.sidebar');
-    
-    if (menuToggle) {
-        menuToggle.addEventListener('click', () => {
-            sidebar.style.transform = sidebar.style.transform === 'translateX(0px)' ? 'translateX(-100%)' : 'translateX(0px)';
-            sidebar.style.width = sidebar.style.width === '280px' ? '0' : '280px';
-        });
+    if (!menuToggle || !sidebar) return;
+
+    // Backdrop overlay (created once)
+    let backdrop = document.querySelector('.sidebar-backdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.className = 'sidebar-backdrop';
+        document.body.appendChild(backdrop);
     }
+
+    const close = () => {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('show');
+        document.body.style.overflow = '';
+    };
+    const open = () => {
+        sidebar.classList.add('open');
+        backdrop.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    };
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.contains('open') ? close() : open();
+    });
+    backdrop.addEventListener('click', close);
+
+    // Close when navigating to another page link inside sidebar
+    sidebar.querySelectorAll('a').forEach(a => a.addEventListener('click', close));
+
+    // Close when window grows past mobile breakpoint
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 1024) close();
+    });
 }
 
 async function updateCryptoPrices() {
