@@ -353,7 +353,9 @@ body::after {
 
 .crypto-price { text-align: right; }
 .crypto-price .price { font-weight: 700; display: block; }
-.crypto-price .change { font-size: 0.8rem; }
+.crypto-price .change { font-size: 0.8rem; font-weight: 600; }
+.crypto-price .change.positive { color: var(--success); }
+.crypto-price .change.negative { color: var(--danger); }
 
 /* Activity Specific */
 .activity-card { grid-column: span 8; }
@@ -406,6 +408,36 @@ body::after {
 
 .mobile-nav a { color: var(--text-muted); font-size: 1.4rem; }
 .mobile-nav a.active { color: var(--accent-primary); }
+
+/* Pagination Buttons */
+.pagination-controls button {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-width: 38px;
+    transition: var(--transition);
+    font-family: inherit;
+}
+.pagination-controls button:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+.pagination-controls button.active,
+.pagination-controls button[aria-current="page"] {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: #fff;
+}
+.pagination-controls button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
 
 /* Skeleton Loading */
 .skeleton {
