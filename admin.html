@@ -314,6 +314,23 @@
             }
         }
 
+        function copyText(btn, text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                setTimeout(() => { btn.innerHTML = original; }, 1500);
+            }).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); } catch (e) {}
+                document.body.removeChild(ta);
+                alert('Copied to clipboard.');
+            });
+        }
+
         async function loadWithdrawals() {
             const list = document.getElementById('withdrawals-list');
             try {
@@ -352,9 +369,12 @@
                                 <span class="detail-label">Net (After Fee):</span>
                                 <span class="detail-value" style="color: var(--accent-primary);">${(w.amount - 1).toFixed(2)} USDT</span>
                             </div>
-                            <div style="grid-column: span 2;">
-                                <span class="detail-label">Details:</span>
-                                <span class="detail-value">${w.details}</span>
+                            <div style="grid-column: 1 / -1;">
+                                <span class="detail-label">Withdrawal Address / Details:</span>
+                                <div style="display: flex; align-items: flex-start; gap: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); padding: 10px 12px; border-radius: 8px; margin-top: 6px;">
+                                    <code style="flex: 1; min-width: 0; font-size: 0.78rem; color: var(--accent-primary); word-break: break-all; overflow-wrap: anywhere; white-space: pre-wrap; user-select: all; -webkit-user-select: all; line-height: 1.5;">${w.details || '—'}</code>
+                                    <button class="btn secondary" style="padding: 5px 10px; font-size: 0.7rem; flex-shrink: 0;" onclick="copyText(this, ${JSON.stringify(w.details || '').replace(/"/g, '&quot;')})"><i class="fas fa-copy"></i> Copy</button>
+                                </div>
                             </div>
                             <div>
                                 <span class="detail-label">Date:</span>

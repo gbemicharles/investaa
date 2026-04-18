@@ -245,17 +245,18 @@
                             alt="Deposit Address QR" style="display: block;">
                     </div>
                     <div
-                        style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                        style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; margin-bottom: 20px; text-align: left;">
                         <code id="manual-address"
-                            style="font-size: 0.8rem; color: var(--accent-primary);">TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo</code>
-                        <button class="btn secondary" style="padding: 5px 10px; font-size: 0.7rem;"
-                            onclick="copyAddress()">Copy</button>
+                            onclick="copyAddress()"
+                            title="Tap to copy"
+                            style="font-size: 0.8rem; color: var(--accent-primary); flex: 1; min-width: 0; word-break: break-all; overflow-wrap: anywhere; white-space: pre-wrap; cursor: pointer; user-select: all; -webkit-user-select: all; line-height: 1.5;">TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo</code>
+                        <button class="btn secondary" style="padding: 6px 12px; font-size: 0.75rem; flex-shrink: 0; align-self: center;"
+                            onclick="copyAddress()"><i class="fas fa-copy"></i> Copy</button>
                     </div>
 
-                    <h3>3. Payment Details</h3>
-                    <p id="txid-description" style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Submit your transaction
-                        ID (TXID) after sending BTC.</p>
-                    <input type="text" id="txid-input" placeholder="Paste TXID block hash here..."
+                    <h3>3. Payment Details (Optional)</h3>
+                    <p id="txid-description" style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">If you have it, paste your transaction ID (TXID) below to help us verify your payment faster. You can also leave this empty &mdash; an uploaded screenshot is enough.</p>
+                    <input type="text" id="txid-input" placeholder="Paste TXID block hash here (optional)..."
                         style="width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; color: var(--text-main); font-size: 1rem; margin-bottom: 20px; outline: none;">
                     
                     <h3>4. Proof of Payment (Optional)</h3>
@@ -497,9 +498,10 @@
                 const txid = txidInput.value.trim();
                 const screenshotFile = document.getElementById('screenshot-input').files[0];
 
-                if (!txid) {
-                    alert('Please submit your TXID after making the payment.');
-                    return;
+                if (!txid && !screenshotFile) {
+                    if (!confirm('You haven\'t added a transaction ID or a payment screenshot. Submitting without proof can delay your verification. Do you want to continue anyway?')) {
+                        return;
+                    }
                 }
                 
                 const btn = document.getElementById('confirm-btn');
@@ -511,7 +513,7 @@
                     console.log('[DEPOSIT] Submitting with crypto data:', cryptoData);
 
                     const formData = new FormData();
-                    formData.append('txid', txid);
+                    formData.append('txid', txid || 'N/A (no TXID provided)');
                     formData.append('usdt_amount', amount);
                     formData.append('btc_amount', amount); // Backward compatibility
                     formData.append('network', selectedNetwork);
