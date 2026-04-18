@@ -210,6 +210,10 @@
                         <i class="fab fa-bitcoin" style="color: #f7931a;"></i>
                         <span class="name">BITCOIN</span>
                     </div>
+                    <div class="network-card" data-network="lightning" data-fee="0" data-address="bitcoin:?lno=lno1zrxq8pjw7qjlm68mtp7e3yvxee4y5xrgjhhyf2fxhlphpckrvevh50u0qghretzshmpjmtmt72k3smk4zg7pj6ap9ufvzpkkukgm3k3ka6hjyqsr7tsgxh8f2gznlkuxpucug0xf5mxdhxpsyc20gm0qr705hh8j9guqqvulzhnwu6rqg78kseq8l0jl070k8mzeq8egm9cceqd5gplz7cv6glc4fgj2ndymvz9fpp04qh7rgxnyayecq27pq0tu43tc6fyvcqhanf8kry3nl6cue0phpfvpne6h2sjdqmyrxqqsq54tegeket5t2k3u74dvvqmgls">
+                        <i class="fas fa-bolt" style="color: #f7b500;"></i>
+                        <span class="name">LIGHTNING</span>
+                    </div>
                     <div class="network-card" data-network="ethereum" data-fee="5" data-address="0xB596C691f35b55ee095879Ecf52da180017464D7">
                         <i class="fab fa-ethereum" style="color: #627eea;"></i>
                         <span class="name">ETH (ERC-20)</span>
@@ -377,9 +381,9 @@
                 data.price = 1;
                 data.unit = 'USDT';
                 data.cryptoAmount = amount;
-            } else if (type === 'bitcoin') {
+            } else if (type === 'bitcoin' || type === 'lightning') {
                 data.cryptoId = 'bitcoin';
-                data.unit = 'BTC';
+                data.unit = type === 'lightning' ? 'sats' : 'BTC';
                 data.price = cryptoPrices['bitcoin'] ? cryptoPrices['bitcoin'].usd : 0;
             } else if (type === 'ethereum') {
                 data.cryptoId = 'ethereum';
@@ -393,6 +397,9 @@
 
             if (data.price > 0 && type !== 'usdt') {
                 data.cryptoAmount = amount / data.price;
+                if (type === 'lightning') {
+                    data.cryptoAmount = data.cryptoAmount * 1e8;
+                }
             }
             return data;
         }
@@ -413,8 +420,15 @@
                 manualContainer.style.display = 'block';
                 const addr = card.dataset.address;
                 manualAddress.innerText = addr;
-                qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${addr}`;
-                txidDescription.innerText = `Submit your transaction ID (TXID) after sending ${selectedNetwork}.`;
+                const qrSize = netType === 'lightning' ? 260 : 150;
+                qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(addr)}`;
+                if (netType === 'lightning') {
+                    txidDescription.innerText = `Scan the QR with a BOLT12-compatible Lightning wallet (Phoenix, Zeus, etc.). After paying, submit the payment hash or preimage below.`;
+                    txidInput.placeholder = 'Paste Lightning payment hash / preimage here...';
+                } else {
+                    txidDescription.innerText = `Submit your transaction ID (TXID) after sending ${selectedNetwork}.`;
+                    txidInput.placeholder = 'Paste TXID block hash here...';
+                }
             } else {
                 isManual = false;
                 manualContainer.style.display = 'none';
@@ -447,9 +461,15 @@
                 cryptoAmountRow.style.display = 'flex';
                 
                 if (cryptoData.price > 0) {
-                    summaryCryptoPrice.innerText = `1 ${cryptoData.unit} = $${cryptoData.price.toLocaleString()}`;
-                    cryptoLabel.innerText = `Amount (${cryptoData.unit})`;
-                    summaryCryptoAmount.innerText = `${cryptoData.cryptoAmount.toFixed(8)} ${cryptoData.unit}`;
+                    if (netType === 'lightning') {
+                        summaryCryptoPrice.innerText = `1 BTC = $${cryptoData.price.toLocaleString()} (100,000,000 sats)`;
+                        cryptoLabel.innerText = `Amount (sats)`;
+                        summaryCryptoAmount.innerText = `${Math.round(cryptoData.cryptoAmount).toLocaleString()} sats`;
+                    } else {
+                        summaryCryptoPrice.innerText = `1 ${cryptoData.unit} = $${cryptoData.price.toLocaleString()}`;
+                        cryptoLabel.innerText = `Amount (${cryptoData.unit})`;
+                        summaryCryptoAmount.innerText = `${cryptoData.cryptoAmount.toFixed(8)} ${cryptoData.unit}`;
+                    }
                 } else {
                     summaryCryptoPrice.innerText = 'Calculating...';
                     summaryCryptoAmount.innerText = 'Calculating...';
