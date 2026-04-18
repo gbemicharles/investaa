@@ -404,9 +404,10 @@
             try {
                 const data = await API.withdraw(pendingAmount, pendingDetails, pin);
                 console.log('[DEBUG_FRONTEND] Server Response:', data);
-                if (data.transactionId) {
-                    alert(`Withdrawal request for ${pendingAmount} USDT submitted successfully!`);
-                    window.location.href = 'index.html';
+                const isSuccess = data && data.msg && /submitted|success/i.test(data.msg);
+                if (isSuccess) {
+                    alert(`Withdrawal request for ${pendingAmount} USDT submitted successfully! Our team will review it shortly. Redirecting you to your wallet...`);
+                    window.location.href = 'wallet.html';
                 } else {
                     alert(data.msg || 'Withdrawal failed');
                     btn.disabled = false;
