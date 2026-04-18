@@ -275,15 +275,21 @@ function authenticateAdmin(req, res, next) {
 // --- Auth Routes ---
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { username, email, password, pin, phone, country } = req.body;
+        let { username, email, password, pin, phone, country } = req.body;
         if (!username || !email || !password || !pin) return res.status(400).json({ msg: 'All fields are required' });
+
+        username = String(username).trim().toLowerCase();
+        email = String(email).trim().toLowerCase();
+        if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+            return res.status(400).json({ msg: 'Username must be 3-20 characters, letters/numbers/underscore only — no spaces.' });
+        }
 
         const existing = await dbGet('SELECT id FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)', [username, email]);
         if (existing) return res.status(400).json({ msg: 'Username or email already exists' });
 
         const hashed = await bcrypt.hash(password, 10);
         const hashedPin = await bcrypt.hash(pin, 10);
-        const is_admin = username.toLowerCase() === 'john' ? 1 : 0;
+        const is_admin = username === 'john' ? 1 : 0;
 
         const result = await dbRunReturning(
             'INSERT INTO users (username, email, password, pin, phone, country, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)',

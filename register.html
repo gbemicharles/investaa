@@ -155,7 +155,7 @@
                     <label>Username</label>
                     <div class="input-wrapper">
                         <i class="fas fa-user"></i>
-                        <input type="text" id="username" placeholder="Choose a username" required>
+                        <input type="text" id="username" placeholder="Choose a username (no spaces)" required pattern="[a-zA-Z0-9_]{3,20}" title="3-20 characters, letters/numbers/underscore only — no spaces" autocomplete="username" autocapitalize="none" spellcheck="false">
                     </div>
                 </div>
 
@@ -426,7 +426,11 @@
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim().toLowerCase();
+            if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+                alert('Username must be 3-20 characters, letters/numbers/underscore only — no spaces.');
+                return;
+            }
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm-password').value;
