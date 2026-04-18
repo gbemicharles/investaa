@@ -182,6 +182,7 @@
                                 <th style="padding: 10px 12px;">UID</th>
                                 <th style="padding: 10px 12px;">Username</th>
                                 <th style="padding: 10px 12px;">Email</th>
+                                <th style="padding: 10px 12px;">Phone</th>
                                 <th style="padding: 10px 12px;">Country</th>
                                 <th style="padding: 10px 12px;">Balance</th>
                                 <th style="padding: 10px 12px;">Deposited</th>
@@ -191,7 +192,7 @@
                             </tr>
                         </thead>
                         <tbody id="users-tbody">
-                            <tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">Loading users...</td></tr>
+                            <tr><td colspan="10" style="text-align: center; padding: 30px; color: var(--text-muted);">Loading users...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -406,11 +407,11 @@
             try {
                 const users = await API.adminGetUsers();
                 if (!users || users.msg) {
-                    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:#ff4d4d;">${users?.msg || 'Failed to load users.'}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:#ff4d4d;">${users?.msg || 'Failed to load users.'}</td></tr>`;
                     return;
                 }
                 if (users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">No registered users.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-muted);">No registered users.</td></tr>';
                     return;
                 }
                 tbody.innerHTML = '';
@@ -425,6 +426,7 @@
                         <td style="padding:12px;">#${u.id}</td>
                         <td style="padding:12px;font-weight:600;">${u.username}</td>
                         <td style="padding:12px;color:var(--text-muted);">${u.email}</td>
+                        <td style="padding:12px;color:var(--text-muted);white-space:nowrap;">${u.phone || '—'}</td>
                         <td style="padding:12px;color:var(--text-muted);">${u.country || '—'}</td>
                         <td style="padding:12px;color:var(--accent-primary);font-weight:600;">$${u.balance.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
                         <td style="padding:12px;">$${u.deposit_balance.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
@@ -435,7 +437,7 @@
                     tbody.appendChild(row);
                 });
             } catch (err) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#ff4d4d;">Failed to load users.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:#ff4d4d;">Failed to load users.</td></tr>';
             }
         }
 
