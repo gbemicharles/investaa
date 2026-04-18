@@ -637,7 +637,10 @@ app.post('/api/transactions/transfer', authenticate, async (req, res) => {
     try {
         const { recipient, amount } = req.body;
         const amt = parseFloat(amount);
-        const sender = await dbGet('SELECT id, username, balance FROM users WHERE id = ?', [req.user.id]);
+        const sender = await dbGet('SELECT id, username, balance, vip_rank FROM users WHERE id = ?', [req.user.id]);
+        const PER_TRANSFER_CAP = { BRONZE: 5000, SILVER: 50000, GOLD: 200000, PLATINUM: 500000, DIAMOND: 2000000 };
+        const cap = PER_TRANSFER_CAP[sender.vip_rank];
+        if (cap && amt > cap) return res.status(400).json({ msg: `Transfer limit exceeded. Your ${sender.vip_rank} tier allows a maximum of $${cap.toLocaleString()} USDT per transfer to a single account. Please split this into multiple transfers, each at or below $${cap.toLocaleString()} USDT.` });
         if (parseFloat(sender.balance) < (amt + 1)) return res.status(400).json({ msg: 'Insufficient balance' });
         const recip = await dbGet('SELECT id, username, vip_rank FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR id = ?', [recipient, recipient, parseInt(recipient) || 0]);
         if (!recip || recip.id === req.user.id) return res.status(404).json({ msg: 'Recipient not found' });
