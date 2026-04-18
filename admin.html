@@ -131,6 +131,26 @@
                 </div>
             </div>
 
+            <!-- Reset User Password (Support) -->
+            <div class="card glass" style="margin-bottom: 40px; padding: 30px; border-left: 4px solid var(--warning);">
+                <h3 style="margin-top: 0; color: var(--warning); font-size: 1.4rem;"><i class="fas fa-key"></i> Reset User Password</h3>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px;">For support cases when a user has forgotten both their password and PIN. Always verify the user's identity before performing this action.</p>
+                <div style="display: grid; grid-template-columns: 2fr 2fr auto; gap: 20px; align-items: end;">
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">User Identifier (UID, Username, or Email)</label>
+                        <div style="position: relative;">
+                            <i class="fas fa-search" style="position: absolute; left: 15px; top: 15px; color: var(--text-muted);"></i>
+                            <input type="text" id="reset-identifier" placeholder="e.g., 00000003 or alexmcdonald" autocomplete="off" class="admin-input" style="width: 100%; padding-left: 45px;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">New Temporary Password (min 6 chars)</label>
+                        <input type="text" id="reset-password" placeholder="Type a temporary password" autocomplete="off" class="admin-input" style="width: 100%;">
+                    </div>
+                    <button class="btn primary" id="reset-pw-btn" style="padding: 12px 30px; border-radius: 12px; height: 48px; background: var(--warning);">Reset Password</button>
+                </div>
+            </div>
+
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
                 <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-clock"></i> Pending Deposit Requests</h3>
                 <button class="btn secondary" onclick="loadPending()" style="padding: 8px 15px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -452,6 +472,39 @@
                 } finally {
                     btn.disabled = false;
                     btn.innerText = 'Fund Account';
+                }
+            });
+
+            document.getElementById('reset-pw-btn').addEventListener('click', async () => {
+                const identifier = document.getElementById('reset-identifier').value.trim();
+                const newPassword = document.getElementById('reset-password').value;
+
+                if (!identifier || !newPassword) {
+                    alert('Please enter the user identifier and a new temporary password.');
+                    return;
+                }
+                if (newPassword.length < 6) {
+                    alert('Temporary password must be at least 6 characters.');
+                    return;
+                }
+                if (!confirm(`Reset password for "${identifier}"?\n\nMake sure you have verified the user's identity. They will be notified of the change in their account.`)) return;
+
+                const btn = document.getElementById('reset-pw-btn');
+                btn.disabled = true;
+                btn.innerText = 'Resetting...';
+
+                try {
+                    const res = await API.adminResetUserPassword(identifier, newPassword);
+                    alert(res.msg || 'Done.');
+                    if (res.msg && res.msg.toLowerCase().includes('successfully')) {
+                        document.getElementById('reset-identifier').value = '';
+                        document.getElementById('reset-password').value = '';
+                    }
+                } catch (err) {
+                    alert('Failed to reset password. Please try again.');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = 'Reset Password';
                 }
             });
         });

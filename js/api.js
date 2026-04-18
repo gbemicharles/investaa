@@ -191,6 +191,16 @@ const API = {
         return res.json();
     },
 
+    async adminResetUserPassword(identifier, newPassword) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/reset-user-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            body: JSON.stringify({ identifier, newPassword })
+        });
+        return res.json();
+    },
+
     async adminFundUser(identifier, amount) {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_URL}/admin/fund-user`, {

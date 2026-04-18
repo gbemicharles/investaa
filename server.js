@@ -468,6 +468,32 @@ app.post('/api/admin/fund-user', authenticateAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
+// Admin: reset a user's password (support flow)
+app.post('/api/admin/reset-user-password', authenticateAdmin, async (req, res) => {
+    try {
+        const { identifier, newPassword } = req.body;
+        if (!identifier || !newPassword) return res.status(400).json({ msg: 'Identifier and new password are required' });
+        if (String(newPassword).length < 6) return res.status(400).json({ msg: 'New password must be at least 6 characters' });
+
+        const user = await dbGet(
+            'SELECT id, username FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR id = ?',
+            [identifier, identifier, parseInt(identifier) || 0]
+        );
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        const hashed = await bcrypt.hash(String(newPassword), 10);
+        await dbRun('UPDATE users SET password = ? WHERE id = ?', [hashed, user.id]);
+        await dbRun(
+            'INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
+            [user.id, 'Password Reset by Admin', 'Your account password was reset by support. Please sign in with the new password and change it from your wallet if needed.', 'SYSTEM', 'WARNING']
+        );
+        res.json({ msg: `Password reset successfully for ${user.username}` });
+    } catch (e) {
+        console.error('Admin reset password failed:', e.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 // --- Transaction History ---
 app.get('/api/transactions', authenticate, async (req, res) => {
     try {
