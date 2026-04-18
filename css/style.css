@@ -1,3 +1,13 @@
+/* Prevent iOS Safari auto-zoom on input focus.
+   Browsers zoom in when font-size < 16px and never zoom back out. */
+input, textarea, select {
+    font-size: 16px;
+}
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 :root {
     --bg-dark: #0a0b10;
     --sidebar-bg: #12141d;
