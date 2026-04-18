@@ -4,6 +4,7 @@ const FROM_NAME = 'InvestAA';
 const FROM_EMAIL = process.env.GMAIL_USER;
 const APP_NAME = 'InvestAA';
 const SUPPORT_EMAIL = process.env.GMAIL_USER || 'investaa.pro@gmail.com';
+const APP_URL = process.env.APP_URL || 'https://investaa.site';
 
 let transporter = null;
 
@@ -81,7 +82,7 @@ const Emails = {
                    <li>Set up your security PIN if you haven't already</li>
                  </ul>
                  <p>If you ever have a question, our team is one email away.</p>`,
-                'Open My Dashboard', `https://${process.env.REPLIT_DEV_DOMAIN || 'investaa.com'}/index.html`
+                'Open My Dashboard', `${APP_URL}/index.html`
             ));
     },
     depositSubmitted(to, username, amount, network) {
@@ -100,7 +101,7 @@ const Emails = {
             wrap('Your deposit has been credited',
                 `<p>Good news ${username} — your deposit of <strong>$${fmt(amount)} USDT</strong> has been approved and added to your wallet balance.</p>
                  <p>It now counts toward your VIP eligibility and starts earning if you're on a paid tier.</p>`,
-                'View My Wallet', `https://${process.env.REPLIT_DEV_DOMAIN || 'investaa.com'}/wallet.html`));
+                'View My Wallet', `${APP_URL}/wallet.html`));
     },
     depositRejected(to, username) {
         return sendMail(to, 'Your deposit attempt was rejected',
@@ -133,7 +134,7 @@ const Emails = {
             wrap('Funds received',
                 `<p>Hi ${username}, you just received an internal transfer of <strong>$${fmt(amount)} USDT</strong> from <strong>${fromUser}</strong>.</p>
                  <p>The funds are already available in your wallet.</p>`,
-                'View My Wallet', `https://${process.env.REPLIT_DEV_DOMAIN || 'investaa.com'}/wallet.html`));
+                'View My Wallet', `${APP_URL}/wallet.html`));
     },
     transferSent(to, username, amount, toUser) {
         return sendMail(to, `Transfer of $${fmt(amount)} sent`,
@@ -146,7 +147,7 @@ const Emails = {
             wrap(`You're now a ${rank} member!`,
                 `<p>Congratulations ${username}! Your account has been upgraded to <strong>${rank} VIP</strong> status.</p>
                  <p>You'll now earn daily compounding returns on your wallet balance, plus all the other perks of your tier. Your first earning will land in your wallet within 24 hours.</p>`,
-                'View My Wallet', `https://${process.env.REPLIT_DEV_DOMAIN || 'investaa.com'}/wallet.html`));
+                'View My Wallet', `${APP_URL}/wallet.html`));
     },
     passwordReset(to, username) {
         return sendMail(to, 'Your password was reset',
@@ -161,14 +162,14 @@ const Emails = {
             wrap('Password reset by support',
                 `<p>Hi ${username}, your account password was reset by our support team at your request.</p>
                  <p>Please sign in with the new temporary password you were given. We recommend changing it immediately afterwards from your wallet's Security Center.</p>`,
-                'Sign In', `https://${process.env.REPLIT_DEV_DOMAIN || 'investaa.com'}/login.html`));
+                'Sign In', `${APP_URL}/login.html`));
     },
     accountFunded(to, username, amount) {
         return sendMail(to, `$${fmt(amount)} credited to your account`,
             wrap('Your account was credited',
                 `<p>Hi ${username}, $${fmt(amount)} USDT has been credited to your account by our team.</p>
                  <p>The funds are immediately available in your wallet.</p>`,
-                'View My Wallet', `https://${process.env.REPLIT_DEV_DOMAIN || 'investaa.com'}/wallet.html`));
+                'View My Wallet', `${APP_URL}/wallet.html`));
     },
     securityAlert(to, username, eventDescription) {
         return sendMail(to, 'Security alert on your account',
