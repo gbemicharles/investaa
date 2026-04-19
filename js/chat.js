@@ -9,7 +9,7 @@ const chatbotResponses = {
         "VIP Membership"
     ],
     "Lost Transaction PIN": "If you've lost your Transaction PIN, please contact our support team via the 'Support' page. For security, PIN resets require identity verification.",
-    "How to Top Up": "To top up, navigate to the 'Deposit' page, select your preferred network (USDT, BTC, etc.), and follow the instructions to send funds to your generated address. Minimum deposit is 50 USDT.",
+    "How to Top Up": "To top up, navigate to the 'Deposit' page, select your preferred network (USDT, BTC, etc.), and follow the instructions to send funds to your generated address. Minimum deposit is 5 USDT.",
     "Transaction PIN Details": "Your Transaction PIN is a 4-6 digit code set during registration. It is required for all withdrawals and internal transfers to ensure the security of your funds.",
     "How to Withdraw": "Withdrawals can be made via the 'Withdraw' page. Simply enter your destination wallet address and the amount. A flat fee of 1 USDT applies to all withdrawals.",
     "Internal Transfer Info": "You can send funds instantly to other users using their Username, Email, or Phone Number on the 'Transfer' page. A 1 USDT fee applies.",
