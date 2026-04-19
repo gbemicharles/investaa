@@ -436,6 +436,10 @@
                 if (data.msg && data.msg.includes('Successfully')) {
                     alert(data.msg);
                     window.location.href = 'wallet.html'; // Show the new badge
+                } else if (data.msg && /insufficient|deposit/i.test(data.msg)) {
+                    if (confirm(data.msg + '\n\nWould you like to make a deposit now?')) {
+                        window.location.href = 'deposit.html';
+                    }
                 } else {
                     alert(data.msg || 'Upgrade failed');
                 }
