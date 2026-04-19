@@ -389,9 +389,6 @@ app.post('/api/auth/login', async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ msg: 'Invalid credentials' });
         }
-        if (!user.email_verified) {
-            return res.status(403).json({ requiresVerification: true, username: user.username, email: user.email, msg: 'Please verify your email address before signing in.' });
-        }
         const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, user: formatUser(user) });
     } catch (e) {
