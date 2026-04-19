@@ -92,6 +92,13 @@ async function initDb() {
         // Add last_earning_at column if it doesn't exist (safe migration)
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_earning_at TIMESTAMP`);
 
+        // Email verification columns
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified INTEGER DEFAULT 0`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code TEXT`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_expires TIMESTAMP`);
+        // Mark all existing accounts (pre-feature) as already verified to avoid locking them out
+        await pool.query(`UPDATE users SET email_verified = 1 WHERE email_verified IS NULL OR email_verified = 0`);
+
         console.log('PostgreSQL database initialized.');
     } catch (err) {
         console.error('CRITICAL: Database initialization failed!', err);
@@ -297,7 +304,13 @@ app.post('/api/auth/register', async (req, res) => {
             [username, email, hashed, hashedPin, phone || '', country || 'United States', is_admin]
         );
 
-        const userToken = jwt.sign({ id: result.lastID, username, is_admin: is_admin }, JWT_SECRET, { expiresIn: '7d' });
+        // Generate verification code (6 digits, expires in 30 minutes)
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        // Admin accounts skip verification
+        const verifiedFlag = is_admin ? 1 : 0;
+        await dbRun('UPDATE users SET verification_code = ?, verification_expires = ?, email_verified = ? WHERE id = ?',
+            [code, expiresAt, verifiedFlag, result.lastID]);
 
         // Notify all admin users about new registration
         try {
@@ -312,8 +325,14 @@ app.post('/api/auth/register', async (req, res) => {
             console.error('Failed to notify admins of new registration:', notifErr.message);
         }
 
-        Emails.welcome(email, username);
-        res.json({ token: userToken, msg: 'Registration successful' });
+        if (is_admin) {
+            const userToken = jwt.sign({ id: result.lastID, username, is_admin: 1 }, JWT_SECRET, { expiresIn: '7d' });
+            Emails.welcome(email, username);
+            return res.json({ token: userToken, msg: 'Registration successful' });
+        }
+
+        Emails.verificationCode(email, username, code);
+        res.json({ requiresVerification: true, username, email, msg: 'Verification code sent to your email' });
     } catch (e) {
         console.error('Registration failed:', e.message);
         res.status(500).json({ msg: 'Server error' });
@@ -370,11 +389,59 @@ app.post('/api/auth/login', async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ msg: 'Invalid credentials' });
         }
+        if (!user.email_verified) {
+            return res.status(403).json({ requiresVerification: true, username: user.username, email: user.email, msg: 'Please verify your email address before signing in.' });
+        }
         const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, user: formatUser(user) });
     } catch (e) {
         console.error('Login failed:', e.message);
         res.status(500).json({ msg: 'Server error during login' });
+    }
+});
+
+// Email verification endpoints
+app.post('/api/auth/verify-email', async (req, res) => {
+    try {
+        const { username, code } = req.body;
+        if (!username || !code) return res.status(400).json({ msg: 'Username and code are required' });
+        const user = await dbGet('SELECT * FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)', [username, username]);
+        if (!user) return res.status(404).json({ msg: 'Account not found' });
+        if (user.email_verified) {
+            const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+            return res.json({ token, user: formatUser(user), msg: 'Already verified' });
+        }
+        if (!user.verification_code || String(user.verification_code) !== String(code).trim()) {
+            return res.status(400).json({ msg: 'Invalid verification code' });
+        }
+        if (user.verification_expires && new Date(user.verification_expires) < new Date()) {
+            return res.status(400).json({ msg: 'Verification code has expired. Please request a new one.' });
+        }
+        await dbRun('UPDATE users SET email_verified = 1, verification_code = NULL, verification_expires = NULL WHERE id = ?', [user.id]);
+        Emails.welcome(user.email, user.username);
+        const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ token, user: formatUser({ ...user, email_verified: 1 }), msg: 'Email verified successfully' });
+    } catch (e) {
+        console.error('Verify email failed:', e.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+app.post('/api/auth/resend-code', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ msg: 'Username is required' });
+        const user = await dbGet('SELECT * FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)', [username, username]);
+        if (!user) return res.status(404).json({ msg: 'Account not found' });
+        if (user.email_verified) return res.status(400).json({ msg: 'This email is already verified.' });
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        await dbRun('UPDATE users SET verification_code = ?, verification_expires = ? WHERE id = ?', [code, expiresAt, user.id]);
+        Emails.verificationCode(user.email, user.username, code);
+        res.json({ msg: 'A new verification code has been sent to your email.' });
+    } catch (e) {
+        console.error('Resend code failed:', e.message);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 

@@ -463,7 +463,11 @@
                     country
                 });
                 
-                if (data.token) {
+                if (data.requiresVerification) {
+                    sessionStorage.setItem('verifyUsername', data.username || username);
+                    sessionStorage.setItem('verifyEmail', data.email || email);
+                    window.location.href = `verify.html?u=${encodeURIComponent(data.username || username)}&e=${encodeURIComponent(data.email || email)}`;
+                } else if (data.token) {
                     alert('Registration successful! Please login.');
                     window.location.href = 'login.html';
                 } else {

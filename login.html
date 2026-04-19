@@ -195,6 +195,11 @@
                 const data = await API.login({ login, password });
                 if (data.token) {
                     window.location.href = 'index.html';
+                } else if (data.requiresVerification) {
+                    sessionStorage.setItem('verifyUsername', data.username || login);
+                    if (data.email) sessionStorage.setItem('verifyEmail', data.email);
+                    alert(data.msg || 'Please verify your email first.');
+                    window.location.href = `verify.html?u=${encodeURIComponent(data.username || login)}${data.email ? '&e=' + encodeURIComponent(data.email) : ''}`;
                 } else {
                     alert(data.msg || 'Login failed');
                 }

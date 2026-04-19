@@ -71,6 +71,14 @@ async function sendMail(to, subject, html) {
 const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const Emails = {
+    verificationCode(to, username, code) {
+        return sendMail(to, `Your ${APP_NAME} verification code is ${code}`,
+            wrap('Verify your email address',
+                `<p>Hi ${username}, thanks for signing up to <strong>${APP_NAME}</strong>! To finish creating your account, please enter the following 6-digit code on the verification page:</p>
+                 <p style="text-align:center;font-size:36px;font-weight:800;letter-spacing:10px;color:#3b82f6;background:rgba(59,130,246,0.08);padding:20px;border-radius:12px;margin:24px 0;">${code}</p>
+                 <p style="color:#94a3b8;font-size:13px;">This code will expire in 30 minutes. If you didn't sign up for ${APP_NAME}, you can safely ignore this email.</p>`,
+                'Verify My Email', `${APP_URL}/verify.html?u=${encodeURIComponent(username)}`));
+    },
     welcome(to, username) {
         return sendMail(to, `Welcome to ${APP_NAME}, ${username}!`,
             wrap(`Welcome aboard, ${username}!`,

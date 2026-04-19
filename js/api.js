@@ -10,6 +10,29 @@ const API = {
         return res.json();
     },
 
+    async verifyEmail(data) {
+        const res = await fetch(`${API_URL}/auth/verify-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.token) {
+            localStorage.setItem('token', result.token);
+            localStorage.setItem('user', JSON.stringify(result.user));
+        }
+        return result;
+    },
+
+    async resendCode(username) {
+        const res = await fetch(`${API_URL}/auth/resend-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+        return res.json();
+    },
+
     async resetPassword(data) {
         const res = await fetch(`${API_URL}/auth/reset-password`, {
             method: 'POST',
