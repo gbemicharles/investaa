@@ -99,6 +99,16 @@ async function initDb() {
         // Mark all existing accounts (pre-feature) as already verified to avoid locking them out
         await pool.query(`UPDATE users SET email_verified = 1 WHERE email_verified IS NULL OR email_verified = 0`);
 
+        // Profile fields
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT ''`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT DEFAULT ''`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT DEFAULT ''`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE`);
+        // Email-change flow
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email TEXT`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email_code TEXT`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email_expires TIMESTAMP`);
+
         console.log('PostgreSQL database initialized.');
     } catch (err) {
         console.error('CRITICAL: Database initialization failed!', err);
@@ -243,11 +253,26 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 function formatUser(user) {
     if (!user) return null;
+    // Strict allowlist — never leak password/pin hashes, OTP codes, or pending-change secrets.
     return {
-        ...user,
-        role: user.is_admin === 1 ? 'ADMIN' : 'USER',
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone || '',
+        country: user.country || '',
+        full_name: user.full_name || '',
+        address: user.address || '',
+        gender: user.gender || '',
+        date_of_birth: user.date_of_birth || null,
         balance: parseFloat(user.balance || 0),
-        deposit_balance: parseFloat(user.deposit_balance || 0)
+        deposit_balance: parseFloat(user.deposit_balance || 0),
+        vip_rank: user.vip_rank || 'REGULAR',
+        is_admin: user.is_admin || 0,
+        role: user.is_admin === 1 ? 'ADMIN' : 'USER',
+        email_verified: user.email_verified || 0,
+        pending_email: user.pending_email || null,
+        last_earning_at: user.last_earning_at || null,
+        created_at: user.created_at
     };
 }
 
@@ -452,6 +477,123 @@ app.get('/api/user/profile', authenticate, async (req, res) => {
         res.json(formatted);
     } catch (e) {
         res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// Update profile (everything except email & username)
+app.put('/api/user/profile', authenticate, async (req, res) => {
+    try {
+        let { full_name, address, gender, phone, country, date_of_birth } = req.body;
+        full_name = (full_name || '').toString().trim().slice(0, 120);
+        address   = (address   || '').toString().trim().slice(0, 250);
+        gender    = (gender    || '').toString().trim().slice(0, 20);
+        phone     = (phone     || '').toString().trim().slice(0, 30);
+        country   = (country   || '').toString().trim().slice(0, 80);
+        date_of_birth = (date_of_birth || '').toString().trim() || null;
+
+        const allowedGenders = ['', 'Male', 'Female', 'Other', 'Prefer not to say'];
+        if (!allowedGenders.includes(gender)) gender = '';
+
+        if (date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth)) {
+            return res.status(400).json({ msg: 'Date of birth must be in YYYY-MM-DD format.' });
+        }
+
+        await dbRun(
+            `UPDATE users SET full_name = ?, address = ?, gender = ?, phone = ?, country = ?, date_of_birth = ? WHERE id = ?`,
+            [full_name, address, gender, phone, country, date_of_birth, req.user.id]
+        );
+
+        const updated = await dbGet('SELECT * FROM users WHERE id = ?', [req.user.id]);
+        res.json({ msg: 'Profile updated successfully.', user: formatUser(updated) });
+    } catch (e) {
+        console.error('Update profile failed:', e.message);
+        res.status(500).json({ msg: 'Failed to update profile.' });
+    }
+});
+
+// Request email change — sends a 6-digit code to the NEW email
+app.post('/api/user/email/request-change', authenticate, async (req, res) => {
+    try {
+        let { new_email } = req.body;
+        new_email = (new_email || '').toString().trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(new_email)) {
+            return res.status(400).json({ msg: 'Please enter a valid email address.' });
+        }
+        const me = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]);
+        if (!me) return res.status(404).json({ msg: 'User not found' });
+        if (me.email.toLowerCase() === new_email) {
+            return res.status(400).json({ msg: 'This is already your current email address.' });
+        }
+        const taken = await dbGet('SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?', [new_email, req.user.id]);
+        if (taken) return res.status(400).json({ msg: 'This email is already in use by another account.' });
+
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const expires = new Date(Date.now() + 30 * 60 * 1000);
+        await dbRun(
+            'UPDATE users SET pending_email = ?, pending_email_code = ?, pending_email_expires = ? WHERE id = ?',
+            [new_email, code, expires, req.user.id]
+        );
+        try { Emails.verificationCode(new_email, me.username, code); } catch (e) { console.error('Email send failed:', e.message); }
+        res.json({ msg: `A 6-digit verification code has been sent to ${new_email}. It expires in 30 minutes.` });
+    } catch (e) {
+        console.error('Request email change failed:', e.message);
+        res.status(500).json({ msg: 'Failed to request email change.' });
+    }
+});
+
+// Confirm email change with the code sent to the new email
+app.post('/api/user/email/confirm-change', authenticate, async (req, res) => {
+    try {
+        const code = (req.body.code || '').toString().trim();
+        if (!/^\d{6}$/.test(code)) return res.status(400).json({ msg: 'Please enter the 6-digit code.' });
+
+        // Validate state (server-side only — code never leaves server via API)
+        const me = await dbGet('SELECT id, username, pending_email, pending_email_code, pending_email_expires FROM users WHERE id = ?', [req.user.id]);
+        if (!me) return res.status(404).json({ msg: 'User not found' });
+        if (!me.pending_email || !me.pending_email_code) {
+            return res.status(400).json({ msg: 'No email change request is pending. Please start over.' });
+        }
+        if (new Date(me.pending_email_expires) < new Date()) {
+            return res.status(400).json({ msg: 'Verification code expired. Please request a new one.' });
+        }
+        if (String(me.pending_email_code) !== code) {
+            return res.status(400).json({ msg: 'Incorrect verification code.' });
+        }
+
+        // Atomic conditional update — guards against TOCTOU. Catch unique-constraint race.
+        const newEmail = me.pending_email;
+        try {
+            const result = await pool.query(
+                `UPDATE users
+                    SET email = $1,
+                        email_verified = 1,
+                        pending_email = NULL,
+                        pending_email_code = NULL,
+                        pending_email_expires = NULL
+                  WHERE id = $2
+                    AND pending_email_code = $3
+                    AND pending_email_expires > NOW()`,
+                [newEmail, req.user.id, code]
+            );
+            if (result.rowCount === 0) {
+                return res.status(400).json({ msg: 'Verification could not be completed. Please request a new code.' });
+            }
+        } catch (dbErr) {
+            if (dbErr && (dbErr.code === '23505' || /duplicate key/i.test(dbErr.message || ''))) {
+                // Email got claimed by another account between request and confirm
+                await dbRun('UPDATE users SET pending_email = NULL, pending_email_code = NULL, pending_email_expires = NULL WHERE id = ?', [req.user.id]);
+                return res.status(400).json({ msg: 'That email was just claimed by another account. Please try a different one.' });
+            }
+            throw dbErr;
+        }
+
+        try { Emails.securityAlert && Emails.securityAlert(newEmail, me.username, 'Your account email has been changed successfully.'); } catch (_) {}
+
+        const updated = await dbGet('SELECT * FROM users WHERE id = ?', [req.user.id]);
+        res.json({ msg: 'Email updated successfully.', user: formatUser(updated) });
+    } catch (e) {
+        console.error('Confirm email change failed:', e.message);
+        res.status(500).json({ msg: 'Failed to confirm email change.' });
     }
 });
 

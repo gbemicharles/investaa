@@ -80,6 +80,45 @@ const API = {
         }
     },
 
+    async updateProfile(data) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/user/profile`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': token
+            },
+            body: JSON.stringify(data)
+        });
+        return res.json();
+    },
+
+    async requestEmailChange(new_email) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/user/email/request-change`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': token
+            },
+            body: JSON.stringify({ new_email })
+        });
+        return res.json();
+    },
+
+    async confirmEmailChange(code) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/user/email/confirm-change`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': token
+            },
+            body: JSON.stringify({ code })
+        });
+        return res.json();
+    },
+
     async deposit(amount, details) {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_URL}/transactions/deposit`, {
