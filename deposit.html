@@ -225,8 +225,10 @@
                 </div>
 
                 <h3>2. Deposit Amount (Min 5 USD)</h3>
-                <div id="deposit-amount-display" style="margin-bottom:8px;font-size:0.9rem;color:var(--accent-primary);font-weight:700;">$0.00</div>
-                <input type="text" inputmode="decimal" id="deposit-amount" placeholder="5.00">
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:30px;">
+                    <div id="deposit-amount-display" style="font-size:0.9rem;color:var(--accent-primary);font-weight:700;">$0.00 • 0 dollars</div>
+                    <input type="text" inputmode="decimal" id="deposit-amount" placeholder="5.00" style="margin-bottom:0;">
+                </div>
 
                 <div class="notice-box">
                     <h4><i class="fas fa-exclamation-triangle"></i> IMPORTANT NOTICE</h4>
