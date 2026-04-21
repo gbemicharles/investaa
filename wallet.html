@@ -111,6 +111,29 @@
             padding: 20px 22px;
             border-radius: 18px;
         }
+        .transaction-list {
+            max-height: 420px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .pagination-controls button {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            border-radius: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            min-width: 44px;
+        }
+        .pagination-controls button.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: #fff;
+        }
+        .pagination-controls button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
         .section-card h3 {
             margin: 0 0 16px;
             font-size: 1rem;
@@ -518,16 +541,24 @@
                             const { totalPages, currentPage } = pagination;
 
                             if (totalPages > 1) {
-                                for (let i = 1; i <= totalPages; i++) {
-                                    const btn = document.createElement('button');
-                                    btn.innerText = i;
-                                    if (i === currentPage) {
-                                        btn.classList.add('active');
-                                        btn.setAttribute('aria-current', 'page');
-                                    }
-                                    btn.onclick = () => loadTransactions(i);
-                                    controls.appendChild(btn);
-                                }
+                                const prevBtn = document.createElement('button');
+                                prevBtn.innerText = 'Prev';
+                                prevBtn.disabled = currentPage === 1;
+                                prevBtn.onclick = () => loadTransactions(currentPage - 1);
+                                controls.appendChild(prevBtn);
+
+                                const pageLabel = document.createElement('span');
+                                pageLabel.style.alignSelf = 'center';
+                                pageLabel.style.color = 'var(--text-muted)';
+                                pageLabel.style.fontSize = '0.85rem';
+                                pageLabel.innerText = `Page ${currentPage} of ${totalPages}`;
+                                controls.appendChild(pageLabel);
+
+                                const nextBtn = document.createElement('button');
+                                nextBtn.innerText = 'Next';
+                                nextBtn.disabled = currentPage === totalPages;
+                                nextBtn.onclick = () => loadTransactions(currentPage + 1);
+                                controls.appendChild(nextBtn);
                             }
                         }
 
