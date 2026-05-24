@@ -295,6 +295,11 @@ const API = {
         const res = await fetch(`${API_URL}/admin/kyc/pending`, { headers: { 'x-auth-token': token } });
         return res.json();
     },
+    async getVerifiedKyc() {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/kyc/verified`, { headers: { 'x-auth-token': token } });
+        return res.json();
+    },
     async approveKyc(kycId) {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_URL}/admin/kyc/approve`, {

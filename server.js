@@ -1112,6 +1112,15 @@ app.get('/api/admin/kyc/pending', authenticateAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
+app.get('/api/admin/kyc/verified', authenticateAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll(
+            `SELECT k.*, u.username, u.email, u.phone, u.country AS user_country FROM kyc_submissions k JOIN users u ON k.user_id = u.id WHERE k.status = 'APPROVED' ORDER BY k.reviewed_at DESC`
+        );
+        res.json(rows);
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
 app.post('/api/admin/kyc/approve', authenticateAdmin, async (req, res) => {
     try {
         const { kyc_id } = req.body;

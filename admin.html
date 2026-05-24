@@ -170,14 +170,26 @@
                 </div>
             </div>
 
-            <!-- KYC Verification Requests -->
+            <!-- KYC Verification -->
             <div class="card glass" style="margin-top: 30px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-id-card"></i> KYC Verification Requests</h3>
-                    <button class="btn secondary" onclick="loadKyc()" style="padding: 8px 15px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-id-card"></i> KYC Verification</h3>
+                    <button class="btn secondary" onclick="loadKyc();loadVerifiedKyc();" style="padding: 8px 15px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
                 </div>
-                <div id="kyc-list">
-                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading KYC submissions...</div>
+                <!-- Tabs -->
+                <div style="display:flex;gap:0;border-bottom:1px solid var(--glass-border);margin-bottom:24px;">
+                    <button id="kyc-tab-pending" onclick="switchKycTab('pending')" style="padding:10px 22px;background:none;border:none;border-bottom:2px solid var(--accent-primary);color:var(--text-main);font-weight:700;font-size:0.9rem;cursor:pointer;">
+                        Pending Review <span id="kyc-pending-count" style="background:rgba(245,158,11,0.2);color:#f59e0b;border-radius:20px;padding:2px 8px;font-size:0.75rem;margin-left:6px;">0</span>
+                    </button>
+                    <button id="kyc-tab-verified" onclick="switchKycTab('verified')" style="padding:10px 22px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-weight:600;font-size:0.9rem;cursor:pointer;">
+                        Verified Users <span id="kyc-verified-count" style="background:rgba(34,197,94,0.15);color:#22c55e;border-radius:20px;padding:2px 8px;font-size:0.75rem;margin-left:6px;">0</span>
+                    </button>
+                </div>
+                <div id="kyc-pending-panel">
+                    <div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div>
+                </div>
+                <div id="kyc-verified-panel" style="display:none;">
+                    <div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div>
                 </div>
             </div>
 
@@ -472,15 +484,68 @@
             }
         }
 
+        function switchKycTab(tab) {
+            const pendingPanel  = document.getElementById('kyc-pending-panel');
+            const verifiedPanel = document.getElementById('kyc-verified-panel');
+            const tabPending    = document.getElementById('kyc-tab-pending');
+            const tabVerified   = document.getElementById('kyc-tab-verified');
+            if (tab === 'pending') {
+                pendingPanel.style.display  = 'block';
+                verifiedPanel.style.display = 'none';
+                tabPending.style.borderBottomColor  = 'var(--accent-primary)';
+                tabPending.style.color              = 'var(--text-main)';
+                tabPending.style.fontWeight         = '700';
+                tabVerified.style.borderBottomColor = 'transparent';
+                tabVerified.style.color             = 'var(--text-muted)';
+                tabVerified.style.fontWeight        = '600';
+            } else {
+                pendingPanel.style.display  = 'none';
+                verifiedPanel.style.display = 'block';
+                tabVerified.style.borderBottomColor = 'var(--accent-primary)';
+                tabVerified.style.color             = 'var(--text-main)';
+                tabVerified.style.fontWeight        = '700';
+                tabPending.style.borderBottomColor  = 'transparent';
+                tabPending.style.color              = 'var(--text-muted)';
+                tabPending.style.fontWeight         = '600';
+            }
+        }
+
+        function downloadDoc(dataUrl, filename) {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename;
+            a.click();
+        }
+
+        function kycDocBlock(label, dataUrl, filename) {
+            if (!dataUrl) return '';
+            return `
+                <div style="grid-column:span 2;margin-top:14px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span class="detail-label">${label}</span>
+                        <div style="display:flex;gap:8px;">
+                            <a href="${dataUrl}" target="_blank" style="font-size:0.78rem;padding:4px 10px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:#93c5fd;text-decoration:none;"><i class="fas fa-eye"></i> View</a>
+                            <button onclick="downloadDoc('${dataUrl}','${filename}')" style="font-size:0.78rem;padding:4px 10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:6px;color:#86efac;cursor:pointer;"><i class="fas fa-download"></i> Download</button>
+                        </div>
+                    </div>
+                    <a href="${dataUrl}" target="_blank">
+                        <img src="${dataUrl}" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:10px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;">
+                    </a>
+                </div>`;
+        }
+
         async function loadKyc() {
-            const list = document.getElementById('kyc-list');
+            const panel = document.getElementById('kyc-pending-panel');
+            const countEl = document.getElementById('kyc-pending-count');
             try {
                 const submissions = await API.getPendingKyc();
                 if (!Array.isArray(submissions) || submissions.length === 0) {
-                    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No pending KYC submissions.</div>';
+                    panel.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No pending KYC submissions.</div>';
+                    countEl.textContent = '0';
                     return;
                 }
-                list.innerHTML = '';
+                countEl.textContent = submissions.length;
+                panel.innerHTML = '';
                 submissions.forEach(k => {
                     const item = document.createElement('div');
                     item.className = 'deposit-item';
@@ -490,7 +555,7 @@
                                 <h4 style="margin:0;">KYC #${k.id} — ${k.username}</h4>
                                 <small style="color:var(--text-muted)">${k.email}</small>
                             </div>
-                            <span class="status-badge" style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;">PENDING</span>
+                            <span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">PENDING</span>
                         </div>
                         <div class="deposit-details">
                             <div><span class="detail-label">Country</span><span class="detail-value">${k.country}</span></div>
@@ -498,24 +563,63 @@
                             <div><span class="detail-label">ID Number</span><span class="detail-value" style="font-family:monospace;">${k.id_number}</span></div>
                             <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleString()}</span></div>
                             ${k.extra_field_name ? `<div style="grid-column:span 2;"><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;margin-left:8px;">${k.extra_field_value}</span></div>` : ''}
-                            <div style="grid-column:span 2;margin-top:10px;">
-                                <span class="detail-label">ID Document (Front):</span><br>
-                                ${k.id_document ? `<a href="${k.id_document}" target="_blank"><img src="${k.id_document}" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;"></a>` : '<span style="color:var(--text-muted);font-size:0.85rem;">Not provided</span>'}
-                            </div>
-                            ${k.id_document_back ? `<div style="grid-column:span 2;margin-top:10px;"><span class="detail-label">ID Document (Back):</span><br><a href="${k.id_document_back}" target="_blank"><img src="${k.id_document_back}" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;"></a></div>` : ''}
-                            ${k.selfie ? `<div style="grid-column:span 2;margin-top:10px;"><span class="detail-label">Selfie with ID:</span><br><a href="${k.selfie}" target="_blank"><img src="${k.selfie}" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;"></a></div>` : ''}
+                            ${kycDocBlock('ID Document — Front', k.id_document, `kyc_${k.id}_${k.username}_front.jpg`)}
+                            ${kycDocBlock('ID Document — Back', k.id_document_back, `kyc_${k.id}_${k.username}_back.jpg`)}
+                            ${kycDocBlock('Selfie with ID', k.selfie, `kyc_${k.id}_${k.username}_selfie.jpg`)}
                         </div>
-                        <div class="action-area" style="flex-direction:column;align-items:stretch;gap:8px;">
-                            <div style="display:flex;gap:10px;">
+                        <div class="action-area">
+                            <div style="display:flex;gap:10px;width:100%;">
                                 <button class="btn primary" onclick="approveKyc(${k.id})" style="flex:1;padding:10px;">✓ Approve</button>
                                 <button class="btn secondary" onclick="rejectKycPrompt(${k.id})" style="flex:1;padding:10px;color:#ff4d4d;">✗ Reject</button>
                             </div>
                         </div>
                     `;
-                    list.appendChild(item);
+                    panel.appendChild(item);
                 });
             } catch(err) {
-                list.innerHTML = '<div style="text-align:center;padding:40px;color:#ff4d4d;">Failed to load KYC submissions.</div>';
+                panel.innerHTML = '<div style="text-align:center;padding:40px;color:#ff4d4d;">Failed to load KYC submissions.</div>';
+            }
+        }
+
+        async function loadVerifiedKyc() {
+            const panel  = document.getElementById('kyc-verified-panel');
+            const countEl = document.getElementById('kyc-verified-count');
+            try {
+                const rows = await API.getVerifiedKyc();
+                if (!Array.isArray(rows) || rows.length === 0) {
+                    panel.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No verified users yet.</div>';
+                    countEl.textContent = '0';
+                    return;
+                }
+                countEl.textContent = rows.length;
+                panel.innerHTML = '';
+                rows.forEach(k => {
+                    const item = document.createElement('div');
+                    item.className = 'deposit-item';
+                    item.innerHTML = `
+                        <div class="deposit-header">
+                            <div>
+                                <h4 style="margin:0;">${k.username}</h4>
+                                <small style="color:var(--text-muted)">${k.email}${k.phone ? ' · ' + k.phone : ''}</small>
+                            </div>
+                            <span style="background:rgba(34,197,94,0.12);color:#22c55e;padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;"><i class="fas fa-check-circle" style="margin-right:4px;"></i>VERIFIED</span>
+                        </div>
+                        <div class="deposit-details">
+                            <div><span class="detail-label">Country</span><span class="detail-value">${k.country}</span></div>
+                            <div><span class="detail-label">ID Type</span><span class="detail-value">${k.id_type}</span></div>
+                            <div><span class="detail-label">ID Number</span><span class="detail-value" style="font-family:monospace;">${k.id_number}</span></div>
+                            <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleDateString()}</span></div>
+                            <div><span class="detail-label">Approved</span><span class="detail-value" style="color:#22c55e;">${k.reviewed_at ? new Date(k.reviewed_at).toLocaleString() : '—'}</span></div>
+                            ${k.extra_field_name ? `<div><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;">${k.extra_field_value}</span></div>` : ''}
+                            ${kycDocBlock('ID Document — Front', k.id_document, `kyc_${k.username}_front.jpg`)}
+                            ${kycDocBlock('ID Document — Back', k.id_document_back, `kyc_${k.username}_back.jpg`)}
+                            ${kycDocBlock('Selfie with ID', k.selfie, `kyc_${k.username}_selfie.jpg`)}
+                        </div>
+                    `;
+                    panel.appendChild(item);
+                });
+            } catch(err) {
+                panel.innerHTML = '<div style="text-align:center;padding:40px;color:#ff4d4d;">Failed to load verified users.</div>';
             }
         }
 
@@ -524,6 +628,7 @@
             const res = await API.approveKyc(id);
             alert(res.msg);
             loadKyc();
+            loadVerifiedKyc();
         }
 
         async function rejectKycPrompt(id) {
@@ -540,6 +645,7 @@
             loadWithdrawals();
             loadUsers();
             loadKyc();
+            loadVerifiedKyc();
 
             document.getElementById('fund-btn').addEventListener('click', async () => {
                 const identifier = document.getElementById('fund-identifier').value.trim();
