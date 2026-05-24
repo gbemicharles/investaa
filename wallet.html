@@ -280,6 +280,7 @@
                 <li id="admin-link" style="display: none;"><a href="admin.html"><i class="fas fa-user-shield"></i> Admin Panel</a></li>
                 <li class="nav-divider"></li>
                 <li><a href="vip.html"><i class="fas fa-gem"></i> VIP Club</a></li>
+                <li><a href="kyc.html"><i class="fas fa-id-card"></i> KYC Verify</a></li>
                 <li><a href="support.html"><i class="fas fa-headset"></i> Support</a></li>
                 <li><a href="help.html"><i class="fas fa-question-circle"></i> Help</a></li>
                 <li><a href="#" id="logout-btn" style="color: #ff4d4d;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
@@ -380,7 +381,7 @@
                         <div class="info-item"><span class="label">Date of Birth</span><span class="value" data-field="date_of_birth">—</span></div>
                         <div class="info-item"><span class="label">Country</span><span class="value" data-field="country">—</span></div>
                         <div class="info-item"><span class="label">Address</span><span class="value" data-field="address">—</span></div>
-                        <div class="info-item"><span class="label">KYC Status</span><span class="value" style="color: var(--success);"><i class="fas fa-check-circle"></i> Verified</span></div>
+                        <div class="info-item"><span class="label">KYC Status</span><span class="value" id="kyc-status-badge">—</span></div>
                     </div>
                 </div>
 
@@ -545,6 +546,23 @@
 
                 // Wire up the Edit Profile modal
                 setupEditProfile(user);
+
+                // KYC Status Badge
+                try {
+                    const kyc = await API.getKycStatus();
+                    const badge = document.getElementById('kyc-status-badge');
+                    if (badge) {
+                        if (kyc.kyc_status === 'APPROVED') {
+                            badge.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> <span style="color:var(--success)">Verified</span>';
+                        } else if (kyc.kyc_status === 'PENDING') {
+                            badge.innerHTML = '<i class="fas fa-clock" style="color:#f59e0b"></i> <span style="color:#f59e0b">Pending Review</span>';
+                        } else if (kyc.kyc_status === 'REJECTED') {
+                            badge.innerHTML = '<i class="fas fa-times-circle" style="color:#ef4444"></i> <span style="color:#ef4444">Rejected</span> — <a href="kyc.html" style="color:var(--accent-primary);font-weight:600">Resubmit →</a>';
+                        } else {
+                            badge.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#f59e0b"></i> <span style="color:#f59e0b">Not Verified</span> — <a href="kyc.html" style="color:var(--accent-primary);font-weight:600">Complete KYC →</a>';
+                        }
+                    }
+                } catch(e) {}
 
                 // =========================
                 // LOAD TRANSACTIONS

@@ -187,6 +187,22 @@ const Emails = {
                  <p>If this was you, no action is needed. If you don't recognize this activity, please change your password right away and contact support.</p>`));
     },
 
+    kycApproved(to, username) {
+        return sendMail(to, 'Your identity has been verified ✓',
+            wrap('KYC Verification Approved!',
+                `<p>Hi ${username}, great news — your identity verification (KYC) has been reviewed and <strong style="color:#22c55e;">approved</strong>.</p>
+                 <p>You can now make withdrawals from your account without restriction.</p>
+                 <p style="color:#94a3b8;font-size:13px;">If you have any questions, our support team is always here to help.</p>`,
+                'Go to My Wallet', `${APP_URL}/wallet.html`));
+    },
+    kycRejected(to, username, reason) {
+        return sendMail(to, 'KYC verification was not approved',
+            wrap('Identity Verification Unsuccessful',
+                `<p>Hi ${username}, unfortunately your KYC submission could not be approved.</p>
+                 <p style="background:rgba(239,68,68,0.08);border-left:3px solid #ef4444;padding:12px 16px;border-radius:6px;color:#f8fafc;"><strong>Reason:</strong> ${reason}</p>
+                 <p>Please resubmit with the correct documents. Make sure your ID is valid, clearly visible, and all details match your account information.</p>`,
+                'Resubmit KYC', `${APP_URL}/kyc.html`));
+    },
     dormantReminder(to, username) {
         return sendMail(to, `Your ${APP_NAME} account needs your attention`,
             wrap(`Don't let your account go dormant, ${username}!`,

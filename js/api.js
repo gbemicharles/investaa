@@ -276,6 +276,43 @@ const API = {
         return res.json();
     },
 
+    async getKycStatus() {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/kyc/status`, { headers: { 'x-auth-token': token } });
+        return res.json();
+    },
+    async submitKyc(formData) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/kyc/submit`, {
+            method: 'POST',
+            headers: { 'x-auth-token': token },
+            body: formData
+        });
+        return res.json();
+    },
+    async getPendingKyc() {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/kyc/pending`, { headers: { 'x-auth-token': token } });
+        return res.json();
+    },
+    async approveKyc(kycId) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/kyc/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            body: JSON.stringify({ kyc_id: kycId })
+        });
+        return res.json();
+    },
+    async rejectKyc(kycId, reason) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/kyc/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            body: JSON.stringify({ kyc_id: kycId, reason })
+        });
+        return res.json();
+    },
     async getNotifications() {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_URL}/notifications`, {

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYC Verification | InvestAA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/auth-guard.js"></script>
+    <style>
+        .kyc-container { max-width: 680px; margin: 0 auto; padding: 0 0 60px; }
+        .kyc-status-banner {
+            display: flex; align-items: center; gap: 16px;
+            padding: 20px 24px; border-radius: 16px; margin-bottom: 24px;
+        }
+        .kyc-status-banner.approved  { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.3); }
+        .kyc-status-banner.pending   { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+        .kyc-status-banner.rejected  { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.3); }
+        .kyc-status-banner .icon { font-size: 2rem; }
+        .kyc-form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+        .kyc-form-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+        .kyc-form-group .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+        .kyc-input {
+            width: 100%; padding: 13px 15px;
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-radius: 12px; color: var(--text-main); font-size: 0.95rem;
+            outline: none; transition: border-color 0.2s; box-sizing: border-box;
+            font-family: inherit;
+        }
+        .kyc-input:focus { border-color: var(--accent-primary); }
+        .kyc-input option { background: #0f172a; }
+        .upload-box {
+            border: 2px dashed var(--glass-border); border-radius: 12px;
+            padding: 28px 20px; text-align: center; cursor: pointer;
+            transition: border-color 0.2s, background 0.2s; position: relative;
+        }
+        .upload-box:hover { border-color: var(--accent-primary); background: rgba(59,130,246,0.04); }
+        .upload-box input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .upload-box .upload-icon { font-size: 1.8rem; color: var(--text-muted); margin-bottom: 8px; }
+        .upload-box .upload-label { font-size: 0.9rem; color: var(--text-muted); }
+        .upload-box .upload-label strong { color: var(--accent-primary); }
+        .upload-preview { max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 8px; margin-top: 10px; display: none; }
+        .steps-bar { display: flex; gap: 0; margin-bottom: 30px; border-radius: 12px; overflow: hidden; border: 1px solid var(--glass-border); }
+        .step { flex: 1; padding: 12px 8px; text-align: center; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); background: var(--glass-bg); border-right: 1px solid var(--glass-border); }
+        .step:last-child { border-right: none; }
+        .step.active { background: var(--accent-primary); color: #fff; }
+        .step.done { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .section-divider { border: none; border-top: 1px solid var(--glass-border); margin: 28px 0; }
+        .back-btn { width:40px;height:40px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-main);text-decoration:none;transition:var(--transition); }
+        .back-btn:hover { background:var(--accent-primary);border-color:var(--accent-primary); }
+    </style>
+</head>
+<body class="dark-theme">
+
+<aside class="sidebar">
+    <div class="logo-container"><h1 class="logo"><span></span></h1></div>
+    <nav class="sidebar-nav">
+        <ul>
+            <li><a href="index.html"><i class="fas fa-th-large"></i> Dashboard</a></li>
+            <li><a href="wallet.html"><i class="fas fa-wallet"></i> Wallet</a></li>
+            <li><a href="deposit.html"><i class="fas fa-download"></i> Deposit</a></li>
+            <li><a href="withdraw.html"><i class="fas fa-upload"></i> Withdraw</a></li>
+            <li><a href="transfer.html"><i class="fas fa-exchange-alt"></i> Transfer</a></li>
+            <li id="admin-link" style="display:none;"><a href="admin.html"><i class="fas fa-user-shield"></i> Admin Panel</a></li>
+            <li class="nav-divider"></li>
+            <li><a href="vip.html"><i class="fas fa-gem"></i> VIP Club</a></li>
+            <li class="active"><a href="kyc.html"><i class="fas fa-id-card"></i> KYC Verify</a></li>
+            <li><a href="support.html"><i class="fas fa-headset"></i> Support</a></li>
+            <li><a href="help.html"><i class="fas fa-question-circle"></i> Help</a></li>
+            <li><a href="#" id="logout-btn" style="color:#ff4d4d;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <header class="top-header">
+        <div class="header-left" style="display:flex;align-items:center;gap:20px;">
+            <a href="wallet.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+            <div>
+                <h2>KYC Verification</h2>
+                <p>Verify your identity to enable withdrawals.</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+        </div>
+    </header>
+
+    <section style="padding: 0 20px;">
+        <div class="kyc-container">
+
+            <!-- Status Banner (shown after load) -->
+            <div id="kyc-status-banner" style="display:none;"></div>
+
+            <!-- Form (hidden once approved) -->
+            <div id="kyc-form-section">
+                <div class="card glass" style="margin-bottom: 24px; padding: 20px 24px;">
+                    <h3 style="margin:0 0 8px; font-size:1rem;"><i class="fas fa-shield-alt" style="color:var(--accent-primary);margin-right:8px;"></i>Why do we need this?</h3>
+                    <p style="color:var(--text-muted);font-size:0.88rem;margin:0;line-height:1.6;">Identity verification is required by financial regulations to prevent fraud and protect our users. Your documents are encrypted and stored securely. KYC approval is required before making any withdrawals.</p>
+                </div>
+
+                <div class="card glass" style="padding: 28px;">
+                    <h3 style="margin:0 0 24px;">Complete Your Verification</h3>
+
+                    <div id="kyc-msg" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:0.88rem;"></div>
+
+                    <!-- SECTION 1: Country -->
+                    <div class="kyc-form-group">
+                        <label for="kyc-country"><i class="fas fa-globe" style="margin-right:6px;color:var(--accent-primary);"></i>Country of Residence *</label>
+                        <select id="kyc-country" class="kyc-input">
+                            <option value="">— Select your country —</option>
+                            <optgroup label="Most Common">
+                                <option value="US">🇺🇸 United States</option>
+                                <option value="UK">🇬🇧 United Kingdom</option>
+                                <option value="CA">🇨🇦 Canada</option>
+                                <option value="AU">🇦🇺 Australia</option>
+                            </optgroup>
+                            <optgroup label="Africa">
+                                <option value="NG">🇳🇬 Nigeria</option>
+                                <option value="GH">🇬🇭 Ghana</option>
+                                <option value="KE">🇰🇪 Kenya</option>
+                                <option value="ZA">🇿🇦 South Africa</option>
+                                <option value="EG">🇪🇬 Egypt</option>
+                                <option value="TZ">🇹🇿 Tanzania</option>
+                                <option value="UG">🇺🇬 Uganda</option>
+                                <option value="ET">🇪🇹 Ethiopia</option>
+                                <option value="SN">🇸🇳 Senegal</option>
+                            </optgroup>
+                            <optgroup label="Europe">
+                                <option value="DE">🇩🇪 Germany</option>
+                                <option value="FR">🇫🇷 France</option>
+                                <option value="IT">🇮🇹 Italy</option>
+                                <option value="ES">🇪🇸 Spain</option>
+                                <option value="NL">🇳🇱 Netherlands</option>
+                                <option value="PL">🇵🇱 Poland</option>
+                                <option value="SE">🇸🇪 Sweden</option>
+                                <option value="NO">🇳🇴 Norway</option>
+                                <option value="CH">🇨🇭 Switzerland</option>
+                                <option value="PT">🇵🇹 Portugal</option>
+                                <option value="BE">🇧🇪 Belgium</option>
+                            </optgroup>
+                            <optgroup label="Asia & Middle East">
+                                <option value="IN">🇮🇳 India</option>
+                                <option value="PK">🇵🇰 Pakistan</option>
+                                <option value="BD">🇧🇩 Bangladesh</option>
+                                <option value="PH">🇵🇭 Philippines</option>
+                                <option value="SG">🇸🇬 Singapore</option>
+                                <option value="MY">🇲🇾 Malaysia</option>
+                                <option value="AE">🇦🇪 UAE</option>
+                                <option value="SA">🇸🇦 Saudi Arabia</option>
+                                <option value="TR">🇹🇷 Turkey</option>
+                                <option value="JP">🇯🇵 Japan</option>
+                                <option value="KR">🇰🇷 South Korea</option>
+                            </optgroup>
+                            <optgroup label="Americas">
+                                <option value="BR">🇧🇷 Brazil</option>
+                                <option value="MX">🇲🇽 Mexico</option>
+                                <option value="CO">🇨🇴 Colombia</option>
+                                <option value="AR">🇦🇷 Argentina</option>
+                                <option value="CL">🇨🇱 Chile</option>
+                                <option value="JM">🇯🇲 Jamaica</option>
+                            </optgroup>
+                            <optgroup label="Other">
+                                <option value="NZ">🇳🇿 New Zealand</option>
+                                <option value="OTHER">🌍 Other Country</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <!-- ID Type (updated dynamically) -->
+                    <div class="kyc-form-group">
+                        <label for="kyc-id-type"><i class="fas fa-id-card" style="margin-right:6px;color:var(--accent-primary);"></i>ID Document Type *</label>
+                        <select id="kyc-id-type" class="kyc-input" disabled>
+                            <option value="">— Select country first —</option>
+                        </select>
+                    </div>
+
+                    <!-- ID Number -->
+                    <div class="kyc-form-group">
+                        <label for="kyc-id-number"><i class="fas fa-hashtag" style="margin-right:6px;color:var(--accent-primary);"></i>ID Document Number *</label>
+                        <input type="text" id="kyc-id-number" class="kyc-input" placeholder="Enter the number from your ID" autocomplete="off">
+                        <span class="hint" id="id-number-hint">The number printed on your selected ID document.</span>
+                    </div>
+
+                    <!-- Country-specific extra field (e.g. SSN, NIN) -->
+                    <div class="kyc-form-group" id="extra-field-group" style="display:none;">
+                        <label for="kyc-extra-value" id="extra-field-label"><i class="fas fa-fingerprint" style="margin-right:6px;color:var(--accent-primary);"></i>—</label>
+                        <input type="text" id="kyc-extra-value" class="kyc-input" placeholder="" autocomplete="off">
+                        <span class="hint" id="extra-field-hint"></span>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <!-- ID Document Front -->
+                    <div class="kyc-form-group">
+                        <label><i class="fas fa-camera" style="margin-right:6px;color:var(--accent-primary);"></i>Front of ID Document *</label>
+                        <div class="upload-box" id="front-box">
+                            <input type="file" id="kyc-id-front" accept="image/*" onchange="previewFile(this,'front-preview','front-box')">
+                            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                            <div class="upload-label">Tap to upload or drag &amp; drop<br><strong>Clear photo of the front of your ID</strong></div>
+                            <img id="front-preview" class="upload-preview" alt="Front preview">
+                        </div>
+                        <span class="hint">JPG, PNG or WEBP. Max 10MB. Must be clear and unobstructed.</span>
+                    </div>
+
+                    <!-- ID Document Back (optional) -->
+                    <div class="kyc-form-group">
+                        <label><i class="fas fa-camera" style="margin-right:6px;color:var(--accent-primary);"></i>Back of ID Document <span style="font-weight:400;color:var(--text-muted);">(optional, if applicable)</span></label>
+                        <div class="upload-box" id="back-box">
+                            <input type="file" id="kyc-id-back" accept="image/*" onchange="previewFile(this,'back-preview','back-box')">
+                            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                            <div class="upload-label">Tap to upload back of ID<br><strong>Optional — only if your ID has a back</strong></div>
+                            <img id="back-preview" class="upload-preview" alt="Back preview">
+                        </div>
+                    </div>
+
+                    <!-- Selfie -->
+                    <div class="kyc-form-group">
+                        <label><i class="fas fa-user-circle" style="margin-right:6px;color:var(--accent-primary);"></i>Selfie Holding Your ID <span style="font-weight:400;color:var(--text-muted);">(optional but recommended)</span></label>
+                        <div class="upload-box" id="selfie-box">
+                            <input type="file" id="kyc-selfie" accept="image/*" onchange="previewFile(this,'selfie-preview','selfie-box')">
+                            <div class="upload-icon"><i class="fas fa-portrait"></i></div>
+                            <div class="upload-label">Tap to upload a selfie<br><strong>Hold your ID next to your face clearly</strong></div>
+                            <img id="selfie-preview" class="upload-preview" alt="Selfie preview">
+                        </div>
+                        <span class="hint">A selfie holding your ID speeds up approval and reduces rejection risk.</span>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:14px 16px;margin-bottom:24px;font-size:0.83rem;color:var(--text-muted);line-height:1.6;">
+                        <i class="fas fa-lock" style="color:var(--accent-primary);margin-right:6px;"></i>
+                        By submitting, you confirm that all information and documents provided are genuine and belong to you. Submitting false documents is a violation of our Terms of Service and may result in permanent account suspension.
+                    </div>
+
+                    <button class="btn primary btn-auth" id="kyc-submit-btn" style="width:100%;">
+                        <i class="fas fa-paper-plane" style="margin-right:8px;"></i>Submit for Verification
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</main>
+
+<script src="js/api.js"></script>
+<script>
+const KYC_CONFIG = {
+    US:    { idTypes: ["Driver's License", "State ID Card", "US Passport"],                extra: { name: 'SSN', label: 'Social Security Number (SSN)', placeholder: '123-45-6789', hint: 'Required for US residents. Format: 123-45-6789.' }},
+    UK:    { idTypes: ["Driver's Licence", "UK Passport", "Biometric Residence Permit"],   extra: { name: 'NIN', label: 'National Insurance Number (NIN)', placeholder: 'QQ 12 34 56 A', hint: 'Format: 2 letters, 6 digits, 1 letter (e.g. QQ 12 34 56 C).' }},
+    CA:    { idTypes: ["Driver's Licence", "Canadian Passport", "Provincial ID"],          extra: { name: 'SIN', label: 'Social Insurance Number (SIN)', placeholder: '123-456-789', hint: '9-digit SIN in format 123-456-789.' }},
+    AU:    { idTypes: ["Driver's Licence", "Australian Passport", "Medicare Card"],        extra: { name: 'TFN', label: 'Tax File Number (TFN)', placeholder: '123 456 789', hint: '8 or 9 digit Australian Tax File Number.' }},
+    NG:    { idTypes: ["National ID Card (NIN Slip)", "International Passport", "Driver's Licence", "Voter's Card"], extra: { name: 'BVN', label: 'Bank Verification Number (BVN)', placeholder: '12345678901', hint: '11-digit BVN linked to your Nigerian bank account.' }},
+    GH:    { idTypes: ["Ghana Card (National ID)", "Passport", "Driver's Licence", "Voter's ID"], extra: { name: 'Ghana Card No.', label: 'Ghana Card Number', placeholder: 'GHA-XXXXXXXXX-X', hint: 'Your Ghana Card identification number.' }},
+    KE:    { idTypes: ["National ID Card", "Kenyan Passport", "Driver's Licence"],        extra: { name: 'National ID No.', label: 'National ID Number', placeholder: '12345678', hint: 'Your Kenyan National ID number.' }},
+    ZA:    { idTypes: ["SA ID Book/Card", "South African Passport", "Driver's Licence"],  extra: { name: 'SA ID No.', label: 'SA ID Number', placeholder: '0001015009087', hint: '13-digit South African ID number.' }},
+    IN:    { idTypes: ["Aadhaar Card", "PAN Card", "Indian Passport", "Driver's Licence", "Voter ID"], extra: { name: 'PAN', label: 'PAN Number', placeholder: 'ABCDE1234F', hint: '10-character PAN (e.g. ABCDE1234F). Required for Indian residents.' }},
+    DE:    { idTypes: ["Personalausweis (National ID)", "Reisepass (Passport)", "Führerschein (Licence)"], extra: { name: 'Tax ID', label: 'Steueridentifikationsnummer (Tax ID)', placeholder: '12345678901', hint: '11-digit German Tax Identification Number.' }},
+    FR:    { idTypes: ["Carte Nationale d'Identité", "Passeport Français", "Permis de Conduire"], extra: { name: 'Numéro Fiscal', label: 'Numéro Fiscal (Tax ID)', placeholder: '1234567890123', hint: '13-digit French tax identification number.' }},
+    IT:    { idTypes: ["Carta d'Identità", "Passaporto", "Patente di Guida"],             extra: { name: 'Codice Fiscale', label: 'Codice Fiscale', placeholder: 'RSSMRA80A01H501U', hint: '16-character Italian fiscal code.' }},
+    ES:    { idTypes: ["DNI", "NIE", "Pasaporte", "Permiso de Conducir"],                 extra: { name: 'DNI/NIE', label: 'DNI or NIE Number', placeholder: '12345678A', hint: 'Your Spanish DNI (8 digits + letter) or NIE (X/Y/Z + digits + letter).' }},
+    NL:    { idTypes: ["Paspoort", "Identiteitskaart", "Rijbewijs"],                      extra: { name: 'BSN', label: 'Burgerservicenummer (BSN)', placeholder: '123456789', hint: '9-digit Dutch citizen service number.' }},
+    AE:    { idTypes: ["Emirates ID", "UAE Passport", "Residence Permit"],                extra: { name: 'Emirates ID No.', label: 'Emirates ID Number', placeholder: '784-XXXX-XXXXXXX-X', hint: 'Your Emirates National ID number.' }},
+    SG:    { idTypes: ["NRIC (Blue/Pink IC)", "Singapore Passport", "FIN (Foreign ID)"],  extra: { name: 'NRIC/FIN', label: 'NRIC or FIN Number', placeholder: 'S1234567D', hint: 'Your Singapore NRIC or FIN starting with S, T, F, G or M.' }},
+    EG:    { idTypes: ["National ID Card", "Egyptian Passport"],                          extra: { name: 'National ID No.', label: 'National ID Number', placeholder: '14-digit number', hint: '14-digit Egyptian National ID number.' }},
+    PK:    { idTypes: ["CNIC", "Pakistani Passport", "NICOP"],                            extra: { name: 'CNIC No.', label: 'CNIC Number', placeholder: '12345-1234567-1', hint: '13-digit CNIC in format XXXXX-XXXXXXX-X.' }},
+    OTHER: { idTypes: ["National ID Card", "Passport", "Driver's Licence", "Residence Permit"], extra: { name: 'ID Number', label: 'Government ID / Tax Number', placeholder: 'Your government-issued ID number', hint: 'Enter the reference number from your selected document.' }},
+};
+
+function getConfig(code) {
+    return KYC_CONFIG[code] || KYC_CONFIG['OTHER'];
+}
+
+const countrySelect  = document.getElementById('kyc-country');
+const idTypeSelect   = document.getElementById('kyc-id-type');
+const extraGroup     = document.getElementById('extra-field-group');
+const extraLabel     = document.getElementById('extra-field-label');
+const extraInput     = document.getElementById('kyc-extra-value');
+const extraHint      = document.getElementById('extra-field-hint');
+
+countrySelect.addEventListener('change', () => {
+    const code = countrySelect.value;
+    if (!code) {
+        idTypeSelect.innerHTML = '<option value="">— Select country first —</option>';
+        idTypeSelect.disabled = true;
+        extraGroup.style.display = 'none';
+        return;
+    }
+    const cfg = getConfig(code);
+    idTypeSelect.innerHTML = '<option value="">— Select ID type —</option>' +
+        cfg.idTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+    idTypeSelect.disabled = false;
+
+    if (cfg.extra) {
+        extraLabel.innerHTML = `<i class="fas fa-fingerprint" style="margin-right:6px;color:var(--accent-primary);"></i>${cfg.extra.label} *`;
+        extraInput.placeholder = cfg.extra.placeholder;
+        extraHint.textContent = cfg.extra.hint;
+        extraGroup.style.display = 'flex';
+        extraInput.dataset.fieldName = cfg.extra.name;
+    } else {
+        extraGroup.style.display = 'none';
+    }
+});
+
+function previewFile(input, previewId, boxId) {
+    const file = input.files[0];
+    const preview = document.getElementById(previewId);
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            document.getElementById(boxId).style.borderColor = 'var(--accent-primary)';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function showMsg(text, type = 'error') {
+    const el = document.getElementById('kyc-msg');
+    const styles = {
+        error:   { bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.4)',   color: '#fca5a5' },
+        success: { bg: 'rgba(34,197,94,0.12)',    border: 'rgba(34,197,94,0.4)',   color: '#86efac' },
+        info:    { bg: 'rgba(59,130,246,0.12)',   border: 'rgba(59,130,246,0.4)',  color: '#93c5fd' },
+    }[type];
+    el.style.display = 'block';
+    el.style.background = styles.bg;
+    el.style.border = `1px solid ${styles.border}`;
+    el.style.color = styles.color;
+    el.textContent = text;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+document.getElementById('kyc-submit-btn').addEventListener('click', async () => {
+    const country = countrySelect.value;
+    const idType  = idTypeSelect.value;
+    const idNum   = document.getElementById('kyc-id-number').value.trim();
+    const frontFile = document.getElementById('kyc-id-front').files[0];
+    const backFile  = document.getElementById('kyc-id-back').files[0];
+    const selfieFile = document.getElementById('kyc-selfie').files[0];
+    const extraVal  = extraInput.value.trim();
+    const extraName = extraInput.dataset.fieldName || '';
+
+    if (!country)   return showMsg('Please select your country of residence.');
+    if (!idType)    return showMsg('Please select your ID document type.');
+    if (!idNum)     return showMsg('Please enter your ID document number.');
+    if (!frontFile) return showMsg('Please upload the front of your ID document.');
+    if (extraGroup.style.display !== 'none' && !extraVal) {
+        return showMsg(`Please enter your ${extraName}.`);
+    }
+
+    const btn = document.getElementById('kyc-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Submitting...';
+
+    try {
+        const fd = new FormData();
+        fd.append('country',           country);
+        fd.append('id_type',           idType);
+        fd.append('id_number',         idNum);
+        fd.append('extra_field_name',  extraName);
+        fd.append('extra_field_value', extraVal);
+        fd.append('id_document',       frontFile);
+        if (backFile)   fd.append('id_document_back', backFile);
+        if (selfieFile) fd.append('selfie', selfieFile);
+
+        const res = await API.submitKyc(fd);
+        if (res.msg && res.msg.toLowerCase().includes('submitted')) {
+            showMsg(res.msg, 'success');
+            setTimeout(() => renderStatus('PENDING', null), 1200);
+        } else {
+            showMsg(res.msg || 'Submission failed. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane" style="margin-right:8px;"></i>Submit for Verification';
+        }
+    } catch(e) {
+        showMsg('Network error. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane" style="margin-right:8px;"></i>Submit for Verification';
+    }
+});
+
+function renderStatus(status, submission) {
+    const banner = document.getElementById('kyc-status-banner');
+    const formSection = document.getElementById('kyc-form-section');
+
+    if (status === 'APPROVED') {
+        banner.className = 'kyc-status-banner approved';
+        banner.innerHTML = `
+            <div class="icon"><i class="fas fa-check-circle" style="color:#22c55e;"></i></div>
+            <div>
+                <div style="font-weight:700;font-size:1.05rem;color:#22c55e;margin-bottom:4px;">Identity Verified</div>
+                <div style="font-size:0.88rem;color:var(--text-muted);">Your KYC has been approved. Withdrawals are fully enabled on your account.</div>
+            </div>`;
+        banner.style.display = 'flex';
+        formSection.style.display = 'none';
+
+    } else if (status === 'PENDING') {
+        banner.className = 'kyc-status-banner pending';
+        banner.innerHTML = `
+            <div class="icon"><i class="fas fa-clock" style="color:#f59e0b;"></i></div>
+            <div>
+                <div style="font-weight:700;font-size:1.05rem;color:#f59e0b;margin-bottom:4px;">Under Review</div>
+                <div style="font-size:0.88rem;color:var(--text-muted);">Your documents have been submitted and are being reviewed by our team. This usually takes 24–48 hours. You will be notified by email once approved.</div>
+                ${submission ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;">Submitted: ${new Date(submission.submitted_at).toLocaleString()}</div>` : ''}
+            </div>`;
+        banner.style.display = 'flex';
+        formSection.style.display = 'none';
+
+    } else if (status === 'REJECTED') {
+        const reason = submission && submission.rejection_reason ? submission.rejection_reason : 'Did not meet requirements';
+        banner.className = 'kyc-status-banner rejected';
+        banner.innerHTML = `
+            <div class="icon"><i class="fas fa-times-circle" style="color:#ef4444;"></i></div>
+            <div style="flex:1;">
+                <div style="font-weight:700;font-size:1.05rem;color:#ef4444;margin-bottom:4px;">Verification Rejected</div>
+                <div style="font-size:0.88rem;color:var(--text-muted);margin-bottom:6px;"><strong>Reason:</strong> ${reason}</div>
+                <div style="font-size:0.88rem;color:var(--text-muted);">Please correct the issue and resubmit below.</div>
+            </div>`;
+        banner.style.display = 'flex';
+        formSection.style.display = 'block';
+
+    } else {
+        banner.style.display = 'none';
+        formSection.style.display = 'block';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const user = await API.getProfile();
+        if (user && user.role === 'ADMIN') {
+            const al = document.getElementById('admin-link');
+            if (al) al.style.display = 'block';
+        }
+    } catch(e) {}
+
+    try {
+        const kyc = await API.getKycStatus();
+        renderStatus(kyc.kyc_status || 'NONE', kyc.submission);
+    } catch(e) {
+        renderStatus('NONE', null);
+    }
+});
+</script>
+<script src="js/chat.js"></script>
+</body>
+</html>

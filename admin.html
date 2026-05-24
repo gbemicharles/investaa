@@ -170,6 +170,17 @@
                 </div>
             </div>
 
+            <!-- KYC Verification Requests -->
+            <div class="card glass" style="margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-id-card"></i> KYC Verification Requests</h3>
+                    <button class="btn secondary" onclick="loadKyc()" style="padding: 8px 15px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div id="kyc-list">
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading KYC submissions...</div>
+                </div>
+            </div>
+
             <!-- Registered Users Section -->
             <div class="card glass" style="margin-top: 30px; padding: 30px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
@@ -461,11 +472,74 @@
             }
         }
 
+        async function loadKyc() {
+            const list = document.getElementById('kyc-list');
+            try {
+                const submissions = await API.getPendingKyc();
+                if (!Array.isArray(submissions) || submissions.length === 0) {
+                    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No pending KYC submissions.</div>';
+                    return;
+                }
+                list.innerHTML = '';
+                submissions.forEach(k => {
+                    const item = document.createElement('div');
+                    item.className = 'deposit-item';
+                    item.innerHTML = `
+                        <div class="deposit-header">
+                            <div>
+                                <h4 style="margin:0;">KYC #${k.id} — ${k.username}</h4>
+                                <small style="color:var(--text-muted)">${k.email}</small>
+                            </div>
+                            <span class="status-badge" style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;">PENDING</span>
+                        </div>
+                        <div class="deposit-details">
+                            <div><span class="detail-label">Country</span><span class="detail-value">${k.country}</span></div>
+                            <div><span class="detail-label">ID Type</span><span class="detail-value">${k.id_type}</span></div>
+                            <div><span class="detail-label">ID Number</span><span class="detail-value" style="font-family:monospace;">${k.id_number}</span></div>
+                            <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleString()}</span></div>
+                            ${k.extra_field_name ? `<div style="grid-column:span 2;"><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;margin-left:8px;">${k.extra_field_value}</span></div>` : ''}
+                            <div style="grid-column:span 2;margin-top:10px;">
+                                <span class="detail-label">ID Document (Front):</span><br>
+                                ${k.id_document ? `<a href="${k.id_document}" target="_blank"><img src="${k.id_document}" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;"></a>` : '<span style="color:var(--text-muted);font-size:0.85rem;">Not provided</span>'}
+                            </div>
+                            ${k.id_document_back ? `<div style="grid-column:span 2;margin-top:10px;"><span class="detail-label">ID Document (Back):</span><br><a href="${k.id_document_back}" target="_blank"><img src="${k.id_document_back}" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;"></a></div>` : ''}
+                            ${k.selfie ? `<div style="grid-column:span 2;margin-top:10px;"><span class="detail-label">Selfie with ID:</span><br><a href="${k.selfie}" target="_blank"><img src="${k.selfie}" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;"></a></div>` : ''}
+                        </div>
+                        <div class="action-area" style="flex-direction:column;align-items:stretch;gap:8px;">
+                            <div style="display:flex;gap:10px;">
+                                <button class="btn primary" onclick="approveKyc(${k.id})" style="flex:1;padding:10px;">✓ Approve</button>
+                                <button class="btn secondary" onclick="rejectKycPrompt(${k.id})" style="flex:1;padding:10px;color:#ff4d4d;">✗ Reject</button>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch(err) {
+                list.innerHTML = '<div style="text-align:center;padding:40px;color:#ff4d4d;">Failed to load KYC submissions.</div>';
+            }
+        }
+
+        async function approveKyc(id) {
+            if (!confirm('Approve this KYC submission? The user will be notified and able to withdraw.')) return;
+            const res = await API.approveKyc(id);
+            alert(res.msg);
+            loadKyc();
+        }
+
+        async function rejectKycPrompt(id) {
+            const reason = prompt('Rejection reason (shown to user):');
+            if (!reason) return;
+            const res = await API.rejectKyc(id, reason);
+            alert(res.msg);
+            loadKyc();
+        }
+
         // Initial load
         window.addEventListener('DOMContentLoaded', () => {
             loadPending();
             loadWithdrawals();
             loadUsers();
+            loadKyc();
 
             document.getElementById('fund-btn').addEventListener('click', async () => {
                 const identifier = document.getElementById('fund-identifier').value.trim();

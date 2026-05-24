@@ -111,6 +111,26 @@ async function initDb() {
         // Reminder emails
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_reminder_sent TIMESTAMP`);
+        // KYC
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status TEXT DEFAULT 'NONE'`);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS kyc_submissions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                country TEXT NOT NULL,
+                id_type TEXT NOT NULL,
+                id_number TEXT NOT NULL,
+                id_document TEXT,
+                id_document_back TEXT,
+                selfie TEXT,
+                extra_field_name TEXT,
+                extra_field_value TEXT,
+                status TEXT DEFAULT 'PENDING',
+                rejection_reason TEXT,
+                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                reviewed_at TIMESTAMP
+            )
+        `);
 
         console.log('PostgreSQL database initialized.');
     } catch (err) {
@@ -877,6 +897,16 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
             });
         }
 
+        // ❌ Block if KYC not approved
+        if (user.kyc_status !== 'APPROVED') {
+            return res.status(403).json({
+                msg: user.kyc_status === 'PENDING'
+                    ? 'Your KYC verification is under review. Withdrawals will be enabled once approved.'
+                    : 'Identity verification (KYC) is required before you can withdraw. Please complete it in your wallet.',
+                kyc_required: true
+            });
+        }
+
         // ✅ Get usage
         const daily = await dbGet(
             `SELECT COALESCE(SUM(amount), 0) as total 
@@ -1023,6 +1053,93 @@ app.post('/api/notifications/read', authenticate, async (req, res) => {
 
 app.get('/api/market/prices', async (req, res) => {
     res.json({ bitcoin: { usd: 65420.50 }, ethereum: { usd: 3520.15 }, 'the-open-network': { usd: 5.20 } });
+});
+
+// ===== KYC ROUTES =====
+app.get('/api/kyc/status', authenticate, async (req, res) => {
+    try {
+        const user = await dbGet('SELECT kyc_status FROM users WHERE id = ?', [req.user.id]);
+        const submission = await dbGet(
+            'SELECT id, country, id_type, status, rejection_reason, submitted_at, reviewed_at FROM kyc_submissions WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1',
+            [req.user.id]
+        );
+        res.json({ kyc_status: user.kyc_status || 'NONE', submission: submission || null });
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/kyc/submit', authenticate, upload.fields([
+    { name: 'id_document', maxCount: 1 },
+    { name: 'id_document_back', maxCount: 1 },
+    { name: 'selfie', maxCount: 1 }
+]), async (req, res) => {
+    try {
+        const user = await dbGet('SELECT kyc_status FROM users WHERE id = ?', [req.user.id]);
+        if (user.kyc_status === 'APPROVED') return res.status(400).json({ msg: 'Your KYC is already approved.' });
+        if (user.kyc_status === 'PENDING')  return res.status(400).json({ msg: 'Your KYC submission is already under review.' });
+
+        const { country, id_type, id_number, extra_field_name, extra_field_value } = req.body;
+        if (!country || !id_type || !id_number) return res.status(400).json({ msg: 'Country, ID type, and ID number are required.' });
+
+        const toBase64 = (field) => {
+            const files = req.files && req.files[field];
+            if (!files || !files[0]) return null;
+            const f = files[0];
+            return `data:${f.mimetype};base64,${f.buffer.toString('base64')}`;
+        };
+
+        const id_document      = toBase64('id_document');
+        const id_document_back = toBase64('id_document_back');
+        const selfie           = toBase64('selfie');
+
+        if (!id_document) return res.status(400).json({ msg: 'Front of your ID document is required.' });
+
+        await dbRun(
+            `INSERT INTO kyc_submissions (user_id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name, extra_field_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.user.id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name || null, extra_field_value || null]
+        );
+        await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['PENDING', req.user.id]);
+        res.json({ msg: 'KYC submitted successfully. Our team will review it within 24–48 hours.' });
+    } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.get('/api/admin/kyc/pending', authenticateAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll(
+            `SELECT k.*, u.username, u.email FROM kyc_submissions k JOIN users u ON k.user_id = u.id WHERE k.status = 'PENDING' ORDER BY k.submitted_at DESC`
+        );
+        res.json(rows);
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/kyc/approve', authenticateAdmin, async (req, res) => {
+    try {
+        const { kyc_id } = req.body;
+        const sub = await dbGet('SELECT * FROM kyc_submissions WHERE id = ?', [kyc_id]);
+        if (!sub) return res.status(404).json({ msg: 'Submission not found' });
+        await dbRun('UPDATE kyc_submissions SET status = ?, reviewed_at = NOW() WHERE id = ?', ['APPROVED', kyc_id]);
+        await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['APPROVED', sub.user_id]);
+        try {
+            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [sub.user_id]);
+            if (u) Emails.kycApproved(u.email, u.username);
+        } catch(e) {}
+        res.json({ msg: 'KYC approved' });
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
+    try {
+        const { kyc_id, reason } = req.body;
+        const sub = await dbGet('SELECT * FROM kyc_submissions WHERE id = ?', [kyc_id]);
+        if (!sub) return res.status(404).json({ msg: 'Submission not found' });
+        const rejReason = reason || 'Did not meet requirements';
+        await dbRun('UPDATE kyc_submissions SET status = ?, rejection_reason = ?, reviewed_at = NOW() WHERE id = ?', ['REJECTED', rejReason, kyc_id]);
+        await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['REJECTED', sub.user_id]);
+        try {
+            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [sub.user_id]);
+            if (u) Emails.kycRejected(u.email, u.username, rejReason);
+        } catch(e) {}
+        res.json({ msg: 'KYC rejected' });
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
 app.get('*path', (req, res) => {
