@@ -572,7 +572,7 @@
                     formData.append('exchange_rate', cryptoData.price);
 
                     if (screenshotFile) {
-                        formData.append('screenshot', screenshotFile);
+                        formData.append('proof', screenshotFile);
                     }
 
                     const res = await API.submitDeposit(formData);
