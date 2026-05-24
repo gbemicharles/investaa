@@ -601,7 +601,11 @@ app.post('/api/user/email/confirm-change', authenticate, async (req, res) => {
 app.get('/api/admin/deposits/pending', authenticateAdmin, async (req, res) => {
     try {
         const deposits = await dbAll(`SELECT d.*, u.username, u.email FROM deposits d JOIN users u ON d.user_id = u.id WHERE d.status = 'PENDING' ORDER BY d.created_at DESC`);
-        res.json(deposits);
+        const normalized = deposits.map(d => ({
+            ...d,
+            proof_path: d.proof_path ? path.basename(d.proof_path) : null
+        }));
+        res.json(normalized);
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
