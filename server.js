@@ -757,7 +757,7 @@ app.get('/api/transactions/limits', authenticate, async (req, res) => {
 app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'), async (req, res) => {
     try {
         const { amount, network, txid, usdt_amount, crypto_amount, exchange_rate } = req.body;
-        const proof_path = req.file ? req.file.path : null;
+        const proof_path = req.file ? req.file.filename : null;
         const usdtAmt = parseFloat(usdt_amount || amount);
         await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', proof_path, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit of $${usdtAmt.toFixed(2)} USDT via ${network} has been received and is currently under review. Our team will verify your transaction and credit your account within 10–30 minutes. You will be notified once it is approved.`, 'DEPOSIT', 'PENDING']);

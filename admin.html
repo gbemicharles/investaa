@@ -257,8 +257,8 @@
                             ${d.proof_path ? `
                             <div style="grid-column: span 2; margin-top: 10px;">
                                 <span class="detail-label">Proof of Payment:</span><br>
-                                <a href="/${d.proof_path}" target="_blank">
-                                    <img src="/${d.proof_path}" style="max-width: 200px; max-height: 300px; object-fit: contain; border-radius: 8px; margin-top: 5px; border: 1px solid var(--glass-border); display: block;">
+                                <a href="/uploads/${d.proof_path}" target="_blank">
+                                    <img src="/uploads/${d.proof_path}" style="max-width: 200px; max-height: 300px; object-fit: contain; border-radius: 8px; margin-top: 5px; border: 1px solid var(--glass-border); display: block;">
                                 </a>
                             </div>
                             ` : '<div style="grid-column: span 2; margin-top: 10px;"><span class="detail-label">Proof of Payment:</span> <span style="color: var(--text-muted); font-size: 0.85rem;">None provided</span></div>'}
