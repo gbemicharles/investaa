@@ -1091,7 +1091,8 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
         const id_document_back = toBase64('id_document_back');
         const selfie           = toBase64('selfie');
 
-        if (!id_document) return res.status(400).json({ msg: 'Front of your ID document is required.' });
+        if (!id_document)      return res.status(400).json({ msg: 'Front of your ID document is required.' });
+        if (!id_document_back) return res.status(400).json({ msg: 'Back of your ID document is required.' });
 
         await dbRun(
             `INSERT INTO kyc_submissions (user_id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name, extra_field_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,

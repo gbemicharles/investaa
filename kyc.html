@@ -206,15 +206,16 @@
                         <span class="hint">JPG, PNG or WEBP. Max 10MB. Must be clear and unobstructed.</span>
                     </div>
 
-                    <!-- ID Document Back (optional) -->
+                    <!-- ID Document Back (required) -->
                     <div class="kyc-form-group">
-                        <label><i class="fas fa-camera" style="margin-right:6px;color:var(--accent-primary);"></i>Back of ID Document <span style="font-weight:400;color:var(--text-muted);">(optional, if applicable)</span></label>
+                        <label><i class="fas fa-camera" style="margin-right:6px;color:var(--accent-primary);"></i>Back of ID Document *</label>
                         <div class="upload-box" id="back-box">
                             <input type="file" id="kyc-id-back" accept="image/*" onchange="previewFile(this,'back-preview','back-box')">
                             <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-                            <div class="upload-label">Tap to upload back of ID<br><strong>Optional — only if your ID has a back</strong></div>
+                            <div class="upload-label">Tap to upload or drag &amp; drop<br><strong>Clear photo of the back of your ID</strong></div>
                             <img id="back-preview" class="upload-preview" alt="Back preview">
                         </div>
+                        <span class="hint">JPG, PNG or WEBP. Max 10MB. Must be clear and unobstructed.</span>
                     </div>
 
                     <!-- Selfie -->
@@ -348,6 +349,7 @@ document.getElementById('kyc-submit-btn').addEventListener('click', async () => 
     if (!idType)    return showMsg('Please select your ID document type.');
     if (!idNum)     return showMsg('Please enter your ID document number.');
     if (!frontFile) return showMsg('Please upload the front of your ID document.');
+    if (!backFile)  return showMsg('Please upload the back of your ID document.');
     if (extraGroup.style.display !== 'none' && !extraVal) {
         return showMsg(`Please enter your ${extraName}.`);
     }
