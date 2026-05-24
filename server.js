@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_change_in_prod';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin123';
 
-const upload = multer({ dest: path.join(__dirname, 'uploads/') });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
@@ -601,11 +601,7 @@ app.post('/api/user/email/confirm-change', authenticate, async (req, res) => {
 app.get('/api/admin/deposits/pending', authenticateAdmin, async (req, res) => {
     try {
         const deposits = await dbAll(`SELECT d.*, u.username, u.email FROM deposits d JOIN users u ON d.user_id = u.id WHERE d.status = 'PENDING' ORDER BY d.created_at DESC`);
-        const normalized = deposits.map(d => ({
-            ...d,
-            proof_path: d.proof_path ? path.basename(d.proof_path) : null
-        }));
-        res.json(normalized);
+        res.json(deposits);
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
@@ -761,9 +757,13 @@ app.get('/api/transactions/limits', authenticate, async (req, res) => {
 app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'), async (req, res) => {
     try {
         const { amount, network, txid, usdt_amount, crypto_amount, exchange_rate } = req.body;
-        const proof_path = req.file ? req.file.filename : null;
         const usdtAmt = parseFloat(usdt_amount || amount);
-        await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', proof_path, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
+        let screenshotData = null;
+        if (req.file) {
+            const mime = req.file.mimetype || 'image/png';
+            screenshotData = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
+        }
+        await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', null, screenshotData, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit of $${usdtAmt.toFixed(2)} USDT via ${network} has been received and is currently under review. Our team will verify your transaction and credit your account within 10–30 minutes. You will be notified once it is approved.`, 'DEPOSIT', 'PENDING']);
         try {
             const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]);

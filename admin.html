@@ -254,14 +254,13 @@
                                 <span class="detail-label">TXID:</span><br>
                                 <a href="${d.network === 'TON' ? `https://tonscan.org/tx/${d.txid}` : (d.network === 'USDT (TRC-20)' ? `https://tronscan.org/#/transaction/${d.txid}` : (d.network === 'ETH (ERC-20)' ? `https://etherscan.io/tx/${d.txid}` : `https://www.blockchain.com/explorer/transactions/btc/${d.txid}`))}" target="_blank" class="txid-link">${d.txid}</a>
                             </div>
-                            ${d.proof_path ? `
                             <div style="grid-column: span 2; margin-top: 10px;">
                                 <span class="detail-label">Proof of Payment:</span><br>
-                                <a href="/uploads/${d.proof_path}" target="_blank">
-                                    <img src="/uploads/${d.proof_path}" style="max-width: 200px; max-height: 300px; object-fit: contain; border-radius: 8px; margin-top: 5px; border: 1px solid var(--glass-border); display: block;">
-                                </a>
+                                ${d.screenshot ? `
+                                <a href="${d.screenshot}" target="_blank">
+                                    <img src="${d.screenshot}" style="max-width: 100%; max-height: 320px; object-fit: contain; border-radius: 8px; margin-top: 8px; border: 1px solid var(--glass-border); display: block; cursor: zoom-in;">
+                                </a>` : `<span style="color: var(--text-muted); font-size: 0.85rem;">None provided</span>`}
                             </div>
-                            ` : '<div style="grid-column: span 2; margin-top: 10px;"><span class="detail-label">Proof of Payment:</span> <span style="color: var(--text-muted); font-size: 0.85rem;">None provided</span></div>'}
                         </div>
                         <div class="action-area">
                             <input type="number" id="usdt-${d.id}" placeholder="USDT to credit" step="0.01" value="${parseFloat(d.usdt_amount || d.btc_amount || 0).toFixed(2)}">
