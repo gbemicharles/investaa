@@ -108,6 +108,9 @@ async function initDb() {
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email TEXT`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email_code TEXT`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email_expires TIMESTAMP`);
+        // Reminder emails
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_reminder_sent TIMESTAMP`);
 
         console.log('PostgreSQL database initialized.');
     } catch (err) {
@@ -189,8 +192,67 @@ async function startEarningsScheduler() {
     setInterval(applyDailyEarnings, 60 * 60 * 1000);
 }
 
+async function runReminderEmails() {
+    try {
+        const now = new Date();
+        const sevenDaysAgo   = new Date(now - 7  * 24 * 60 * 60 * 1000);
+        const fiveDaysAgo    = new Date(now - 5  * 24 * 60 * 60 * 1000);
+        const threeDaysAgo   = new Date(now - 3  * 24 * 60 * 60 * 1000);
+
+        // --- 1. Dormant reminder: registered 3+ days ago, never deposited, still REGULAR, email verified ---
+        // Throttle: only remind once per 7 days
+        const dormant = await dbAll(
+            `SELECT id, email, username, vip_rank FROM users
+             WHERE email_verified = 1
+               AND vip_rank = 'REGULAR'
+               AND deposit_balance = 0
+               AND created_at <= $1
+               AND (last_reminder_sent IS NULL OR last_reminder_sent <= $2)`,
+            [threeDaysAgo, sevenDaysAgo]
+        );
+        for (const u of dormant) {
+            await Emails.dormantReminder(u.email, u.username);
+            await dbRun('UPDATE users SET last_reminder_sent = NOW() WHERE id = ?', [u.id]);
+            console.log(`[REMINDER] Dormant reminder sent → ${u.username}`);
+        }
+
+        // --- 2. Re-engagement: has deposits but hasn't logged in for 5+ days ---
+        // Throttle: only remind once per 7 days
+        const inactive = await dbAll(
+            `SELECT id, email, username, vip_rank, last_login FROM users
+             WHERE email_verified = 1
+               AND deposit_balance > 0
+               AND last_login IS NOT NULL
+               AND last_login <= $1
+               AND (last_reminder_sent IS NULL OR last_reminder_sent <= $2)`,
+            [fiveDaysAgo, sevenDaysAgo]
+        );
+        for (const u of inactive) {
+            const daysSince = Math.floor((now - new Date(u.last_login)) / (24 * 60 * 60 * 1000));
+            await Emails.reEngagementReminder(u.email, u.username, u.vip_rank, daysSince);
+            await dbRun('UPDATE users SET last_reminder_sent = NOW() WHERE id = ?', [u.id]);
+            console.log(`[REMINDER] Re-engagement sent → ${u.username} (${daysSince}d inactive)`);
+        }
+
+        if (dormant.length === 0 && inactive.length === 0) {
+            console.log('[REMINDER] No reminder emails needed at this time.');
+        }
+    } catch (err) {
+        console.error('[REMINDER] Error during reminder job:', err.message);
+    }
+}
+
+async function startSchedulers() {
+    await applyDailyEarnings();
+    setInterval(applyDailyEarnings, 60 * 60 * 1000);
+
+    // Run reminder check once at startup then every 24 hours
+    await runReminderEmails();
+    setInterval(runReminderEmails, 24 * 60 * 60 * 1000);
+}
+
 initDb().then(() => {
-    startEarningsScheduler();
+    startSchedulers();
 });
 
 const dbGet = async (sql, params) => {
@@ -414,6 +476,7 @@ app.post('/api/auth/login', async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ msg: 'Invalid credentials' });
         }
+        await dbRun('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
         const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, user: formatUser(user) });
     } catch (e) {

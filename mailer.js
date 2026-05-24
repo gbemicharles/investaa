@@ -186,6 +186,55 @@ const Emails = {
                  <p style="background:rgba(245,158,11,0.1);border-left:3px solid #f59e0b;padding:12px 16px;border-radius:6px;color:#f8fafc;">${eventDescription}</p>
                  <p>If this was you, no action is needed. If you don't recognize this activity, please change your password right away and contact support.</p>`));
     },
+
+    dormantReminder(to, username) {
+        return sendMail(to, `Your ${APP_NAME} account needs your attention`,
+            wrap(`Don't let your account go dormant, ${username}!`,
+                `<p>Hi ${username}, we noticed your <strong>${APP_NAME}</strong> account has been inactive since you signed up — no deposits have been made yet.</p>
+                 <p>Here's what you're missing out on:</p>
+                 <table style="width:100%;border-collapse:collapse;margin:16px 0;background:rgba(59,130,246,0.05);border-radius:10px;overflow:hidden;">
+                   <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                     <td style="padding:10px 14px;color:#94a3b8;">🥉 Bronze VIP</td>
+                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">1% daily compounding returns</td>
+                   </tr>
+                   <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                     <td style="padding:10px 14px;color:#94a3b8;">🥈 Silver VIP</td>
+                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">2% daily compounding returns</td>
+                   </tr>
+                   <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                     <td style="padding:10px 14px;color:#94a3b8;">🥇 Gold VIP</td>
+                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">2.5% daily compounding returns</td>
+                   </tr>
+                   <tr>
+                     <td style="padding:10px 14px;color:#94a3b8;">💎 Diamond VIP</td>
+                     <td style="padding:10px 14px;text-align:right;color:#3b82f6;font-weight:700;">5% daily compounding returns</td>
+                   </tr>
+                 </table>
+                 <p>Accounts with no activity for an extended period may be flagged as dormant and subject to restrictions. <strong>Make your first deposit today</strong> to activate your account and start earning.</p>
+                 <p style="color:#94a3b8;font-size:13px;">Questions? Our support team is always here to help.</p>`,
+                'Make My First Deposit', `${APP_URL}/deposit.html`));
+    },
+
+    reEngagementReminder(to, username, vipRank, daysSince) {
+        const isVip = vipRank && vipRank !== 'REGULAR';
+        const nextTiers = { REGULAR: 'Bronze', BRONZE: 'Silver', SILVER: 'Gold', GOLD: 'Platinum', PLATINUM: 'Diamond', DIAMOND: null };
+        const nextTier = nextTiers[(vipRank || 'REGULAR').toUpperCase()];
+        const upgradeSection = nextTier
+            ? `<p>You're currently on <strong>${vipRank || 'Regular'}</strong> tier. Upgrading to <strong>${nextTier} VIP</strong> will increase your daily earnings rate — the sooner you upgrade, the more you compound.</p>`
+            : `<p>You're on our top <strong>Diamond VIP</strong> tier — your balance keeps compounding every day, even when you're away. Log in to check your latest earnings.</p>`;
+
+        return sendMail(to, `We miss you, ${username} — your account has been quiet for ${daysSince} days`,
+            wrap(`Welcome back, ${username}!`,
+                `<p>Hi ${username}, it's been <strong>${daysSince} days</strong> since your last login to <strong>${APP_NAME}</strong>.</p>
+                 ${isVip
+                    ? `<p style="background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;padding:12px 16px;border-radius:6px;color:#f8fafc;">💰 Your <strong>${vipRank} VIP</strong> account has been earning daily returns while you were away. Log in to see your updated balance!</p>`
+                    : `<p style="background:rgba(245,158,11,0.08);border-left:3px solid #f59e0b;padding:12px 16px;border-radius:6px;color:#f8fafc;">⚡ Your account is funded and ready — upgrade to a VIP tier to start earning daily compounding returns automatically.</p>`
+                 }
+                 ${upgradeSection}
+                 <p>Don't let your funds sit idle — every day you wait is a day of potential earnings missed.</p>
+                 <p style="color:#94a3b8;font-size:13px;">If you have any questions or need help, our support team is always available.</p>`,
+                'Log In to My Account', `${APP_URL}/index.html`));
+    },
 };
 
 module.exports = Emails;
