@@ -7,7 +7,8 @@ const helmet = require('helmet');
 const cors = require('cors');
 const multer = require('multer');
 const { Pool } = require('pg');
-const Emails = require('./mailer');
+const Emails   = require('./mailer');
+const Telegram = require('./telegram');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -1179,8 +1180,11 @@ app.post('/api/admin/kyc/approve', authenticateAdmin, async (req, res) => {
         await dbRun('UPDATE kyc_submissions SET status = ?, reviewed_at = NOW() WHERE id = ?', ['APPROVED', kyc_id]);
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['APPROVED', sub.user_id]);
         try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [sub.user_id]);
-            if (u) Emails.kycApproved(u.email, u.username);
+            const u = await dbGet('SELECT email, username, phone FROM users WHERE id = ?', [sub.user_id]);
+            if (u) {
+                Emails.kycApproved(u.email, u.username);
+                Telegram.notifyKycApproved(sub, u).catch(() => {});
+            }
         } catch(e) {}
         res.json({ msg: 'KYC approved' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
