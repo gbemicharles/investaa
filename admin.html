@@ -213,6 +213,7 @@
                                 <th style="padding: 10px 12px;">VIP</th>
                                 <th style="padding: 10px 12px;">Role</th>
                                 <th style="padding: 10px 12px;">Joined</th>
+                                <th style="padding: 10px 12px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="users-tbody">
@@ -454,20 +455,28 @@
                     return;
                 }
                 if (users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-muted);">No registered users.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text-muted);">No registered users.</td></tr>';
                     return;
                 }
                 tbody.innerHTML = '';
                 users.forEach(u => {
                     const vipColor = vipColors[u.vip_rank] || '#94a3b8';
-                    const roleLabel = u.is_admin ? '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:2px 8px;border-radius:4px;font-size:0.75rem;">ADMIN</span>' : '<span style="background:rgba(255,255,255,0.05);color:var(--text-muted);padding:2px 8px;border-radius:4px;font-size:0.75rem;">USER</span>';
+                    const isBanned = u.is_banned === 1 || u.is_banned === true;
+                    const isAdmin  = u.is_admin  === 1 || u.is_admin  === true;
+                    const roleLabel = isAdmin
+                        ? '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:700;">ADMIN</span>'
+                        : '<span style="background:rgba(255,255,255,0.05);color:var(--text-muted);padding:2px 8px;border-radius:4px;font-size:0.75rem;">USER</span>';
+                    const banLabel = isBanned
+                        ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;margin-left:5px;">BANNED</span>'
+                        : '';
                     const row = document.createElement('tr');
-                    row.style.cssText = 'border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.2s;';
+                    row.id = `user-row-${u.id}`;
+                    row.style.cssText = `border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.2s;${isBanned ? 'opacity:0.55;' : ''}`;
                     row.onmouseenter = () => row.style.background = 'rgba(255,255,255,0.03)';
                     row.onmouseleave = () => row.style.background = '';
                     row.innerHTML = `
                         <td style="padding:12px;">#${u.id}</td>
-                        <td style="padding:12px;font-weight:600;">${u.username}</td>
+                        <td style="padding:12px;font-weight:600;">${u.username}${banLabel}</td>
                         <td style="padding:12px;color:var(--text-muted);">${u.email}</td>
                         <td style="padding:12px;color:var(--text-muted);white-space:nowrap;">${u.phone || '—'}</td>
                         <td style="padding:12px;color:var(--text-muted);">${u.country || '—'}</td>
@@ -476,6 +485,35 @@
                         <td style="padding:12px;"><span style="color:${vipColor};font-weight:700;font-size:0.8rem;">${u.vip_rank}</span></td>
                         <td style="padding:12px;">${roleLabel}</td>
                         <td style="padding:12px;color:var(--text-muted);font-size:0.8rem;">${new Date(u.created_at).toLocaleDateString()}</td>
+                        <td style="padding:10px 12px;white-space:nowrap;">
+                            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                                ${!isAdmin ? `
+                                <button onclick="adminToggleBan(${u.id}, ${isBanned})"
+                                    title="${isBanned ? 'Unban user' : 'Ban user'}"
+                                    style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;
+                                        background:${isBanned ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)'};
+                                        color:${isBanned ? '#22c55e' : '#f59e0b'};">
+                                    <i class="fas ${isBanned ? 'fa-unlock' : 'fa-ban'}"></i> ${isBanned ? 'Unban' : 'Ban'}
+                                </button>` : ''}
+                                ${!isAdmin ? `
+                                <button onclick="adminMakeAdmin(${u.id}, '${u.username}')"
+                                    title="Promote to admin"
+                                    style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(59,130,246,0.15);color:#93c5fd;">
+                                    <i class="fas fa-user-shield"></i> Make Admin
+                                </button>` : `
+                                <button onclick="adminRemoveAdmin(${u.id}, '${u.username}')"
+                                    title="Remove admin privileges"
+                                    style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(100,116,139,0.2);color:#94a3b8;">
+                                    <i class="fas fa-user-minus"></i> Remove Admin
+                                </button>`}
+                                ${!isAdmin ? `
+                                <button onclick="adminDeleteUser(${u.id}, '${u.username}')"
+                                    title="Delete user permanently"
+                                    style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(239,68,68,0.15);color:#f87171;">
+                                    <i class="fas fa-trash-alt"></i> Delete
+                                </button>` : ''}
+                            </div>
+                        </td>
                     `;
                     tbody.appendChild(row);
                 });
@@ -637,6 +675,36 @@
             const res = await API.rejectKyc(id, reason);
             alert(res.msg);
             loadKyc();
+        }
+
+        async function adminToggleBan(userId, currentlyBanned) {
+            const action = currentlyBanned ? 'unban' : 'ban';
+            if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+            const res = currentlyBanned ? await API.unbanUser(userId) : await API.banUser(userId);
+            alert(res.msg);
+            loadUsers();
+        }
+
+        async function adminDeleteUser(userId, username) {
+            if (!confirm(`⚠️ Permanently delete "${username}"?\n\nThis will erase their account, all transactions, KYC records, and notifications. This CANNOT be undone.`)) return;
+            if (!confirm(`Final confirmation: delete "${username}" forever?`)) return;
+            const res = await API.deleteUser(userId);
+            alert(res.msg);
+            loadUsers();
+        }
+
+        async function adminMakeAdmin(userId, username) {
+            if (!confirm(`Promote "${username}" to Admin?\n\nThey will have full access to this admin panel.`)) return;
+            const res = await API.setAdmin(userId, true);
+            alert(res.msg);
+            loadUsers();
+        }
+
+        async function adminRemoveAdmin(userId, username) {
+            if (!confirm(`Remove admin privileges from "${username}"?`)) return;
+            const res = await API.setAdmin(userId, false);
+            alert(res.msg);
+            loadUsers();
         }
 
         // Initial load

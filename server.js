@@ -113,6 +113,8 @@ async function initDb() {
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_reminder_sent TIMESTAMP`);
         // KYC
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status TEXT DEFAULT 'NONE'`);
+        // Moderation
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned INTEGER DEFAULT 0`);
         await pool.query(`
             CREATE TABLE IF NOT EXISTS kyc_submissions (
                 id SERIAL PRIMARY KEY,
@@ -496,6 +498,9 @@ app.post('/api/auth/login', async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ msg: 'Invalid credentials' });
         }
+        if (user.is_banned === 1) {
+            return res.status(403).json({ msg: 'Your account has been suspended. Please contact support.' });
+        }
         await dbRun('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
         const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, user: formatUser(user) });
@@ -762,9 +767,54 @@ app.post('/api/admin/reject-withdrawal/:id', authenticateAdmin, async (req, res)
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
     try {
         const users = await dbAll(
-            'SELECT id, username, email, phone, country, balance, deposit_balance, vip_rank, is_admin, created_at FROM users ORDER BY created_at DESC'
+            'SELECT id, username, email, phone, country, balance, deposit_balance, vip_rank, is_admin, is_banned, created_at FROM users ORDER BY created_at DESC'
         );
         res.json(users.map(u => ({ ...u, balance: parseFloat(u.balance || 0), deposit_balance: parseFloat(u.deposit_balance || 0) })));
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/ban-user', authenticateAdmin, async (req, res) => {
+    try {
+        const { user_id } = req.body;
+        const target = await dbGet('SELECT id, username, is_admin FROM users WHERE id = ?', [user_id]);
+        if (!target) return res.status(404).json({ msg: 'User not found' });
+        if (target.is_admin === 1) return res.status(400).json({ msg: 'Cannot ban an admin account.' });
+        await dbRun('UPDATE users SET is_banned = 1 WHERE id = ?', [user_id]);
+        res.json({ msg: `${target.username} has been banned.` });
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/unban-user', authenticateAdmin, async (req, res) => {
+    try {
+        const { user_id } = req.body;
+        const target = await dbGet('SELECT id, username FROM users WHERE id = ?', [user_id]);
+        if (!target) return res.status(404).json({ msg: 'User not found' });
+        await dbRun('UPDATE users SET is_banned = 0 WHERE id = ?', [user_id]);
+        res.json({ msg: `${target.username} has been unbanned.` });
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/delete-user', authenticateAdmin, async (req, res) => {
+    try {
+        const { user_id } = req.body;
+        const target = await dbGet('SELECT id, username, is_admin FROM users WHERE id = ?', [user_id]);
+        if (!target) return res.status(404).json({ msg: 'User not found' });
+        if (target.is_admin === 1) return res.status(400).json({ msg: 'Cannot delete an admin account.' });
+        await dbRun('DELETE FROM transactions WHERE user_id = ?', [user_id]);
+        await dbRun('DELETE FROM notifications WHERE user_id = ?', [user_id]);
+        await dbRun('DELETE FROM kyc_submissions WHERE user_id = ?', [user_id]);
+        await dbRun('DELETE FROM users WHERE id = ?', [user_id]);
+        res.json({ msg: `${target.username} has been permanently deleted.` });
+    } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/set-admin', authenticateAdmin, async (req, res) => {
+    try {
+        const { user_id, make_admin } = req.body;
+        const target = await dbGet('SELECT id, username FROM users WHERE id = ?', [user_id]);
+        if (!target) return res.status(404).json({ msg: 'User not found' });
+        await dbRun('UPDATE users SET is_admin = ? WHERE id = ?', [make_admin ? 1 : 0, user_id]);
+        res.json({ msg: make_admin ? `${target.username} is now an admin.` : `${target.username} admin privileges removed.` });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 

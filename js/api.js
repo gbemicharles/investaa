@@ -300,6 +300,26 @@ const API = {
         const res = await fetch(`${API_URL}/admin/kyc/verified`, { headers: { 'x-auth-token': token } });
         return res.json();
     },
+    async banUser(userId)   {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/ban-user`,   { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':token}, body: JSON.stringify({ user_id: userId }) });
+        return res.json();
+    },
+    async unbanUser(userId) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/unban-user`, { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':token}, body: JSON.stringify({ user_id: userId }) });
+        return res.json();
+    },
+    async deleteUser(userId) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/delete-user`, { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':token}, body: JSON.stringify({ user_id: userId }) });
+        return res.json();
+    },
+    async setAdmin(userId, makeAdmin) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/set-admin`, { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':token}, body: JSON.stringify({ user_id: userId, make_admin: makeAdmin }) });
+        return res.json();
+    },
     async approveKyc(kycId) {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_URL}/admin/kyc/approve`, {
