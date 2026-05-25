@@ -405,8 +405,11 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ msg: 'Please enter a valid email address.' });
         }
 
-        const existing = await dbGet('SELECT id FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)', [username, email]);
-        if (existing) return res.status(400).json({ msg: 'Username or email already exists' });
+        const existingUsername = await dbGet('SELECT id FROM users WHERE LOWER(username) = LOWER(?)', [username]);
+        if (existingUsername) return res.status(400).json({ msg: 'That username is already taken. Please choose a different one.' });
+
+        const existingEmail = await dbGet('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [email]);
+        if (existingEmail) return res.status(400).json({ msg: 'An account with that email already exists. Please use a different email or log in.' });
 
         const hashed = await bcrypt.hash(password, 10);
         const hashedPin = await bcrypt.hash(pin, 10);
