@@ -401,6 +401,9 @@ app.post('/api/auth/register', async (req, res) => {
         if (!/^[a-z0-9_]{3,20}$/.test(username)) {
             return res.status(400).json({ msg: 'Username must be 3-20 characters, letters/numbers/underscore only — no spaces.' });
         }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+            return res.status(400).json({ msg: 'Please enter a valid email address.' });
+        }
 
         const existing = await dbGet('SELECT id FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)', [username, email]);
         if (existing) return res.status(400).json({ msg: 'Username or email already exists' });
@@ -501,6 +504,9 @@ app.post('/api/auth/login', async (req, res) => {
         }
         if (user.is_banned === 1) {
             return res.status(403).json({ msg: 'Your account has been suspended. Please contact support.' });
+        }
+        if (!user.email_verified) {
+            return res.status(403).json({ msg: 'Please verify your email before logging in.', requiresVerification: true, username: user.username, email: user.email });
         }
         await dbRun('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
         const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });

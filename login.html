@@ -195,6 +195,9 @@
                 const data = await API.login({ login, password });
                 if (data.token) {
                     window.location.href = 'index.html';
+                } else if (data.requiresVerification) {
+                    sessionStorage.setItem('verifyEmail', data.email || '');
+                    window.location.href = `verify.html?u=${encodeURIComponent(data.username || '')}&e=${encodeURIComponent(data.email || '')}`;
                 } else {
                     alert(data.msg || 'Login failed');
                 }
