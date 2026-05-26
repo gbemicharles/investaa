@@ -1216,6 +1216,24 @@ app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
 });
 
 // --- Email Centre ---
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function drip(users, sendFn, label) {
+    let sent = 0, failed = 0;
+    for (const u of users) {
+        try {
+            await sendFn(u);
+            sent++;
+            console.log(`[EMAIL-DRIP] ${label} → ${u.email} (${sent}/${users.length})`);
+        } catch(e) {
+            failed++;
+            console.error(`[EMAIL-DRIP] Failed → ${u.email}:`, e.message);
+        }
+        await sleep(400); // 400 ms gap — ~150 emails/min, well within Gmail limits
+    }
+    console.log(`[EMAIL-DRIP] ${label} complete — sent:${sent} failed:${failed}`);
+}
+
 app.post('/api/admin/email/kyc-reminder', authenticateAdmin, async (req, res) => {
     try {
         const users = await dbAll(
@@ -1224,10 +1242,10 @@ app.post('/api/admin/email/kyc-reminder', authenticateAdmin, async (req, res) =>
                AND (u.kyc_status IS NULL OR u.kyc_status NOT IN ('APPROVED','PENDING'))`
         );
         if (!users.length) return res.json({ msg: 'No eligible users found (all are verified or already pending).', sent: 0 });
-        for (const u of users) {
-            try { Emails.kycReminder(u.email, u.username); } catch(e) {}
-        }
-        res.json({ msg: `KYC reminder sent to ${users.length} user${users.length !== 1 ? 's' : ''}.`, sent: users.length });
+
+        // Respond immediately — emails drip in the background
+        res.json({ msg: `KYC reminder queued for ${users.length} user${users.length !== 1 ? 's' : ''}. Emails are being sent now.`, sent: users.length });
+        drip(users, (u) => Emails.kycReminder(u.email, u.username), 'KYC-REMINDER');
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
@@ -1252,10 +1270,9 @@ app.post('/api/admin/email/broadcast', authenticateAdmin, async (req, res) => {
         const users = await dbAll(`SELECT u.email, u.username FROM users u ${where}`);
         if (!users.length) return res.json({ msg: 'No users found for the selected audience.', sent: 0 });
 
-        for (const u of users) {
-            try { Emails.broadcastEmail(u.email, u.username, subject, body); } catch(e) {}
-        }
-        res.json({ msg: `Email sent to ${users.length} user${users.length !== 1 ? 's' : ''}.`, sent: users.length });
+        // Respond immediately — emails drip in the background
+        res.json({ msg: `Broadcast queued for ${users.length} user${users.length !== 1 ? 's' : ''}. Emails are being sent now.`, sent: users.length });
+        drip(users, (u) => Emails.broadcastEmail(u.email, u.username, subject, body), `BROADCAST:${subject}`);
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
