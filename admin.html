@@ -870,6 +870,7 @@ async function loadKyc() {
                     ${kycDocBlock('ID Document — Front', k.id_document, `kyc_${k.id}_${k.username}_front.jpg`)}
                     ${kycDocBlock('ID Document — Back',  k.id_document_back, `kyc_${k.id}_${k.username}_back.jpg`)}
                     ${kycDocBlock('Selfie with ID',      k.selfie, `kyc_${k.id}_${k.username}_selfie.jpg`)}
+                    ${k.extra_field_name && k.extra_document ? kycDocBlock(`${k.extra_field_name} Document`, k.extra_document, `kyc_${k.id}_${k.username}_${k.extra_field_name.replace(/\s+/g,'_').toLowerCase()}.jpg`) : ''}
                 </div>
                 <div class="action-area">
                     <button class="btn primary"   onclick="approveKyc(${k.id})"      style="flex:1;padding:11px;">✓ Approve</button>
@@ -928,6 +929,7 @@ async function loadVerifiedKyc() {
                         ${kycDocBlock('ID Document — Front', k.id_document,      `kyc_${k.username}_front.jpg`)}
                         ${kycDocBlock('ID Document — Back',  k.id_document_back, `kyc_${k.username}_back.jpg`)}
                         ${kycDocBlock('Selfie with ID',      k.selfie,           `kyc_${k.username}_selfie.jpg`)}
+                        ${k.extra_field_name && k.extra_document ? kycDocBlock(`${k.extra_field_name} Document`, k.extra_document, `kyc_${k.username}_${k.extra_field_name.replace(/\s+/g,'_').toLowerCase()}.jpg`) : ''}
                     </div>
                 </div>`;
             panel.appendChild(item);

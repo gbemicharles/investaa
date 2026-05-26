@@ -116,6 +116,7 @@ async function initDb() {
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status TEXT DEFAULT 'NONE'`);
         // Moderation
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned INTEGER DEFAULT 0`);
+        await pool.query(`ALTER TABLE kyc_submissions ADD COLUMN IF NOT EXISTS extra_document TEXT`);
         await pool.query(`
             CREATE TABLE IF NOT EXISTS kyc_submissions (
                 id SERIAL PRIMARY KEY,
@@ -128,6 +129,7 @@ async function initDb() {
                 selfie TEXT,
                 extra_field_name TEXT,
                 extra_field_value TEXT,
+                extra_document TEXT,
                 status TEXT DEFAULT 'PENDING',
                 rejection_reason TEXT,
                 submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1130,14 +1132,15 @@ app.get('/api/kyc/status', authenticate, async (req, res) => {
 app.post('/api/kyc/submit', authenticate, upload.fields([
     { name: 'id_document', maxCount: 1 },
     { name: 'id_document_back', maxCount: 1 },
-    { name: 'selfie', maxCount: 1 }
+    { name: 'selfie', maxCount: 1 },
+    { name: 'extra_document', maxCount: 1 }
 ]), async (req, res) => {
     try {
         const user = await dbGet('SELECT kyc_status FROM users WHERE id = ?', [req.user.id]);
         if (user.kyc_status === 'APPROVED') return res.status(400).json({ msg: 'Your KYC is already approved.' });
         if (user.kyc_status === 'PENDING')  return res.status(400).json({ msg: 'Your KYC submission is already under review.' });
 
-        const { country, id_type, id_number, extra_field_name, extra_field_value } = req.body;
+        const { country, id_type, id_number, extra_field_name, extra_field_value, extra_doc_required } = req.body;
         if (!country || !id_type || !id_number) return res.status(400).json({ msg: 'Country, ID type, and ID number are required.' });
 
         const toBase64 = (field) => {
@@ -1150,13 +1153,16 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
         const id_document      = toBase64('id_document');
         const id_document_back = toBase64('id_document_back');
         const selfie           = toBase64('selfie');
+        const extra_document   = toBase64('extra_document');
 
         if (!id_document)      return res.status(400).json({ msg: 'Front of your ID document is required.' });
         if (!id_document_back) return res.status(400).json({ msg: 'Back of your ID document is required.' });
+        if (extra_doc_required === 'true' && !extra_document)
+            return res.status(400).json({ msg: `A photo of your ${extra_field_name} document is required.` });
 
         await dbRun(
-            `INSERT INTO kyc_submissions (user_id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name, extra_field_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [req.user.id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name || null, extra_field_value || null]
+            `INSERT INTO kyc_submissions (user_id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name, extra_field_value, extra_document) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.user.id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name || null, extra_field_value || null, extra_document || null]
         );
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['PENDING', req.user.id]);
         res.json({ msg: 'KYC submitted successfully. Our team will review it within 24–48 hours.' });
