@@ -3,20 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel | Deposit Management</title>
+    <title>Admin Panel | InvestAA</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/auth-guard.js"></script>
     <style>
+        /* ── Layout ── */
+        body { display:flex; min-height:100vh; overflow:hidden; }
+        .admin-shell { display:flex; width:100%; height:100vh; }
+
+        /* ── Sidebar ── */
+        .admin-sidebar {
+            width: 240px;
+            min-width: 240px;
+            height: 100vh;
+            background: rgba(10,11,16,0.97);
+            border-right: 1px solid rgba(255,255,255,0.07);
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            position: fixed;
+            left: 0; top: 0; bottom: 0;
+            z-index: 100;
+            overflow-y: auto;
+        }
+        .admin-sidebar-header {
+            padding: 28px 24px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .admin-sidebar-header .brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 30%, var(--accent-primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: block;
+        }
+        .admin-sidebar-header .brand-sub {
+            font-size: 0.72rem;
+            color: #f59e0b;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-top: 3px;
+            display: block;
+        }
+        .admin-nav { flex: 1; padding: 16px 12px; }
+        .nav-section-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #475569;
+            padding: 16px 12px 8px;
+        }
+        .admin-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.18s, color 0.18s;
+            margin-bottom: 2px;
+            position: relative;
+        }
+        .admin-nav-btn i { width: 18px; text-align: center; font-size: 0.95rem; }
+        .admin-nav-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-main); }
+        .admin-nav-btn.active { background: rgba(59,130,246,0.15); color: #3b82f6; }
+        .admin-nav-btn .nav-badge {
+            margin-left: auto;
+            background: rgba(245,158,11,0.2);
+            color: #f59e0b;
+            font-size: 0.68rem;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 20px;
+            min-width: 20px;
+            text-align: center;
+            display: none;
+        }
+        .admin-nav-btn .nav-badge.show { display: inline-block; }
+        .admin-sidebar-footer {
+            padding: 16px 12px 24px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+        }
+        .admin-sidebar-footer a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.18s, color 0.18s;
+        }
+        .admin-sidebar-footer a:hover { background: rgba(255,255,255,0.06); color: var(--text-main); }
+
+        /* ── Content ── */
+        .admin-content {
+            margin-left: 240px;
+            flex: 1;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 36px 36px 60px;
+        }
+        .admin-page { display: none; }
+        .admin-page.active { display: block; }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.9rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            background: linear-gradient(to right, #fff 40%, var(--accent-primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .page-header p { margin: 6px 0 0; color: var(--text-muted); font-size: 0.9rem; }
+
+        /* ── Cards ── */
         .admin-input {
             background: rgba(255,255,255,0.08);
             border: 1px solid var(--glass-border);
-            padding: 14px 14px;
+            padding: 13px 14px;
             border-radius: 12px;
             color: #ffffff !important;
-            font-size: 1.05rem;
+            font-size: 0.95rem;
             font-weight: 500;
             font-family: inherit;
             caret-color: var(--accent-primary);
@@ -25,34 +162,34 @@
             box-sizing: border-box;
         }
         .admin-input::placeholder { color: rgba(255,255,255,0.35); }
-        .admin-input:focus {
-            border-color: var(--accent-primary);
-            background: rgba(255,255,255,0.12);
-        }
+        .admin-input:focus { border-color: var(--accent-primary); background: rgba(255,255,255,0.12); }
         .admin-input:-webkit-autofill,
         .admin-input:-webkit-autofill:hover,
-        .admin-input:-webkit-autofill:focus,
-        .admin-input:-webkit-autofill:active {
+        .admin-input:-webkit-autofill:focus {
             -webkit-text-fill-color: #ffffff !important;
-            -webkit-box-shadow: 0 0 0 1000px rgba(30, 41, 59, 0.95) inset !important;
-            caret-color: #ffffff !important;
+            -webkit-box-shadow: 0 0 0 1000px rgba(30,41,59,0.95) inset !important;
             transition: background-color 5000s ease-in-out 0s;
         }
-        .admin-container {
-            max-width: 1100px;
-            margin-left: auto;
-            margin-right: auto;
-            margin: 0 auto;
+
+        /* ── Overview stats ── */
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px; margin-bottom: 32px; }
+        .stat-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px 22px;
         }
-        .deposit-list {
-            margin-top: 20px;
-        }
+        .stat-card .stat-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+        .stat-card .stat-val { font-size: 1.9rem; font-weight: 800; font-family: 'Outfit', sans-serif; color: var(--text-main); }
+        .stat-card .stat-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* ── Deposit/Withdrawal items ── */
         .deposit-item {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: 16px;
             padding: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -62,7 +199,7 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid rgba(255,255,255,0.05);
-            padding-bottom: 15px;
+            padding-bottom: 14px;
         }
         .deposit-details {
             display: grid;
@@ -70,15 +207,9 @@
             gap: 10px;
             font-size: 0.9rem;
         }
-        .detail-label { color: var(--text-muted); }
+        .detail-label { color: var(--text-muted); display: block; margin-bottom: 3px; font-size: 0.8rem; }
         .detail-value { font-weight: 600; }
-        
-        .action-area {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
-        }
+        .action-area { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
         .action-area input {
             background: rgba(255,255,255,0.05);
             border: 1px solid var(--glass-border);
@@ -86,144 +217,344 @@
             border-radius: 8px;
             color: white;
             outline: none;
-            width: 150px;
+            width: 160px;
         }
-        .txid-link {
-            color: var(--accent-primary);
-            text-decoration: none;
-            font-size: 0.8rem;
-            word-break: break-all;
+        .txid-link { color: var(--accent-primary); text-decoration: none; font-size: 0.8rem; word-break: break-all; }
+
+        /* ── KYC tabs ── */
+        .kyc-tab-bar { display:flex; gap:0; border-bottom:1px solid var(--glass-border); margin-bottom:24px; }
+        .kyc-tab-btn {
+            padding: 10px 22px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: color 0.18s, border-color 0.18s;
+        }
+        .kyc-tab-btn.active { border-bottom-color: var(--accent-primary); color: var(--text-main); font-weight: 700; }
+
+        /* ── Users table ── */
+        #users-table { width:100%; border-collapse:collapse; font-size:0.87rem; }
+        #users-table th { padding:10px 12px; color:var(--text-muted); font-weight:600; text-align:left; border-bottom:1px solid var(--glass-border); white-space:nowrap; }
+        #users-table td { padding:11px 12px; border-bottom:1px solid rgba(255,255,255,0.03); }
+
+        /* ── Mobile sidebar toggle ── */
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 16px; left: 16px;
+            z-index: 200;
+            background: var(--accent-primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 13px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        @media (max-width: 768px) {
+            .admin-sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+            .admin-sidebar.open { transform: translateX(0); }
+            .admin-content { margin-left: 0; padding: 80px 18px 60px; }
+            .sidebar-toggle { display: block; }
         }
     </style>
-    <link rel="stylesheet" href="css/style.css">
-    <script src="js/auth-guard.js"></script>
 </head>
-<body class="dark-theme" style="display: block; overflow-y: auto; min-height: 100vh;">
-    <main class="main-content" style="min-height: 100vh;">
-        <header class="top-header" style="background: transparent; border: none; margin-bottom: 40px;">
-            <div class="header-left">
-                <h2 style="font-size: 2.5rem; background: linear-gradient(to right, #fff, var(--accent-primary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Admin Control Center</h2>
-                <p style="color: var(--text-muted);">Manage deposits and direct user funding operations.</p>
-            </div>
-            <div class="header-right">
-                <a href="index.html" class="btn secondary" style="backdrop-filter: blur(10px);"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
-            </div>
-        </header>
+<body class="dark-theme">
 
-        <section class="admin-container">
-            <!-- Direct Funding Section -->
-            <div class="card glass" style="margin-bottom: 40px; padding: 30px; border-left: 4px solid var(--accent-primary);">
-                <h3 style="margin-top: 0; color: var(--accent-primary); font-size: 1.4rem;"><i class="fas fa-hand-holding-usd"></i> Direct User Funding</h3>
-                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px;">Search for a user by their identifier and credit their balance instantly.</p>
-                <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 20px; align-items: end;">
+<button class="sidebar-toggle" id="sidebar-toggle" onclick="document.querySelector('.admin-sidebar').classList.toggle('open')">
+    <i class="fas fa-bars"></i>
+</button>
+
+<div class="admin-shell">
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="admin-sidebar">
+        <div class="admin-sidebar-header">
+            <span class="brand">InvestAA</span>
+            <span class="brand-sub">Admin Control Centre</span>
+        </div>
+
+        <nav class="admin-nav">
+            <div class="nav-section-label">Overview</div>
+            <button class="admin-nav-btn active" data-page="overview" onclick="showPage('overview',this)">
+                <i class="fas fa-chart-pie"></i> Dashboard
+            </button>
+
+            <div class="nav-section-label">Transactions</div>
+            <button class="admin-nav-btn" data-page="deposits" onclick="showPage('deposits',this)">
+                <i class="fas fa-arrow-down-to-line"></i> Deposits
+                <span class="nav-badge" id="badge-deposits">0</span>
+            </button>
+            <button class="admin-nav-btn" data-page="withdrawals" onclick="showPage('withdrawals',this)">
+                <i class="fas fa-arrow-up-from-line"></i> Withdrawals
+                <span class="nav-badge" id="badge-withdrawals">0</span>
+            </button>
+
+            <div class="nav-section-label">Identity</div>
+            <button class="admin-nav-btn" data-page="kyc" onclick="showPage('kyc',this)">
+                <i class="fas fa-id-card"></i> KYC Verification
+                <span class="nav-badge" id="badge-kyc">0</span>
+            </button>
+
+            <div class="nav-section-label">Members</div>
+            <button class="admin-nav-btn" data-page="users" onclick="showPage('users',this)">
+                <i class="fas fa-users"></i> Registered Accounts
+            </button>
+
+            <div class="nav-section-label">Tools</div>
+            <button class="admin-nav-btn" data-page="funding" onclick="showPage('funding',this)">
+                <i class="fas fa-hand-holding-dollar"></i> User Funding
+            </button>
+            <button class="admin-nav-btn" data-page="email" onclick="showPage('email',this)">
+                <i class="fas fa-envelope-open-text"></i> Email Centre
+            </button>
+        </nav>
+
+        <div class="admin-sidebar-footer">
+            <a href="index.html"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        </div>
+    </aside>
+
+    <!-- ═══ CONTENT ═══ -->
+    <main class="admin-content">
+
+        <!-- ── OVERVIEW ── -->
+        <section class="admin-page active" id="page-overview">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-chart-pie" style="font-size:1.5rem;"></i> Dashboard</h1>
+                    <p>Live snapshot of platform activity.</p>
+                </div>
+                <button class="btn secondary" onclick="refreshAll()" style="padding:10px 20px;"><i class="fas fa-sync-alt"></i> Refresh All</button>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-card" style="border-left:3px solid #3b82f6;">
+                    <div class="stat-label">Total Members</div>
+                    <div class="stat-val" id="ov-users">—</div>
+                    <div class="stat-sub">Registered accounts</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #f59e0b;">
+                    <div class="stat-label">Pending Deposits</div>
+                    <div class="stat-val" id="ov-deposits">—</div>
+                    <div class="stat-sub">Awaiting approval</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #ef4444;">
+                    <div class="stat-label">Pending Withdrawals</div>
+                    <div class="stat-val" id="ov-withdrawals">—</div>
+                    <div class="stat-sub">Awaiting payout</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #a855f7;">
+                    <div class="stat-label">Pending KYC</div>
+                    <div class="stat-val" id="ov-kyc">—</div>
+                    <div class="stat-sub">Under review</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #22c55e;">
+                    <div class="stat-label">Verified KYC</div>
+                    <div class="stat-val" id="ov-kyc-verified">—</div>
+                    <div class="stat-sub">Approved users</div>
+                </div>
+            </div>
+            <div class="card glass" style="padding:28px;">
+                <h3 style="margin:0 0 18px;font-size:1.1rem;"><i class="fas fa-bolt" style="color:#f59e0b;margin-right:8px;"></i>Quick Actions</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;">
+                    <button class="btn primary" onclick="showPage('deposits', document.querySelector('[data-page=deposits]'))" style="padding:11px 22px;"><i class="fas fa-arrow-down-to-line"></i> Review Deposits</button>
+                    <button class="btn secondary" onclick="showPage('withdrawals', document.querySelector('[data-page=withdrawals]'))" style="padding:11px 22px;"><i class="fas fa-arrow-up-from-line"></i> Review Withdrawals</button>
+                    <button class="btn secondary" onclick="showPage('kyc', document.querySelector('[data-page=kyc]'))" style="padding:11px 22px;"><i class="fas fa-id-card"></i> Review KYC</button>
+                    <button class="btn secondary" onclick="showPage('email', document.querySelector('[data-page=email]'))" style="padding:11px 22px;"><i class="fas fa-envelope"></i> Send Emails</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── DEPOSITS ── -->
+        <section class="admin-page" id="page-deposits">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-arrow-down-to-line" style="font-size:1.4rem;"></i> Pending Deposits</h1>
+                    <p>Review and approve or reject incoming deposit requests.</p>
+                </div>
+                <button class="btn secondary" onclick="loadPending()" style="padding:10px 20px;"><i class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+            <div id="pending-list">
+                <div style="text-align:center;padding:60px;color:var(--text-muted);">Loading deposits…</div>
+            </div>
+        </section>
+
+        <!-- ── WITHDRAWALS ── -->
+        <section class="admin-page" id="page-withdrawals">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-arrow-up-from-line" style="font-size:1.4rem;"></i> Pending Withdrawals</h1>
+                    <p>Process and approve or reject withdrawal requests.</p>
+                </div>
+                <button class="btn secondary" onclick="loadWithdrawals()" style="padding:10px 20px;"><i class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+            <div id="withdrawals-list">
+                <div style="text-align:center;padding:60px;color:var(--text-muted);">Loading withdrawals…</div>
+            </div>
+        </section>
+
+        <!-- ── KYC ── -->
+        <section class="admin-page" id="page-kyc">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-id-card" style="font-size:1.4rem;"></i> KYC Verification</h1>
+                    <p>Review identity submissions and manage verified members.</p>
+                </div>
+                <button class="btn secondary" onclick="loadKyc();loadVerifiedKyc();" style="padding:10px 20px;"><i class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+            <div class="kyc-tab-bar">
+                <button class="kyc-tab-btn active" id="kyc-tab-pending" onclick="switchKycTab('pending')">
+                    Pending Review <span id="kyc-pending-count" style="background:rgba(245,158,11,0.2);color:#f59e0b;border-radius:20px;padding:2px 8px;font-size:0.75rem;margin-left:6px;">0</span>
+                </button>
+                <button class="kyc-tab-btn" id="kyc-tab-verified" onclick="switchKycTab('verified')">
+                    Verified Users <span id="kyc-verified-count" style="background:rgba(34,197,94,0.15);color:#22c55e;border-radius:20px;padding:2px 8px;font-size:0.75rem;margin-left:6px;">0</span>
+                </button>
+            </div>
+            <div id="kyc-pending-panel">
+                <div style="text-align:center;padding:60px;color:var(--text-muted);">Loading…</div>
+            </div>
+            <div id="kyc-verified-panel" style="display:none;">
+                <div style="text-align:center;padding:60px;color:var(--text-muted);">Loading…</div>
+            </div>
+        </section>
+
+        <!-- ── USERS ── -->
+        <section class="admin-page" id="page-users">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-users" style="font-size:1.4rem;"></i> Registered Accounts</h1>
+                    <p>View, search, manage and moderate all platform members.</p>
+                </div>
+                <button class="btn secondary" onclick="loadUsers()" style="padding:10px 20px;"><i class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+            <div class="card glass" style="padding:24px;">
+                <div style="position:relative;margin-bottom:20px;">
+                    <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:0.85rem;pointer-events:none;"></i>
+                    <input id="user-search" type="text" placeholder="Search by username or email…" oninput="filterUsers(this.value)"
+                        class="admin-input" style="width:100%;padding-left:40px;">
+                </div>
+                <div style="overflow-x:auto;">
+                    <table id="users-table">
+                        <thead>
+                            <tr>
+                                <th>UID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Country</th>
+                                <th>Balance</th>
+                                <th>Deposited</th>
+                                <th>VIP</th>
+                                <th>Role</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">Loading users…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── FUNDING ── -->
+        <section class="admin-page" id="page-funding">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-hand-holding-dollar" style="font-size:1.4rem;"></i> User Funding</h1>
+                    <p>Credit balances and manage account security for users.</p>
+                </div>
+            </div>
+
+            <!-- Direct Funding -->
+            <div class="card glass" style="padding:30px;margin-bottom:24px;border-left:4px solid var(--accent-primary);">
+                <h3 style="margin:0 0 8px;color:var(--accent-primary);font-size:1.2rem;"><i class="fas fa-hand-holding-usd"></i> Direct User Funding</h3>
+                <p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 24px;">Search for a user by their identifier and credit their balance instantly.</p>
+                <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:16px;align-items:end;">
                     <div>
-                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">User Identifier (UID, Name, Email, or Phone)</label>
-                        <div style="position: relative;">
-                            <i class="fas fa-search" style="position: absolute; left: 15px; top: 15px; color: var(--text-muted);"></i>
-                            <input type="text" id="fund-identifier" placeholder="e.g., 00000003 or alexmcdonald" autocomplete="off" class="admin-input" style="width: 100%; padding-left: 45px;">
+                        <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">User Identifier (UID, Name, Email, Phone)</label>
+                        <div style="position:relative;">
+                            <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);"></i>
+                            <input type="text" id="fund-identifier" placeholder="e.g. 00000003 or alexmcdonald" autocomplete="off" class="admin-input" style="width:100%;padding-left:40px;">
                         </div>
                     </div>
                     <div>
-                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">USDT Amount</label>
-                        <div id="fund-amount-display" style="margin-bottom:8px;font-size:0.9rem;color:var(--accent-primary);font-weight:700;">$0.00</div>
-                        <input type="text" id="fund-amount" placeholder="0.00" inputmode="decimal" autocomplete="off" class="admin-input" style="width: 100%;">
+                        <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">USDT Amount</label>
+                        <div id="fund-amount-display" style="margin-bottom:6px;font-size:0.9rem;color:var(--accent-primary);font-weight:700;min-height:18px;"></div>
+                        <input type="text" id="fund-amount" placeholder="0.00" inputmode="decimal" autocomplete="off" class="admin-input" style="width:100%;"
+                            oninput="document.getElementById('fund-amount-display').textContent = parseFloat(this.value || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) !== 'NaN' ? '$'+parseFloat(this.value||0).toFixed(2) : ''">
                     </div>
-                    <button class="btn primary" id="fund-btn" style="padding: 12px 30px; border-radius: 12px; height: 48px;">Fund Account</button>
+                    <button class="btn primary" id="fund-btn" style="padding:13px 28px;border-radius:12px;height:48px;">Fund Account</button>
                 </div>
             </div>
 
-            <!-- Reset User Password (Support) -->
-            <div class="card glass" style="margin-bottom: 40px; padding: 30px; border-left: 4px solid var(--warning);">
-                <h3 style="margin-top: 0; color: var(--warning); font-size: 1.4rem;"><i class="fas fa-key"></i> Reset User Password</h3>
-                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px;">For support cases when a user has forgotten both their password and PIN. Always verify the user's identity before performing this action.</p>
-                <div style="display: grid; grid-template-columns: 2fr 2fr auto; gap: 20px; align-items: end;">
+            <!-- Reset Password -->
+            <div class="card glass" style="padding:30px;border-left:4px solid var(--warning);">
+                <h3 style="margin:0 0 8px;color:var(--warning);font-size:1.2rem;"><i class="fas fa-key"></i> Reset User Password</h3>
+                <p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 24px;">For support cases when a user has lost access. Always verify their identity first.</p>
+                <div style="display:grid;grid-template-columns:2fr 2fr auto;gap:16px;align-items:end;">
                     <div>
-                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">User Identifier (UID, Username, or Email)</label>
-                        <div style="position: relative;">
-                            <i class="fas fa-search" style="position: absolute; left: 15px; top: 15px; color: var(--text-muted);"></i>
-                            <input type="text" id="reset-identifier" placeholder="e.g., 00000003 or alexmcdonald" autocomplete="off" class="admin-input" style="width: 100%; padding-left: 45px;">
+                        <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">User Identifier (UID, Username, Email)</label>
+                        <div style="position:relative;">
+                            <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);"></i>
+                            <input type="text" id="reset-identifier" placeholder="e.g. 00000003 or alexmcdonald" autocomplete="off" class="admin-input" style="width:100%;padding-left:40px;">
                         </div>
                     </div>
                     <div>
-                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">New Temporary Password (min 6 chars)</label>
-                        <input type="text" id="reset-password" placeholder="Type a temporary password" autocomplete="off" class="admin-input" style="width: 100%;">
+                        <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">New Temporary Password (min 6 chars)</label>
+                        <input type="text" id="reset-password" placeholder="Type a temporary password" autocomplete="off" class="admin-input" style="width:100%;">
                     </div>
-                    <button class="btn primary" id="reset-pw-btn" style="padding: 12px 30px; border-radius: 12px; height: 48px; background: var(--warning);">Reset Password</button>
+                    <button class="btn primary" id="reset-pw-btn" style="padding:13px 28px;border-radius:12px;height:48px;background:var(--warning);border-color:var(--warning);">Reset Password</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── EMAIL CENTRE ── -->
+        <section class="admin-page" id="page-email">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-envelope-open-text" style="font-size:1.4rem;"></i> Email Centre</h1>
+                    <p>Send targeted emails to members — KYC reminders or custom broadcasts.</p>
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-clock"></i> Pending Deposit Requests</h3>
-                <button class="btn secondary" onclick="loadPending()" style="padding: 8px 15px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
-            </div>
-            
-            <div id="pending-list" class="deposit-list" style="padding-bottom: 100px;">
-                <div style="text-align: center; padding: 50px; color: var(--text-muted);">Loading pending deposits...</div>
-            </div>
-            <div class="card glass" style="margin-top: 30px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <h3>Withdrawal Requests</h3>
-                    <button class="btn secondary" onclick="loadWithdrawals()"><i class="fas fa-sync"></i> Refresh</button>
+            <!-- KYC Reminder -->
+            <div class="card glass" style="padding:28px;margin-bottom:24px;border-left:4px solid #a855f7;">
+                <h3 style="margin:0 0 8px;color:#a855f7;font-size:1.2rem;"><i class="fas fa-id-card"></i> KYC Reminder Blast</h3>
+                <p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 22px;">Send an official reminder to all verified members who have not yet submitted or completed KYC. Excludes pending submissions.</p>
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+                    <div style="background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:16px 20px;flex:1;min-width:220px;">
+                        <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;">Recipients</div>
+                        <div style="font-size:1rem;color:#f8fafc;font-weight:600;">All unverified email-confirmed members</div>
+                        <div style="font-size:0.8rem;color:#94a3b8;margin-top:4px;">Skips users with APPROVED or PENDING KYC</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+                        <button id="kyc-reminder-btn" class="btn primary" style="background:#a855f7;border:none;padding:13px 28px;border-radius:12px;white-space:nowrap;min-width:190px;">
+                            <i class="fas fa-paper-plane"></i> Send KYC Reminder
+                        </button>
+                        <span id="kyc-reminder-cooldown" style="display:none;font-size:0.78rem;color:#94a3b8;">
+                            <i class="fas fa-clock"></i> Next available in <strong id="kyc-reminder-timer"></strong>
+                        </span>
+                    </div>
                 </div>
-                <div id="withdrawals-list">
-                    <!-- Withdrawals will be loaded here -->
-                </div>
-            </div>
-
-            <!-- KYC Verification -->
-            <div class="card glass" style="margin-top: 30px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-id-card"></i> KYC Verification</h3>
-                    <button class="btn secondary" onclick="loadKyc();loadVerifiedKyc();" style="padding: 8px 15px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
-                </div>
-                <!-- Tabs -->
-                <div style="display:flex;gap:0;border-bottom:1px solid var(--glass-border);margin-bottom:24px;">
-                    <button id="kyc-tab-pending" onclick="switchKycTab('pending')" style="padding:10px 22px;background:none;border:none;border-bottom:2px solid var(--accent-primary);color:var(--text-main);font-weight:700;font-size:0.9rem;cursor:pointer;">
-                        Pending Review <span id="kyc-pending-count" style="background:rgba(245,158,11,0.2);color:#f59e0b;border-radius:20px;padding:2px 8px;font-size:0.75rem;margin-left:6px;">0</span>
-                    </button>
-                    <button id="kyc-tab-verified" onclick="switchKycTab('verified')" style="padding:10px 22px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-weight:600;font-size:0.9rem;cursor:pointer;">
-                        Verified Users <span id="kyc-verified-count" style="background:rgba(34,197,94,0.15);color:#22c55e;border-radius:20px;padding:2px 8px;font-size:0.75rem;margin-left:6px;">0</span>
-                    </button>
-                </div>
-                <div id="kyc-pending-panel">
-                    <div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div>
-                </div>
-                <div id="kyc-verified-panel" style="display:none;">
-                    <div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div>
-                </div>
+                <div id="kyc-reminder-result" style="display:none;margin-top:16px;padding:12px 16px;border-radius:10px;font-size:0.9rem;"></div>
             </div>
 
-            <!-- Email Centre -->
-            <div class="card glass" style="margin-top: 30px; padding: 30px; border-left: 4px solid #a855f7;">
-                <h3 style="margin-top: 0; color: #a855f7; font-size: 1.4rem;"><i class="fas fa-envelope-open-text"></i> Email Centre</h3>
-                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 28px;">Send targeted emails to your members — KYC reminders or custom broadcast messages to any audience segment.</p>
-
-                <!-- KYC Reminder -->
-                <div style="background: rgba(168,85,247,0.06); border: 1px solid rgba(168,85,247,0.2); border-radius: 14px; padding: 22px; margin-bottom: 28px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+            <!-- Broadcast -->
+            <div class="card glass" style="padding:28px;border-left:4px solid #3b82f6;">
+                <h3 style="margin:0 0 8px;color:#3b82f6;font-size:1.2rem;"><i class="fas fa-broadcast-tower"></i> Compose &amp; Broadcast</h3>
+                <p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 22px;">Write and send a custom email to any member segment. Use <code style="background:rgba(255,255,255,0.07);padding:1px 6px;border-radius:4px;">{username}</code> to personalise.</p>
+                <div style="display:grid;gap:16px;">
+                    <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;">
                         <div>
-                            <h4 style="margin:0 0 6px; color:#f8fafc; font-size:1rem;"><i class="fas fa-id-card" style="color:#a855f7;margin-right:8px;"></i>KYC Reminder Blast</h4>
-                            <p style="margin:0; color:var(--text-muted); font-size:0.88rem;">Sends an official reminder to all verified members who have not yet submitted or completed KYC. Excludes pending submissions.</p>
-                        </div>
-                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
-                            <button id="kyc-reminder-btn" class="btn primary" style="background:#a855f7; border:none; padding:12px 26px; border-radius:12px; white-space:nowrap; min-width:190px;">
-                                <i class="fas fa-paper-plane"></i> Send KYC Reminder
-                            </button>
-                            <span id="kyc-reminder-cooldown" style="display:none; font-size:0.78rem; color:#94a3b8; text-align:right;">
-                                <i class="fas fa-clock"></i> Next send available in <strong id="kyc-reminder-timer"></strong>
-                            </span>
-                        </div>
-                    </div>
-                    <div id="kyc-reminder-result" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; font-size:0.9rem;"></div>
-                </div>
-
-                <!-- Compose & Broadcast -->
-                <div style="background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.15); border-radius: 14px; padding: 22px;">
-                    <h4 style="margin:0 0 18px; color:#f8fafc; font-size:1rem;"><i class="fas fa-broadcast-tower" style="color:#3b82f6;margin-right:8px;"></i>Compose &amp; Broadcast</h4>
-                    <div style="display:grid; gap:16px;">
-                        <div>
-                            <label style="display:block; font-size:0.83rem; color:var(--text-muted); margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Audience</label>
-                            <select id="broadcast-audience" class="admin-input" style="width:100%; padding:12px 16px;">
+                            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Audience</label>
+                            <select id="broadcast-audience" class="admin-input" style="width:100%;">
                                 <option value="all">All Members</option>
                                 <option value="kyc_verified">KYC Verified Members</option>
                                 <option value="regular">Regular (No VIP)</option>
@@ -235,777 +566,636 @@
                             </select>
                         </div>
                         <div>
-                            <label style="display:block; font-size:0.83rem; color:var(--text-muted); margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Subject</label>
+                            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Subject</label>
                             <input type="text" id="broadcast-subject" placeholder="e.g. Important update regarding your account" class="admin-input" style="width:100%;">
                         </div>
-                        <div>
-                            <label style="display:block; font-size:0.83rem; color:var(--text-muted); margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">
-                                Message <span style="color:#64748b; font-weight:400; text-transform:none;">(tip: use <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;">{username}</code> to personalise)</span>
-                            </label>
-                            <textarea id="broadcast-body" rows="7" placeholder="Write your message here…" class="admin-input" style="width:100%; resize:vertical; line-height:1.6;"></textarea>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                            <div id="broadcast-result" style="display:none; padding:10px 16px; border-radius:10px; font-size:0.9rem; flex:1;"></div>
-                            <button id="broadcast-btn" class="btn primary" style="padding:13px 32px; border-radius:12px; white-space:nowrap; min-width:160px; margin-left:auto;">
-                                <i class="fas fa-paper-plane"></i> Send Broadcast
-                            </button>
-                        </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Registered Users Section -->
-            <div class="card glass" style="margin-top: 30px; padding: 30px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                    <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-users"></i> Registered Accounts</h3>
-                    <button class="btn secondary" onclick="loadUsers()" style="padding: 8px 15px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
-                </div>
-                <div style="position:relative;margin-bottom:18px;">
-                    <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:0.85rem;pointer-events:none;"></i>
-                    <input id="user-search" type="text" placeholder="Search by username or email…" oninput="filterUsers(this.value)"
-                        style="width:100%;box-sizing:border-box;padding:11px 14px 11px 38px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:12px;color:var(--text-main);font-size:0.9rem;outline:none;font-family:inherit;">
-                </div>
-                <div style="overflow-x: auto;">
-                    <table id="users-table" style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid var(--glass-border); text-align: left; color: var(--text-muted);">
-                                <th style="padding: 10px 12px;">UID</th>
-                                <th style="padding: 10px 12px;">Username</th>
-                                <th style="padding: 10px 12px;">Email</th>
-                                <th style="padding: 10px 12px;">Phone</th>
-                                <th style="padding: 10px 12px;">Country</th>
-                                <th style="padding: 10px 12px;">Balance</th>
-                                <th style="padding: 10px 12px;">Deposited</th>
-                                <th style="padding: 10px 12px;">VIP</th>
-                                <th style="padding: 10px 12px;">Role</th>
-                                <th style="padding: 10px 12px;">Joined</th>
-                                <th style="padding: 10px 12px;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-tbody">
-                            <tr><td colspan="10" style="text-align: center; padding: 30px; color: var(--text-muted);">Loading users...</td></tr>
-                        </tbody>
-                    </table>
+                    <div>
+                        <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Message</label>
+                        <textarea id="broadcast-body" rows="8" placeholder="Write your message here…&#10;&#10;Tip: use {username} to insert each member's name automatically." class="admin-input" style="width:100%;resize:vertical;line-height:1.65;"></textarea>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;align-items:center;gap:14px;flex-wrap:wrap;">
+                        <div id="broadcast-result" style="display:none;padding:10px 16px;border-radius:10px;font-size:0.9rem;flex:1;"></div>
+                        <button id="broadcast-btn" class="btn primary" style="padding:13px 32px;border-radius:12px;white-space:nowrap;min-width:170px;">
+                            <i class="fas fa-paper-plane"></i> Send Broadcast
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
+
     </main>
+</div><!-- end admin-shell -->
 
-    <script src="js/api.js"></script>
-    <script>
-        async function loadPending() {
-            const list = document.getElementById('pending-list');
-            try {
-                const deposits = await API.getPendingDeposits();
-                
-                if (deposits.msg) { // Probably access denied
-                    list.innerHTML = `<div style="text-align: center; padding: 50px; color: #ff4d4d;">${deposits.msg}</div>`;
-                    return;
-                }
+<script src="js/api.js"></script>
+<script>
+// ════════════════════════════════════════════
+//  Navigation
+// ════════════════════════════════════════════
+function showPage(pageId, btn) {
+    document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + pageId).classList.add('active');
+    if (btn) btn.classList.add('active');
+    // Close mobile sidebar
+    document.querySelector('.admin-sidebar').classList.remove('open');
+    // Lazy-load data when section opens
+    if (pageId === 'deposits')    loadPending();
+    if (pageId === 'withdrawals') loadWithdrawals();
+    if (pageId === 'kyc')        { loadKyc(); loadVerifiedKyc(); }
+    if (pageId === 'users')       loadUsers();
+}
 
-                if (deposits.length === 0) {
-                    list.innerHTML = '<div style="text-align: center; padding: 50px; color: var(--text-muted);">No pending deposits.</div>';
-                    return;
-                }
+function refreshAll() {
+    loadOverview();
+    loadPending();
+    loadWithdrawals();
+    loadKyc();
+    loadVerifiedKyc();
+    loadUsers();
+}
 
-                list.innerHTML = '';
-                deposits.forEach(d => {
-                    const item = document.createElement('div');
-                    item.className = 'deposit-item';
-                    item.innerHTML = `
-                        <div class="deposit-header">
-                            <div>
-                                <h4 style="margin: 0;">#${d.id} | User: ${d.username}</h4>
-                                <small style="color: var(--text-muted)">${d.email}</small>
-                            </div>
-                            <div style="display: flex; gap: 8px;">
-                                <span class="status-badge" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-radius: 4px; padding: 2px 8px; font-size: 0.7rem;">${d.network || 'BITCOIN'}</span>
-                                <span class="status-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">PENDING</span>
-                            </div>
-                        </div>
-                        <div class="deposit-details">
-                            <div>
-                                <span class="detail-label">USDT Amount:</span>
-                                <span class="detail-value" style="color: var(--accent-primary);">${parseFloat(d.usdt_amount || d.btc_amount || 0).toFixed(2)} USDT</span>
-                            </div>
-                            <div>
-                                <span class="detail-label">Equivalent Crypto:</span>
-                                <span class="detail-value">${parseFloat(d.crypto_amount || d.btc_amount || 0).toFixed(8)} ${(d.network || '').split(' ')[0]}</span>
-                            </div>
-                            <div>
-                                <span class="detail-label">Exchange Rate:</span>
-                                <span class="detail-value" style="font-size: 0.8rem; color: var(--accent-secondary);">$${d.exchange_rate ? d.exchange_rate.toLocaleString() : 'N/A'}</span>
-                            </div>
-                            <div>
-                                <span class="detail-label">Date:</span>
-                                <span class="detail-value">${new Date(d.created_at).toLocaleString()}</span>
-                            </div>
-                            <div style="grid-column: span 2;">
-                                <span class="detail-label">TXID:</span><br>
-                                <a href="${d.network === 'TON' ? `https://tonscan.org/tx/${d.txid}` : (d.network === 'USDT (TRC-20)' ? `https://tronscan.org/#/transaction/${d.txid}` : (d.network === 'ETH (ERC-20)' ? `https://etherscan.io/tx/${d.txid}` : `https://www.blockchain.com/explorer/transactions/btc/${d.txid}`))}" target="_blank" class="txid-link">${d.txid}</a>
-                            </div>
-                            <div style="grid-column: span 2; margin-top: 10px;">
-                                <span class="detail-label">Proof of Payment:</span><br>
-                                ${d.screenshot ? `
-                                <a href="${d.screenshot}" target="_blank">
-                                    <img src="${d.screenshot}" style="max-width: 100%; max-height: 320px; object-fit: contain; border-radius: 8px; margin-top: 8px; border: 1px solid var(--glass-border); display: block; cursor: zoom-in;">
-                                </a>` : `<span style="color: var(--text-muted); font-size: 0.85rem;">None provided</span>`}
-                            </div>
-                        </div>
-                        <div class="action-area">
-                            <input type="number" id="usdt-${d.id}" placeholder="USDT to credit" step="0.01" value="${parseFloat(d.usdt_amount || d.btc_amount || 0).toFixed(2)}">
-                            <button class="btn primary" onclick="approve(${d.id})" style="padding: 10px 20px;">Approve</button>
-                            <button class="btn secondary" onclick="reject(${d.id})" style="padding: 10px 20px; color: #ff4d4d;">Reject</button>
-                        </div>
-                    `;
-                    list.appendChild(item);
-                });
-            } catch (err) {
-                list.innerHTML = '<div style="text-align: center; padding: 50px; color: #ff4d4d;">Failed to load deposits.</div>';
-            }
-        }
+// ════════════════════════════════════════════
+//  Overview stats
+// ════════════════════════════════════════════
+async function loadOverview() {
+    try {
+        const [users, deposits, withdrawals, kyc, verifiedKyc] = await Promise.all([
+            API.adminGetUsers(),
+            API.getPendingDeposits(),
+            API.adminGetPendingWithdrawals(),
+            API.getPendingKyc(),
+            API.getVerifiedKyc()
+        ]);
+        const dCount = Array.isArray(deposits)    ? deposits.length    : 0;
+        const wCount = Array.isArray(withdrawals) ? withdrawals.length : 0;
+        const kCount = Array.isArray(kyc)         ? kyc.length         : 0;
+        const vCount = Array.isArray(verifiedKyc) ? verifiedKyc.length : 0;
 
-        async function approve(id) {
-            const amountInput = document.getElementById(`usdt-${id}`);
-            const amount = parseFloat(amountInput.value);
-            if (!amount || amount <= 0) {
-                alert('Please enter a valid USDT amount to credit.');
-                return;
-            }
+        document.getElementById('ov-users').textContent        = Array.isArray(users) ? users.length : '—';
+        document.getElementById('ov-deposits').textContent     = dCount;
+        document.getElementById('ov-withdrawals').textContent  = wCount;
+        document.getElementById('ov-kyc').textContent          = kCount;
+        document.getElementById('ov-kyc-verified').textContent = vCount;
 
-            if (!confirm(`Are you sure you want to approve this deposit and credit ${amount} USDT?`)) return;
+        // Sidebar badges
+        setBadge('badge-deposits',    dCount);
+        setBadge('badge-withdrawals', wCount);
+        setBadge('badge-kyc',         kCount);
+    } catch(e) { console.error('[OVERVIEW]', e); }
+}
 
-            try {
-                const res = await API.approveDeposit(id, amount);
-                if (res.msg.includes('approved')) {
-                    alert('Deposit approved!');
-                    loadPending();
-                } else {
-                    alert(res.msg);
-                }
-            } catch (err) {
-                alert('Error approving deposit.');
-            }
-        }
+function setBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = count;
+    el.classList.toggle('show', count > 0);
+}
 
-        async function reject(id) {
-            if (!confirm('Are you sure you want to reject this deposit?')) return;
+// ════════════════════════════════════════════
+//  Deposits
+// ════════════════════════════════════════════
+async function loadPending() {
+    const list = document.getElementById('pending-list');
+    try {
+        const deposits = await API.getPendingDeposits();
+        if (deposits.msg) { list.innerHTML = `<div style="text-align:center;padding:60px;color:#ff4d4d;">${deposits.msg}</div>`; return; }
+        if (!deposits.length) { list.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">No pending deposits.</div>'; setBadge('badge-deposits',0); return; }
+        setBadge('badge-deposits', deposits.length);
+        list.innerHTML = '';
+        deposits.forEach(d => {
+            const item = document.createElement('div');
+            item.className = 'deposit-item';
+            const explorerUrl = d.network === 'TON' ? `https://tonscan.org/tx/${d.txid}`
+                : d.network === 'USDT (TRC-20)' ? `https://tronscan.org/#/transaction/${d.txid}`
+                : d.network === 'ETH (ERC-20)'  ? `https://etherscan.io/tx/${d.txid}`
+                : `https://www.blockchain.com/explorer/transactions/btc/${d.txid}`;
+            item.innerHTML = `
+                <div class="deposit-header">
+                    <div>
+                        <h4 style="margin:0;">#${d.id} | ${d.username}</h4>
+                        <small style="color:var(--text-muted)">${d.email}</small>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <span style="background:rgba(59,130,246,0.1);color:#3b82f6;border-radius:4px;padding:2px 8px;font-size:0.7rem;">${d.network || 'BITCOIN'}</span>
+                        <span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">PENDING</span>
+                    </div>
+                </div>
+                <div class="deposit-details">
+                    <div><span class="detail-label">USDT Amount</span><span class="detail-value" style="color:var(--accent-primary);">${parseFloat(d.usdt_amount||d.btc_amount||0).toFixed(2)} USDT</span></div>
+                    <div><span class="detail-label">Crypto Equivalent</span><span class="detail-value">${parseFloat(d.crypto_amount||d.btc_amount||0).toFixed(8)} ${(d.network||'').split(' ')[0]}</span></div>
+                    <div><span class="detail-label">Exchange Rate</span><span class="detail-value" style="font-size:0.8rem;color:var(--accent-secondary);">$${d.exchange_rate ? d.exchange_rate.toLocaleString() : 'N/A'}</span></div>
+                    <div><span class="detail-label">Date</span><span class="detail-value">${new Date(d.created_at).toLocaleString()}</span></div>
+                    <div style="grid-column:span 2;">
+                        <span class="detail-label">TXID</span>
+                        <a href="${explorerUrl}" target="_blank" class="txid-link">${d.txid}</a>
+                    </div>
+                    <div style="grid-column:span 2;margin-top:8px;">
+                        <span class="detail-label">Proof of Payment</span><br>
+                        ${d.screenshot ? `<a href="${d.screenshot}" target="_blank"><img src="${d.screenshot}" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;"></a>` : `<span style="color:var(--text-muted);font-size:0.85rem;">None provided</span>`}
+                    </div>
+                </div>
+                <div class="action-area">
+                    <input type="number" id="usdt-${d.id}" placeholder="USDT to credit" step="0.01" value="${parseFloat(d.usdt_amount||d.btc_amount||0).toFixed(2)}" style="width:160px;">
+                    <button class="btn primary" onclick="approve(${d.id})" style="padding:10px 20px;">Approve</button>
+                    <button class="btn secondary" onclick="reject(${d.id})" style="padding:10px 20px;color:#ff4d4d;">Reject</button>
+                </div>`;
+            list.appendChild(item);
+        });
+    } catch(err) {
+        list.innerHTML = '<div style="text-align:center;padding:60px;color:#ff4d4d;">Failed to load deposits.</div>';
+    }
+}
 
-            try {
-                const res = await API.rejectDeposit(id);
-                if (res.msg.includes('rejected')) {
-                    alert('Deposit rejected.');
-                    loadPending();
-                } else {
-                    alert(res.msg);
-                }
-            } catch (err) {
-                alert('Error rejecting deposit.');
-            }
-        }
+async function approve(id) {
+    const amount = parseFloat(document.getElementById(`usdt-${id}`).value);
+    if (!amount || amount <= 0) { alert('Please enter a valid USDT amount.'); return; }
+    if (!confirm(`Approve deposit and credit ${amount} USDT?`)) return;
+    try {
+        const res = await API.approveDeposit(id, amount);
+        alert(res.msg);
+        if (res.msg.includes('approved')) loadPending();
+    } catch(e) { alert('Error approving deposit.'); }
+}
 
-        function copyText(btn, text) {
-            if (!text) return;
-            navigator.clipboard.writeText(text).then(() => {
-                const original = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied';
-                setTimeout(() => { btn.innerHTML = original; }, 1500);
-            }).catch(() => {
-                const ta = document.createElement('textarea');
-                ta.value = text;
-                document.body.appendChild(ta);
-                ta.select();
-                try { document.execCommand('copy'); } catch (e) {}
-                document.body.removeChild(ta);
-                alert('Copied to clipboard.');
-            });
-        }
+async function reject(id) {
+    if (!confirm('Reject this deposit?')) return;
+    try {
+        const res = await API.rejectDeposit(id);
+        alert(res.msg);
+        if (res.msg.includes('rejected')) loadPending();
+    } catch(e) { alert('Error rejecting deposit.'); }
+}
 
-        async function loadWithdrawals() {
-            const list = document.getElementById('withdrawals-list');
-            try {
-                const withdrawals = await API.adminGetPendingWithdrawals();
-                console.log('[DEBUG_ADMIN] Pending Withdrawals:', withdrawals);
-                
-                if (withdrawals.msg) {
-                    list.innerHTML = `<div style="text-align: center; padding: 20px; color: #ff4d4d;">${withdrawals.msg}</div>`;
-                    return;
-                }
-
-                if (withdrawals.length === 0) {
-                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No pending withdrawals.</div>';
-                    return;
-                }
-
-                list.innerHTML = '';
-                withdrawals.forEach(w => {
-                    const item = document.createElement('div');
-                    item.className = 'deposit-item'; // Reuse styling
-                    item.style.borderLeft = '4px solid #f59e0b';
-                    item.innerHTML = `
-                        <div class="deposit-header">
-                            <div>
-                                <h4 style="margin: 0;">#${w.id} | User: ${w.username}</h4>
-                                <small style="color: var(--text-muted)">${w.email}</small>
-                            </div>
-                            <span class="status-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">PENDING</span>
-                        </div>
-                        <div class="deposit-details">
-                            <div>
-                                <span class="detail-label">Gross Amount:</span>
-                                <span class="detail-value" style="color: var(--danger);">${w.amount} USDT</span>
-                            </div>
-                            <div>
-                                <span class="detail-label">Net (After Fee):</span>
-                                <span class="detail-value" style="color: var(--accent-primary);">${(w.amount - 1).toFixed(2)} USDT</span>
-                            </div>
-                            <div style="grid-column: 1 / -1;">
-                                <span class="detail-label">Withdrawal Address / Details:</span>
-                                <div style="display: flex; align-items: flex-start; gap: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); padding: 10px 12px; border-radius: 8px; margin-top: 6px;">
-                                    <code style="flex: 1; min-width: 0; font-size: 0.78rem; color: var(--accent-primary); word-break: break-all; overflow-wrap: anywhere; white-space: pre-wrap; user-select: all; -webkit-user-select: all; line-height: 1.5;">${w.details || '—'}</code>
-                                    <button class="btn secondary" style="padding: 5px 10px; font-size: 0.7rem; flex-shrink: 0;" onclick="copyText(this, ${JSON.stringify(w.details || '').replace(/"/g, '&quot;')})"><i class="fas fa-copy"></i> Copy</button>
-                                </div>
-                            </div>
-                            <div>
-                                <span class="detail-label">Date:</span>
-                                <span class="detail-value">${new Date(w.created_at).toLocaleString()}</span>
-                            </div>
-                        </div>
-                        <div class="action-area">
-                            <button class="btn primary" onclick="approveWithdrawal(${w.id})" style="padding: 10px 20px;">Approve</button>
-                            <button class="btn secondary" onclick="rejectWithdrawal(${w.id})" style="padding: 10px 20px; color: #ff4d4d;">Reject</button>
-                        </div>
-                    `;
-                    list.appendChild(item);
-                });
-            } catch (err) {
-                console.error('[ADMIN_LOAD_WITHDRAWALS_ERROR]', err);
-                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ff4d4d;">Failed to load withdrawals.</div>';
-            }
-        }
-
-        async function approveWithdrawal(id) {
-            if (!confirm(`Are you sure you want to approve withdrawal #${id}?`)) return;
-
-            try {
-                const res = await API.adminApproveWithdrawal(id);
-                alert(res.msg);
-                loadWithdrawals();
-                loadPending();
-            } catch (err) {
-                alert('Error approving withdrawal.');
-            }
-        }
-
-        async function rejectWithdrawal(id) {
-            if (!confirm(`Are you sure you want to reject and refund withdrawal #${id}?`)) return;
-
-            try {
-                const res = await API.adminRejectWithdrawal(id);
-                alert(res.msg);
-                loadWithdrawals();
-                loadPending();
-            } catch (err) {
-                alert('Error rejecting withdrawal.');
-            }
-        }
-
-        const vipColors = { REGULAR: '#94a3b8', BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700', PLATINUM: '#e5e4e2', DIAMOND: '#b9f2ff' };
-
-        let _allUsers = [];
-
-        function renderUsers(users) {
-            const tbody = document.getElementById('users-tbody');
-            if (!users || users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text-muted);">No users found.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = '';
-            users.forEach(u => {
-                    const vipColor = vipColors[u.vip_rank] || '#94a3b8';
-                    const isBanned = u.is_banned === 1 || u.is_banned === true;
-                    const isAdmin  = u.is_admin  === 1 || u.is_admin  === true;
-                    const roleLabel = isAdmin
-                        ? '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:700;">ADMIN</span>'
-                        : '<span style="background:rgba(255,255,255,0.05);color:var(--text-muted);padding:2px 8px;border-radius:4px;font-size:0.75rem;">USER</span>';
-                    const banLabel = isBanned
-                        ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;margin-left:5px;">BANNED</span>'
-                        : '';
-                    const row = document.createElement('tr');
-                    row.id = `user-row-${u.id}`;
-                    row.style.cssText = `border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.2s;${isBanned ? 'opacity:0.55;' : ''}`;
-                    row.onmouseenter = () => row.style.background = 'rgba(255,255,255,0.03)';
-                    row.onmouseleave = () => row.style.background = '';
-                    row.innerHTML = `
-                        <td style="padding:12px;">#${u.id}</td>
-                        <td style="padding:12px;font-weight:600;">${u.username}${banLabel}</td>
-                        <td style="padding:12px;color:var(--text-muted);">${u.email}</td>
-                        <td style="padding:12px;color:var(--text-muted);white-space:nowrap;">${u.phone || '—'}</td>
-                        <td style="padding:12px;color:var(--text-muted);">${u.country || '—'}</td>
-                        <td style="padding:12px;color:var(--accent-primary);font-weight:600;">$${u.balance.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
-                        <td style="padding:12px;">$${u.deposit_balance.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
-                        <td style="padding:12px;"><span style="color:${vipColor};font-weight:700;font-size:0.8rem;">${u.vip_rank}</span></td>
-                        <td style="padding:12px;">${roleLabel}</td>
-                        <td style="padding:12px;color:var(--text-muted);font-size:0.8rem;">${new Date(u.created_at).toLocaleDateString()}</td>
-                        <td style="padding:10px 12px;white-space:nowrap;">
-                            <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                                ${!isAdmin ? `
-                                <button onclick="adminToggleBan(${u.id}, ${isBanned})"
-                                    title="${isBanned ? 'Unban user' : 'Ban user'}"
-                                    style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;
-                                        background:${isBanned ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)'};
-                                        color:${isBanned ? '#22c55e' : '#f59e0b'};">
-                                    <i class="fas ${isBanned ? 'fa-unlock' : 'fa-ban'}"></i> ${isBanned ? 'Unban' : 'Ban'}
-                                </button>` : ''}
-                                ${!isAdmin ? `
-                                <button onclick="adminMakeAdmin(${u.id}, '${u.username}')"
-                                    title="Promote to admin"
-                                    style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(59,130,246,0.15);color:#93c5fd;">
-                                    <i class="fas fa-user-shield"></i> Make Admin
-                                </button>` : `
-                                <button onclick="adminRemoveAdmin(${u.id}, '${u.username}')"
-                                    title="Remove admin privileges"
-                                    style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(100,116,139,0.2);color:#94a3b8;">
-                                    <i class="fas fa-user-minus"></i> Remove Admin
-                                </button>`}
-                                ${!isAdmin ? `
-                                <button onclick="adminDeleteUser(${u.id}, '${u.username}')"
-                                    title="Delete user permanently"
-                                    style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(239,68,68,0.15);color:#f87171;">
-                                    <i class="fas fa-trash-alt"></i> Delete
-                                </button>` : ''}
-                            </div>
-                        </td>
-                    `;
-                tbody.appendChild(row);
-            });
-        }
-
-        async function loadUsers() {
-            const tbody = document.getElementById('users-tbody');
-            try {
-                const users = await API.adminGetUsers();
-                if (!users || users.msg) {
-                    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:30px;color:#ff4d4d;">${users?.msg || 'Failed to load users.'}</td></tr>`;
-                    return;
-                }
-                _allUsers = users;
-                renderUsers(users);
-            } catch (err) {
-                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px;color:#ff4d4d;">Failed to load users.</td></tr>';
-            }
-        }
-
-        function filterUsers(query) {
-            const q = query.trim().toLowerCase();
-            if (!q) { renderUsers(_allUsers); return; }
-            const filtered = _allUsers.filter(u =>
-                u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-            );
-            renderUsers(filtered);
-        }
-
-        function switchKycTab(tab) {
-            const pendingPanel  = document.getElementById('kyc-pending-panel');
-            const verifiedPanel = document.getElementById('kyc-verified-panel');
-            const tabPending    = document.getElementById('kyc-tab-pending');
-            const tabVerified   = document.getElementById('kyc-tab-verified');
-            if (tab === 'pending') {
-                pendingPanel.style.display  = 'block';
-                verifiedPanel.style.display = 'none';
-                tabPending.style.borderBottomColor  = 'var(--accent-primary)';
-                tabPending.style.color              = 'var(--text-main)';
-                tabPending.style.fontWeight         = '700';
-                tabVerified.style.borderBottomColor = 'transparent';
-                tabVerified.style.color             = 'var(--text-muted)';
-                tabVerified.style.fontWeight        = '600';
-            } else {
-                pendingPanel.style.display  = 'none';
-                verifiedPanel.style.display = 'block';
-                tabVerified.style.borderBottomColor = 'var(--accent-primary)';
-                tabVerified.style.color             = 'var(--text-main)';
-                tabVerified.style.fontWeight        = '700';
-                tabPending.style.borderBottomColor  = 'transparent';
-                tabPending.style.color              = 'var(--text-muted)';
-                tabPending.style.fontWeight         = '600';
-            }
-        }
-
-        function downloadDoc(dataUrl, filename) {
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = filename;
-            a.click();
-        }
-
-        function kycDocBlock(label, dataUrl, filename) {
-            if (!dataUrl) return '';
-            return `
-                <div style="grid-column:span 2;margin-top:14px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <span class="detail-label">${label}</span>
-                        <div style="display:flex;gap:8px;">
-                            <a href="${dataUrl}" target="_blank" style="font-size:0.78rem;padding:4px 10px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:#93c5fd;text-decoration:none;"><i class="fas fa-eye"></i> View</a>
-                            <button onclick="downloadDoc('${dataUrl}','${filename}')" style="font-size:0.78rem;padding:4px 10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:6px;color:#86efac;cursor:pointer;"><i class="fas fa-download"></i> Download</button>
+// ════════════════════════════════════════════
+//  Withdrawals
+// ════════════════════════════════════════════
+async function loadWithdrawals() {
+    const list = document.getElementById('withdrawals-list');
+    try {
+        const withdrawals = await API.adminGetPendingWithdrawals();
+        if (withdrawals.msg) { list.innerHTML = `<div style="text-align:center;padding:40px;color:#ff4d4d;">${withdrawals.msg}</div>`; return; }
+        if (!withdrawals.length) { list.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">No pending withdrawals.</div>'; setBadge('badge-withdrawals',0); return; }
+        setBadge('badge-withdrawals', withdrawals.length);
+        list.innerHTML = '';
+        withdrawals.forEach(w => {
+            const item = document.createElement('div');
+            item.className = 'deposit-item';
+            item.style.borderLeft = '4px solid #f59e0b';
+            item.innerHTML = `
+                <div class="deposit-header">
+                    <div>
+                        <h4 style="margin:0;">#${w.id} | ${w.username}</h4>
+                        <small style="color:var(--text-muted)">${w.email}</small>
+                    </div>
+                    <span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">PENDING</span>
+                </div>
+                <div class="deposit-details">
+                    <div><span class="detail-label">Gross Amount</span><span class="detail-value" style="color:#ef4444;">${w.amount} USDT</span></div>
+                    <div><span class="detail-label">Net (After $1 Fee)</span><span class="detail-value" style="color:var(--accent-primary);">${(w.amount-1).toFixed(2)} USDT</span></div>
+                    <div style="grid-column:1/-1;">
+                        <span class="detail-label">Withdrawal Address</span>
+                        <div style="display:flex;align-items:flex-start;gap:10px;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);padding:10px 12px;border-radius:8px;margin-top:6px;">
+                            <code style="flex:1;min-width:0;font-size:0.78rem;color:var(--accent-primary);word-break:break-all;user-select:all;line-height:1.5;">${w.details||'—'}</code>
+                            <button class="btn secondary" style="padding:5px 10px;font-size:0.7rem;flex-shrink:0;" onclick="copyText(this,${JSON.stringify(w.details||'').replace(/"/g,'&quot;')})"><i class="fas fa-copy"></i> Copy</button>
                         </div>
                     </div>
-                    <a href="${dataUrl}" target="_blank">
-                        <img src="${dataUrl}" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:10px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;">
-                    </a>
+                    <div><span class="detail-label">Date</span><span class="detail-value">${new Date(w.created_at).toLocaleString()}</span></div>
+                </div>
+                <div class="action-area">
+                    <button class="btn primary" onclick="approveWithdrawal(${w.id})" style="padding:10px 20px;">Approve</button>
+                    <button class="btn secondary" onclick="rejectWithdrawal(${w.id})" style="padding:10px 20px;color:#ff4d4d;">Reject</button>
                 </div>`;
-        }
-
-        async function loadKyc() {
-            const panel = document.getElementById('kyc-pending-panel');
-            const countEl = document.getElementById('kyc-pending-count');
-            try {
-                const submissions = await API.getPendingKyc();
-                if (!Array.isArray(submissions) || submissions.length === 0) {
-                    panel.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No pending KYC submissions.</div>';
-                    countEl.textContent = '0';
-                    return;
-                }
-                countEl.textContent = submissions.length;
-                panel.innerHTML = '';
-                submissions.forEach(k => {
-                    const item = document.createElement('div');
-                    item.className = 'deposit-item';
-                    item.innerHTML = `
-                        <div class="deposit-header">
-                            <div>
-                                <h4 style="margin:0;">KYC #${k.id} — ${k.username}</h4>
-                                <small style="color:var(--text-muted)">${k.email}</small>
-                            </div>
-                            <span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">PENDING</span>
-                        </div>
-                        <div class="deposit-details">
-                            <div><span class="detail-label">Country</span><span class="detail-value">${k.country}</span></div>
-                            <div><span class="detail-label">ID Type</span><span class="detail-value">${k.id_type}</span></div>
-                            <div><span class="detail-label">ID Number</span><span class="detail-value" style="font-family:monospace;">${k.id_number}</span></div>
-                            <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleString()}</span></div>
-                            ${k.extra_field_name ? `<div style="grid-column:span 2;"><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;margin-left:8px;">${k.extra_field_value}</span></div>` : ''}
-                            ${kycDocBlock('ID Document — Front', k.id_document, `kyc_${k.id}_${k.username}_front.jpg`)}
-                            ${kycDocBlock('ID Document — Back', k.id_document_back, `kyc_${k.id}_${k.username}_back.jpg`)}
-                            ${kycDocBlock('Selfie with ID', k.selfie, `kyc_${k.id}_${k.username}_selfie.jpg`)}
-                        </div>
-                        <div class="action-area">
-                            <div style="display:flex;gap:10px;width:100%;">
-                                <button class="btn primary" onclick="approveKyc(${k.id})" style="flex:1;padding:10px;">✓ Approve</button>
-                                <button class="btn secondary" onclick="rejectKycPrompt(${k.id})" style="flex:1;padding:10px;color:#ff4d4d;">✗ Reject</button>
-                            </div>
-                        </div>
-                    `;
-                    panel.appendChild(item);
-                });
-            } catch(err) {
-                panel.innerHTML = '<div style="text-align:center;padding:40px;color:#ff4d4d;">Failed to load KYC submissions.</div>';
-            }
-        }
-
-        function toggleKycDetails(id) {
-            const det = document.getElementById(`kyc-det-${id}`);
-            const btn = document.getElementById(`kyc-btn-${id}`);
-            const open = det.style.display === 'block';
-            det.style.display = open ? 'none' : 'block';
-            btn.innerHTML = open
-                ? '<i class="fas fa-eye" style="margin-right:5px;"></i>View Details'
-                : '<i class="fas fa-eye-slash" style="margin-right:5px;"></i>Hide Details';
-        }
-
-        async function loadVerifiedKyc() {
-            const panel   = document.getElementById('kyc-verified-panel');
-            const countEl = document.getElementById('kyc-verified-count');
-            try {
-                const rows = await API.getVerifiedKyc();
-                if (!Array.isArray(rows) || rows.length === 0) {
-                    panel.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No verified users yet.</div>';
-                    countEl.textContent = '0';
-                    return;
-                }
-                countEl.textContent = rows.length;
-                panel.innerHTML = '';
-                rows.forEach(k => {
-                    const item = document.createElement('div');
-                    item.className = 'deposit-item';
-                    item.innerHTML = `
-                        <div class="deposit-header" style="cursor:default;">
-                            <div style="min-width:0;">
-                                <h4 style="margin:0;">${k.username}</h4>
-                                <small style="color:var(--text-muted);">${k.email}${k.phone ? ' · ' + k.phone : ''}</small>
-                                <div style="margin-top:5px;display:flex;gap:10px;flex-wrap:wrap;font-size:0.78rem;color:var(--text-muted);">
-                                    <span><strong style="color:var(--text-main);">${k.country}</strong></span>
-                                    <span>·</span>
-                                    <span>${k.id_type}</span>
-                                    <span>·</span>
-                                    <span>Approved: <strong style="color:#22c55e;">${k.reviewed_at ? new Date(k.reviewed_at).toLocaleDateString() : '—'}</strong></span>
-                                </div>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-                                <span style="background:rgba(34,197,94,0.12);color:#22c55e;padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
-                                    <i class="fas fa-check-circle" style="margin-right:4px;"></i>VERIFIED
-                                </span>
-                                <button id="kyc-btn-${k.id}" onclick="toggleKycDetails(${k.id})"
-                                    style="padding:6px 14px;font-size:0.78rem;border-radius:8px;border:1px solid var(--glass-border);background:var(--glass-bg);color:var(--text-main);cursor:pointer;white-space:nowrap;font-weight:600;">
-                                    <i class="fas fa-eye" style="margin-right:5px;"></i>View Details
-                                </button>
-                            </div>
-                        </div>
-                        <div id="kyc-det-${k.id}" style="display:none;margin-top:16px;">
-                            <div class="deposit-details">
-                                <div><span class="detail-label">Country</span><span class="detail-value">${k.country}</span></div>
-                                <div><span class="detail-label">ID Type</span><span class="detail-value">${k.id_type}</span></div>
-                                <div><span class="detail-label">ID Number</span><span class="detail-value" style="font-family:monospace;">${k.id_number}</span></div>
-                                <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleDateString()}</span></div>
-                                <div><span class="detail-label">Approved</span><span class="detail-value" style="color:#22c55e;">${k.reviewed_at ? new Date(k.reviewed_at).toLocaleString() : '—'}</span></div>
-                                ${k.extra_field_name ? `<div><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;">${k.extra_field_value}</span></div>` : ''}
-                                ${kycDocBlock('ID Document — Front', k.id_document, `kyc_${k.username}_front.jpg`)}
-                                ${kycDocBlock('ID Document — Back', k.id_document_back, `kyc_${k.username}_back.jpg`)}
-                                ${kycDocBlock('Selfie with ID', k.selfie, `kyc_${k.username}_selfie.jpg`)}
-                            </div>
-                        </div>
-                    `;
-                    panel.appendChild(item);
-                });
-            } catch(err) {
-                panel.innerHTML = '<div style="text-align:center;padding:40px;color:#ff4d4d;">Failed to load verified users.</div>';
-            }
-        }
-
-        async function approveKyc(id) {
-            if (!confirm('Approve this KYC submission? The user will be notified and able to withdraw.')) return;
-            const res = await API.approveKyc(id);
-            alert(res.msg);
-            loadKyc();
-            loadVerifiedKyc();
-        }
-
-        async function rejectKycPrompt(id) {
-            const reason = prompt('Rejection reason (shown to user):');
-            if (!reason) return;
-            const res = await API.rejectKyc(id, reason);
-            alert(res.msg);
-            loadKyc();
-        }
-
-        async function adminToggleBan(userId, currentlyBanned) {
-            const action = currentlyBanned ? 'unban' : 'ban';
-            if (!confirm(`Are you sure you want to ${action} this user?`)) return;
-            const res = currentlyBanned ? await API.unbanUser(userId) : await API.banUser(userId);
-            alert(res.msg);
-            loadUsers();
-        }
-
-        async function adminDeleteUser(userId, username) {
-            if (!confirm(`⚠️ Permanently delete "${username}"?\n\nThis will erase their account, all transactions, KYC records, and notifications. This CANNOT be undone.`)) return;
-            if (!confirm(`Final confirmation: delete "${username}" forever?`)) return;
-            const res = await API.deleteUser(userId);
-            alert(res.msg);
-            loadUsers();
-        }
-
-        async function adminMakeAdmin(userId, username) {
-            if (!confirm(`Promote "${username}" to Admin?\n\nThey will have full access to this admin panel.`)) return;
-            const res = await API.setAdmin(userId, true);
-            alert(res.msg);
-            loadUsers();
-        }
-
-        async function adminRemoveAdmin(userId, username) {
-            if (!confirm(`Remove admin privileges from "${username}"?`)) return;
-            const res = await API.setAdmin(userId, false);
-            alert(res.msg);
-            loadUsers();
-        }
-
-        // Initial load
-        window.addEventListener('DOMContentLoaded', () => {
-            loadPending();
-            loadWithdrawals();
-            loadUsers();
-            loadKyc();
-            loadVerifiedKyc();
-
-            // KYC Reminder — 48-hour cooldown
-            const KYC_COOLDOWN_MS = 48 * 60 * 60 * 1000;
-            const KYC_LS_KEY = 'kycReminderLastSent';
-            let kycCooldownInterval = null;
-
-            function formatCountdown(ms) {
-                if (ms <= 0) return '00:00:00';
-                const h = Math.floor(ms / 3600000);
-                const m = Math.floor((ms % 3600000) / 60000);
-                const s = Math.floor((ms % 60000) / 1000);
-                return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-            }
-
-            function startKycCooldown(lastSentAt) {
-                const btn = document.getElementById('kyc-reminder-btn');
-                const cooldownEl = document.getElementById('kyc-reminder-cooldown');
-                const timerEl = document.getElementById('kyc-reminder-timer');
-
-                if (kycCooldownInterval) clearInterval(kycCooldownInterval);
-
-                function tick() {
-                    const remaining = KYC_COOLDOWN_MS - (Date.now() - lastSentAt);
-                    if (remaining <= 0) {
-                        clearInterval(kycCooldownInterval);
-                        btn.disabled = false;
-                        btn.style.opacity = '1';
-                        btn.style.cursor = 'pointer';
-                        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
-                        cooldownEl.style.display = 'none';
-                        return;
-                    }
-                    btn.disabled = true;
-                    btn.style.opacity = '0.5';
-                    btn.style.cursor = 'not-allowed';
-                    btn.innerHTML = `<i class="fas fa-lock"></i> Cooldown Active`;
-                    cooldownEl.style.display = 'inline';
-                    timerEl.textContent = formatCountdown(remaining);
-                }
-                tick();
-                kycCooldownInterval = setInterval(tick, 1000);
-            }
-
-            // Check cooldown on load
-            const kycLastSent = parseInt(localStorage.getItem(KYC_LS_KEY) || '0');
-            if (kycLastSent && (Date.now() - kycLastSent) < KYC_COOLDOWN_MS) {
-                startKycCooldown(kycLastSent);
-            }
-
-            document.getElementById('kyc-reminder-btn').addEventListener('click', async () => {
-                const btn = document.getElementById('kyc-reminder-btn');
-                if (btn.disabled) return;
-                if (!confirm('Send a KYC reminder email to all members who have not yet submitted or completed KYC?')) return;
-
-                const result = document.getElementById('kyc-reminder-result');
-                btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
-                try {
-                    const res = await API.sendKycReminder();
-                    result.style.display = 'block';
-                    result.style.background = res.sent > 0 ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)';
-                    result.style.color = res.sent > 0 ? '#22c55e' : '#f59e0b';
-                    result.style.border = res.sent > 0 ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(245,158,11,0.25)';
-                    result.innerHTML = `<i class="fas ${res.sent > 0 ? 'fa-check-circle' : 'fa-info-circle'}"></i> ${res.msg}`;
-                    if (res.sent > 0) {
-                        const now = Date.now();
-                        localStorage.setItem(KYC_LS_KEY, String(now));
-                        startKycCooldown(now);
-                    } else {
-                        btn.disabled = false;
-                        btn.style.opacity = '1';
-                        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
-                    }
-                } catch(e) {
-                    result.style.display = 'block';
-                    result.style.background = 'rgba(239,68,68,0.1)';
-                    result.style.color = '#ef4444';
-                    result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send. Please try again.';
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
-                }
-            });
-
-            // Broadcast Email
-            document.getElementById('broadcast-btn').addEventListener('click', async () => {
-                const audience = document.getElementById('broadcast-audience').value;
-                const subject  = document.getElementById('broadcast-subject').value.trim();
-                const body     = document.getElementById('broadcast-body').value.trim();
-                const result   = document.getElementById('broadcast-result');
-
-                if (!subject || !body) { alert('Please fill in both the subject and message fields.'); return; }
-
-                const audienceLabel = document.getElementById('broadcast-audience').options[document.getElementById('broadcast-audience').selectedIndex].text;
-                if (!confirm(`Send this email to: ${audienceLabel}?\n\nSubject: ${subject}\n\nThis cannot be undone.`)) return;
-
-                const btn = document.getElementById('broadcast-btn');
-                btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
-                result.style.display = 'none';
-                try {
-                    const res = await API.broadcastEmail(audience, subject, body);
-                    result.style.display = 'block';
-                    result.style.background = res.sent > 0 ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)';
-                    result.style.color = res.sent > 0 ? '#22c55e' : '#f59e0b';
-                    result.style.border = res.sent > 0 ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(245,158,11,0.25)';
-                    result.innerHTML = `<i class="fas ${res.sent > 0 ? 'fa-check-circle' : 'fa-info-circle'}"></i> ${res.msg}`;
-                    if (res.sent > 0) {
-                        document.getElementById('broadcast-subject').value = '';
-                        document.getElementById('broadcast-body').value = '';
-                    }
-                } catch(e) {
-                    result.style.display = 'block';
-                    result.style.background = 'rgba(239,68,68,0.1)';
-                    result.style.color = '#ef4444';
-                    result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send. Please try again.';
-                } finally {
-                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Broadcast';
-                }
-            });
-
-            document.getElementById('fund-btn').addEventListener('click', async () => {
-                const identifier = document.getElementById('fund-identifier').value.trim();
-                const amount = parseFloat(document.getElementById('fund-amount').value);
-
-                if (!identifier || !amount || amount <= 0) {
-                    alert('Please enter a valid user identifier and amount.');
-                    return;
-                }
-
-                if (!confirm(`Are you sure you want to fund ${identifier} with ${amount} USDT?`)) return;
-
-                const btn = document.getElementById('fund-btn');
-                btn.disabled = true;
-                btn.innerText = 'Funding...';
-
-                try {
-                    const res = await API.adminFundUser(identifier, amount);
-                    alert(res.msg);
-                    if (res.msg.includes('Successfully')) {
-                        document.getElementById('fund-identifier').value = '';
-                        document.getElementById('fund-amount').value = '';
-                    }
-                } catch (err) {
-                    alert('Failed to fund user. Check identifier and try again.');
-                } finally {
-                    btn.disabled = false;
-                    btn.innerText = 'Fund Account';
-                }
-            });
-
-            document.getElementById('reset-pw-btn').addEventListener('click', async () => {
-                const identifier = document.getElementById('reset-identifier').value.trim();
-                const newPassword = document.getElementById('reset-password').value;
-
-                if (!identifier || !newPassword) {
-                    alert('Please enter the user identifier and a new temporary password.');
-                    return;
-                }
-                if (newPassword.length < 6) {
-                    alert('Temporary password must be at least 6 characters.');
-                    return;
-                }
-                if (!confirm(`Reset password for "${identifier}"?\n\nMake sure you have verified the user's identity. They will be notified of the change in their account.`)) return;
-
-                const btn = document.getElementById('reset-pw-btn');
-                btn.disabled = true;
-                btn.innerText = 'Resetting...';
-
-                try {
-                    const res = await API.adminResetUserPassword(identifier, newPassword);
-                    alert(res.msg || 'Done.');
-                    if (res.msg && res.msg.toLowerCase().includes('successfully')) {
-                        document.getElementById('reset-identifier').value = '';
-                        document.getElementById('reset-password').value = '';
-                    }
-                } catch (err) {
-                    alert('Failed to reset password. Please try again.');
-                } finally {
-                    btn.disabled = false;
-                    btn.innerText = 'Reset Password';
-                }
-            });
+            list.appendChild(item);
         });
-    </script>
+    } catch(err) {
+        list.innerHTML = '<div style="text-align:center;padding:60px;color:#ff4d4d;">Failed to load withdrawals.</div>';
+    }
+}
+
+async function approveWithdrawal(id) {
+    if (!confirm(`Approve withdrawal #${id}?`)) return;
+    try { const res = await API.adminApproveWithdrawal(id); alert(res.msg); loadWithdrawals(); } catch(e) { alert('Error.'); }
+}
+async function rejectWithdrawal(id) {
+    if (!confirm(`Reject and refund withdrawal #${id}?`)) return;
+    try { const res = await API.adminRejectWithdrawal(id); alert(res.msg); loadWithdrawals(); } catch(e) { alert('Error.'); }
+}
+
+function copyText(btn, text) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch(e) {}
+        document.body.removeChild(ta); alert('Copied.');
+    });
+}
+
+// ════════════════════════════════════════════
+//  KYC
+// ════════════════════════════════════════════
+function switchKycTab(tab) {
+    const pp = document.getElementById('kyc-pending-panel');
+    const vp = document.getElementById('kyc-verified-panel');
+    const tp = document.getElementById('kyc-tab-pending');
+    const tv = document.getElementById('kyc-tab-verified');
+    if (tab === 'pending') {
+        pp.style.display = 'block'; vp.style.display = 'none';
+        tp.classList.add('active'); tv.classList.remove('active');
+    } else {
+        pp.style.display = 'none'; vp.style.display = 'block';
+        tp.classList.remove('active'); tv.classList.add('active');
+    }
+}
+
+function kycDocBlock(label, dataUrl, filename) {
+    if (!dataUrl) return '';
+    return `<div style="grid-column:span 2;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span class="detail-label">${label}</span>
+            <div style="display:flex;gap:8px;">
+                <a href="${dataUrl}" target="_blank" style="font-size:0.78rem;padding:4px 10px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:#93c5fd;text-decoration:none;"><i class="fas fa-eye"></i> View</a>
+                <button onclick="downloadDoc('${dataUrl}','${filename}')" style="font-size:0.78rem;padding:4px 10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:6px;color:#86efac;cursor:pointer;"><i class="fas fa-download"></i> Download</button>
+            </div>
+        </div>
+        <a href="${dataUrl}" target="_blank"><img src="${dataUrl}" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:10px;border:1px solid var(--glass-border);display:block;cursor:zoom-in;"></a>
+    </div>`;
+}
+
+function downloadDoc(dataUrl, filename) {
+    const a = document.createElement('a'); a.href = dataUrl; a.download = filename; a.click();
+}
+
+async function loadKyc() {
+    const panel = document.getElementById('kyc-pending-panel');
+    const countEl = document.getElementById('kyc-pending-count');
+    try {
+        const submissions = await API.getPendingKyc();
+        if (!Array.isArray(submissions) || !submissions.length) {
+            panel.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">No pending KYC submissions.</div>';
+            countEl.textContent = '0'; setBadge('badge-kyc', 0); return;
+        }
+        countEl.textContent = submissions.length; setBadge('badge-kyc', submissions.length);
+        panel.innerHTML = '';
+        submissions.forEach(k => {
+            const item = document.createElement('div');
+            item.className = 'deposit-item';
+            item.innerHTML = `
+                <div class="deposit-header">
+                    <div>
+                        <h4 style="margin:0;">KYC #${k.id} — ${k.username}</h4>
+                        <small style="color:var(--text-muted)">${k.email}</small>
+                    </div>
+                    <span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">PENDING</span>
+                </div>
+                <div class="deposit-details">
+                    <div><span class="detail-label">Country</span><span class="detail-value">${k.country}</span></div>
+                    <div><span class="detail-label">ID Type</span><span class="detail-value">${k.id_type}</span></div>
+                    <div><span class="detail-label">ID Number</span><span class="detail-value" style="font-family:monospace;">${k.id_number}</span></div>
+                    <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleString()}</span></div>
+                    ${k.extra_field_name ? `<div style="grid-column:span 2;"><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;margin-left:8px;">${k.extra_field_value}</span></div>` : ''}
+                    ${kycDocBlock('ID Document — Front', k.id_document, `kyc_${k.id}_${k.username}_front.jpg`)}
+                    ${kycDocBlock('ID Document — Back',  k.id_document_back, `kyc_${k.id}_${k.username}_back.jpg`)}
+                    ${kycDocBlock('Selfie with ID',      k.selfie, `kyc_${k.id}_${k.username}_selfie.jpg`)}
+                </div>
+                <div class="action-area">
+                    <button class="btn primary"   onclick="approveKyc(${k.id})"      style="flex:1;padding:11px;">✓ Approve</button>
+                    <button class="btn secondary"  onclick="rejectKycPrompt(${k.id})" style="flex:1;padding:11px;color:#ff4d4d;">✗ Reject</button>
+                </div>`;
+            panel.appendChild(item);
+        });
+    } catch(err) {
+        panel.innerHTML = '<div style="text-align:center;padding:60px;color:#ff4d4d;">Failed to load KYC submissions.</div>';
+    }
+}
+
+async function loadVerifiedKyc() {
+    const panel   = document.getElementById('kyc-verified-panel');
+    const countEl = document.getElementById('kyc-verified-count');
+    try {
+        const rows = await API.getVerifiedKyc();
+        if (!Array.isArray(rows) || !rows.length) {
+            panel.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">No verified users yet.</div>';
+            countEl.textContent = '0'; return;
+        }
+        countEl.textContent = rows.length;
+        panel.innerHTML = '';
+        rows.forEach(k => {
+            const item = document.createElement('div');
+            item.className = 'deposit-item';
+            item.innerHTML = `
+                <div class="deposit-header" style="cursor:default;">
+                    <div style="min-width:0;">
+                        <h4 style="margin:0;">${k.username}</h4>
+                        <small style="color:var(--text-muted);">${k.email}${k.phone ? ' · '+k.phone : ''}</small>
+                        <div style="margin-top:5px;display:flex;gap:10px;flex-wrap:wrap;font-size:0.78rem;color:var(--text-muted);">
+                            <span><strong style="color:var(--text-main);">${k.country}</strong></span>
+                            <span>·</span><span>${k.id_type}</span>
+                            <span>·</span><span>Approved: <strong style="color:#22c55e;">${k.reviewed_at ? new Date(k.reviewed_at).toLocaleDateString() : '—'}</strong></span>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                        <span style="background:rgba(34,197,94,0.12);color:#22c55e;padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
+                            <i class="fas fa-check-circle"></i> VERIFIED
+                        </span>
+                        <button id="kyc-btn-${k.id}" onclick="toggleKycDetails(${k.id})"
+                            style="padding:6px 14px;font-size:0.78rem;border-radius:8px;border:1px solid var(--glass-border);background:var(--glass-bg);color:var(--text-main);cursor:pointer;white-space:nowrap;font-weight:600;">
+                            <i class="fas fa-eye"></i> View Details
+                        </button>
+                    </div>
+                </div>
+                <div id="kyc-det-${k.id}" style="display:none;margin-top:16px;">
+                    <div class="deposit-details">
+                        <div><span class="detail-label">Country</span><span class="detail-value">${k.country}</span></div>
+                        <div><span class="detail-label">ID Type</span><span class="detail-value">${k.id_type}</span></div>
+                        <div><span class="detail-label">ID Number</span><span class="detail-value" style="font-family:monospace;">${k.id_number}</span></div>
+                        <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleDateString()}</span></div>
+                        <div><span class="detail-label">Approved</span><span class="detail-value" style="color:#22c55e;">${k.reviewed_at ? new Date(k.reviewed_at).toLocaleString() : '—'}</span></div>
+                        ${k.extra_field_name ? `<div><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;">${k.extra_field_value}</span></div>` : ''}
+                        ${kycDocBlock('ID Document — Front', k.id_document,      `kyc_${k.username}_front.jpg`)}
+                        ${kycDocBlock('ID Document — Back',  k.id_document_back, `kyc_${k.username}_back.jpg`)}
+                        ${kycDocBlock('Selfie with ID',      k.selfie,           `kyc_${k.username}_selfie.jpg`)}
+                    </div>
+                </div>`;
+            panel.appendChild(item);
+        });
+    } catch(err) {
+        panel.innerHTML = '<div style="text-align:center;padding:60px;color:#ff4d4d;">Failed to load verified users.</div>';
+    }
+}
+
+function toggleKycDetails(id) {
+    const det = document.getElementById(`kyc-det-${id}`);
+    const btn = document.getElementById(`kyc-btn-${id}`);
+    const open = det.style.display === 'block';
+    det.style.display = open ? 'none' : 'block';
+    btn.innerHTML = open ? '<i class="fas fa-eye"></i> View Details' : '<i class="fas fa-eye-slash"></i> Hide Details';
+}
+
+async function approveKyc(id) {
+    if (!confirm('Approve this KYC submission? The user will be notified and able to withdraw.')) return;
+    const res = await API.approveKyc(id);
+    alert(res.msg);
+    loadKyc(); loadVerifiedKyc();
+}
+
+async function rejectKycPrompt(id) {
+    const reason = prompt('Rejection reason (shown to user):');
+    if (!reason) return;
+    const res = await API.rejectKyc(id, reason);
+    alert(res.msg);
+    loadKyc();
+}
+
+// ════════════════════════════════════════════
+//  Users
+// ════════════════════════════════════════════
+const vipColors = { REGULAR:'#94a3b8', BRONZE:'#cd7f32', SILVER:'#c0c0c0', GOLD:'#ffd700', PLATINUM:'#e5e4e2', DIAMOND:'#b9f2ff' };
+let _allUsers = [];
+
+function renderUsers(users) {
+    const tbody = document.getElementById('users-tbody');
+    if (!users || !users.length) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">No users found.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = '';
+    users.forEach(u => {
+        const vipColor  = vipColors[u.vip_rank] || '#94a3b8';
+        const isBanned  = u.is_banned === 1 || u.is_banned === true;
+        const isAdmin   = u.is_admin  === 1 || u.is_admin  === true;
+        const roleLabel = isAdmin
+            ? '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:700;">ADMIN</span>'
+            : '<span style="background:rgba(255,255,255,0.05);color:var(--text-muted);padding:2px 8px;border-radius:4px;font-size:0.75rem;">USER</span>';
+        const banLabel  = isBanned
+            ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;margin-left:5px;">BANNED</span>'
+            : '';
+        const row = document.createElement('tr');
+        row.id = `user-row-${u.id}`;
+        row.style.cssText = `border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.2s;${isBanned?'opacity:0.55;':''}`;
+        row.onmouseenter = () => row.style.background = 'rgba(255,255,255,0.03)';
+        row.onmouseleave = () => row.style.background = '';
+        row.innerHTML = `
+            <td style="padding:11px 12px;color:var(--text-muted);font-size:0.8rem;">#${u.id}</td>
+            <td style="padding:11px 12px;font-weight:600;">${u.username}${banLabel}</td>
+            <td style="padding:11px 12px;color:var(--text-muted);">${u.email}</td>
+            <td style="padding:11px 12px;color:var(--text-muted);white-space:nowrap;">${u.phone||'—'}</td>
+            <td style="padding:11px 12px;color:var(--text-muted);">${u.country||'—'}</td>
+            <td style="padding:11px 12px;color:var(--accent-primary);font-weight:600;">$${u.balance.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+            <td style="padding:11px 12px;">$${u.deposit_balance.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+            <td style="padding:11px 12px;"><span style="color:${vipColor};font-weight:700;font-size:0.8rem;">${u.vip_rank}</span></td>
+            <td style="padding:11px 12px;">${roleLabel}</td>
+            <td style="padding:11px 12px;color:var(--text-muted);font-size:0.8rem;">${new Date(u.created_at).toLocaleDateString()}</td>
+            <td style="padding:10px 12px;white-space:nowrap;">
+                <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                    ${!isAdmin ? `<button onclick="adminToggleBan(${u.id},${isBanned})" title="${isBanned?'Unban':'Ban'}"
+                        style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;
+                            background:${isBanned?'rgba(34,197,94,0.15)':'rgba(245,158,11,0.15)'};
+                            color:${isBanned?'#22c55e':'#f59e0b'};">
+                        <i class="fas ${isBanned?'fa-unlock':'fa-ban'}"></i> ${isBanned?'Unban':'Ban'}</button>` : ''}
+                    ${!isAdmin ? `<button onclick="adminMakeAdmin(${u.id},'${u.username}')" title="Promote to admin"
+                        style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(59,130,246,0.15);color:#93c5fd;">
+                        <i class="fas fa-user-shield"></i> Make Admin</button>` : `
+                    <button onclick="adminRemoveAdmin(${u.id},'${u.username}')" title="Remove admin"
+                        style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(100,116,139,0.2);color:#94a3b8;">
+                        <i class="fas fa-user-minus"></i> Remove Admin</button>`}
+                    ${!isAdmin ? `<button onclick="adminDeleteUser(${u.id},'${u.username}')" title="Delete user"
+                        style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(239,68,68,0.15);color:#f87171;">
+                        <i class="fas fa-trash-alt"></i> Delete</button>` : ''}
+                </div>
+            </td>`;
+        tbody.appendChild(row);
+    });
+}
+
+async function loadUsers() {
+    const tbody = document.getElementById('users-tbody');
+    try {
+        const users = await API.adminGetUsers();
+        if (!users || users.msg) {
+            tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:#ff4d4d;">${users?.msg||'Failed to load users.'}</td></tr>`;
+            return;
+        }
+        _allUsers = users;
+        renderUsers(users);
+    } catch(err) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#ff4d4d;">Failed to load users.</td></tr>';
+    }
+}
+
+function filterUsers(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) { renderUsers(_allUsers); return; }
+    renderUsers(_allUsers.filter(u => u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
+}
+
+async function adminToggleBan(userId, currentlyBanned) {
+    if (!confirm(`${currentlyBanned?'Unban':'Ban'} this user?`)) return;
+    const res = currentlyBanned ? await API.unbanUser(userId) : await API.banUser(userId);
+    alert(res.msg); loadUsers();
+}
+async function adminDeleteUser(userId, username) {
+    if (!confirm(`⚠️ Permanently delete "${username}"?\n\nThis erases their account, all transactions, KYC records, and notifications. This CANNOT be undone.`)) return;
+    if (!confirm(`Final confirmation: delete "${username}" forever?`)) return;
+    const res = await API.deleteUser(userId); alert(res.msg); loadUsers();
+}
+async function adminMakeAdmin(userId, username) {
+    if (!confirm(`Promote "${username}" to Admin? They will have full access to this admin panel.`)) return;
+    const res = await API.setAdmin(userId, true); alert(res.msg); loadUsers();
+}
+async function adminRemoveAdmin(userId, username) {
+    if (!confirm(`Remove admin privileges from "${username}"?`)) return;
+    const res = await API.setAdmin(userId, false); alert(res.msg); loadUsers();
+}
+
+// ════════════════════════════════════════════
+//  Email Centre
+// ════════════════════════════════════════════
+const KYC_COOLDOWN_MS = 48 * 60 * 60 * 1000;
+const KYC_LS_KEY = 'kycReminderLastSent';
+let kycCooldownInterval = null;
+
+function formatCountdown(ms) {
+    if (ms <= 0) return '00:00:00';
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function startKycCooldown(lastSentAt) {
+    const btn      = document.getElementById('kyc-reminder-btn');
+    const coolEl   = document.getElementById('kyc-reminder-cooldown');
+    const timerEl  = document.getElementById('kyc-reminder-timer');
+    if (kycCooldownInterval) clearInterval(kycCooldownInterval);
+    function tick() {
+        const remaining = KYC_COOLDOWN_MS - (Date.now() - lastSentAt);
+        if (remaining <= 0) {
+            clearInterval(kycCooldownInterval);
+            btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
+            coolEl.style.display = 'none'; return;
+        }
+        btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed';
+        btn.innerHTML = '<i class="fas fa-lock"></i> Cooldown Active';
+        coolEl.style.display = 'inline'; timerEl.textContent = formatCountdown(remaining);
+    }
+    tick(); kycCooldownInterval = setInterval(tick, 1000);
+}
+
+// ════════════════════════════════════════════
+//  Funding (handlers set on DOMContentLoaded)
+// ════════════════════════════════════════════
+
+// ════════════════════════════════════════════
+//  Init
+// ════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+    // Load overview data first
+    loadOverview();
+
+    // KYC cooldown restore
+    const kycLastSent = parseInt(localStorage.getItem(KYC_LS_KEY) || '0');
+    if (kycLastSent && (Date.now() - kycLastSent) < KYC_COOLDOWN_MS) startKycCooldown(kycLastSent);
+
+    // KYC Reminder button
+    document.getElementById('kyc-reminder-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('kyc-reminder-btn');
+        if (btn.disabled) return;
+        if (!confirm('Send a KYC reminder to all members who have not yet submitted or completed KYC?')) return;
+        const result = document.getElementById('kyc-reminder-result');
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+        try {
+            const res = await API.sendKycReminder();
+            result.style.display = 'block';
+            const ok = res.sent > 0;
+            result.style.background = ok ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)';
+            result.style.color      = ok ? '#22c55e' : '#f59e0b';
+            result.style.border     = ok ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(245,158,11,0.25)';
+            result.innerHTML = `<i class="fas ${ok?'fa-check-circle':'fa-info-circle'}"></i> ${res.msg}`;
+            if (ok) { const now = Date.now(); localStorage.setItem(KYC_LS_KEY, String(now)); startKycCooldown(now); }
+            else { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder'; }
+        } catch(e) {
+            result.style.display = 'block'; result.style.background = 'rgba(239,68,68,0.1)';
+            result.style.color = '#ef4444'; result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send.';
+            btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
+        }
+    });
+
+    // Broadcast button
+    document.getElementById('broadcast-btn').addEventListener('click', async () => {
+        const audience = document.getElementById('broadcast-audience').value;
+        const subject  = document.getElementById('broadcast-subject').value.trim();
+        const body     = document.getElementById('broadcast-body').value.trim();
+        const result   = document.getElementById('broadcast-result');
+        if (!subject || !body) { alert('Please fill in both the subject and message.'); return; }
+        const audienceLabel = document.getElementById('broadcast-audience').options[document.getElementById('broadcast-audience').selectedIndex].text;
+        if (!confirm(`Send to: ${audienceLabel}?\n\nSubject: ${subject}\n\nThis cannot be undone.`)) return;
+        const btn = document.getElementById('broadcast-btn');
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+        result.style.display = 'none';
+        try {
+            const res = await API.broadcastEmail(audience, subject, body);
+            result.style.display = 'block';
+            const ok = res.sent > 0;
+            result.style.background = ok ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)';
+            result.style.color      = ok ? '#22c55e' : '#f59e0b';
+            result.style.border     = ok ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(245,158,11,0.25)';
+            result.innerHTML = `<i class="fas ${ok?'fa-check-circle':'fa-info-circle'}"></i> ${res.msg}`;
+            if (ok) { document.getElementById('broadcast-subject').value = ''; document.getElementById('broadcast-body').value = ''; }
+        } catch(e) {
+            result.style.display = 'block'; result.style.background = 'rgba(239,68,68,0.1)';
+            result.style.color = '#ef4444'; result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send.';
+        } finally {
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Broadcast';
+        }
+    });
+
+    // Fund button
+    document.getElementById('fund-btn').addEventListener('click', async () => {
+        const identifier = document.getElementById('fund-identifier').value.trim();
+        const amount = parseFloat(document.getElementById('fund-amount').value);
+        if (!identifier || !amount || amount <= 0) { alert('Please enter a valid user identifier and amount.'); return; }
+        if (!confirm(`Fund ${identifier} with $${amount} USDT?`)) return;
+        const btn = document.getElementById('fund-btn');
+        btn.disabled = true; btn.textContent = 'Funding…';
+        try {
+            const res = await API.adminFundUser(identifier, amount);
+            alert(res.msg);
+            if (res.msg.includes('Successfully')) {
+                document.getElementById('fund-identifier').value = '';
+                document.getElementById('fund-amount').value = '';
+                document.getElementById('fund-amount-display').textContent = '';
+            }
+        } catch(e) { alert('Failed to fund user.'); }
+        finally { btn.disabled = false; btn.textContent = 'Fund Account'; }
+    });
+
+    // Reset password button
+    document.getElementById('reset-pw-btn').addEventListener('click', async () => {
+        const identifier  = document.getElementById('reset-identifier').value.trim();
+        const newPassword = document.getElementById('reset-password').value;
+        if (!identifier || !newPassword) { alert('Please enter the user identifier and a new password.'); return; }
+        if (newPassword.length < 6) { alert('Password must be at least 6 characters.'); return; }
+        if (!confirm(`Reset password for "${identifier}"?\n\nVerify the user's identity before proceeding.`)) return;
+        const btn = document.getElementById('reset-pw-btn');
+        btn.disabled = true; btn.textContent = 'Resetting…';
+        try {
+            const res = await API.adminResetUserPassword(identifier, newPassword);
+            alert(res.msg || 'Done.');
+            if (res.msg && res.msg.toLowerCase().includes('successfully')) {
+                document.getElementById('reset-identifier').value = '';
+                document.getElementById('reset-password').value = '';
+            }
+        } catch(e) { alert('Failed to reset password.'); }
+        finally { btn.disabled = false; btn.textContent = 'Reset Password'; }
+    });
+});
+</script>
 </body>
 </html>
