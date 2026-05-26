@@ -240,6 +240,36 @@ const Emails = {
                 'Activate My Account', `${APP_URL}/deposit.html`));
     },
 
+    kycReminder(to, username) {
+        return sendMail(to, `Action required: Complete your identity verification on ${APP_NAME}`,
+            wrap('Complete Your KYC Verification',
+                `<p>Dear ${username},</p>
+                 <p>We hope this message finds you well.</p>
+                 <p>Our records indicate that your <strong>${APP_NAME}</strong> account identity verification (KYC) has not yet been completed. To ensure continued and unrestricted access to all platform features — including withdrawals — we kindly ask that you complete your verification at your earliest convenience.</p>
+                 <p>Completing your KYC takes only a few minutes and requires the following:</p>
+                 <ul style="padding-left:20px;line-height:2;color:#f8fafc;">
+                   <li>A valid government-issued photo ID (front and back)</li>
+                   <li>A recent selfie (optional but recommended)</li>
+                   <li>Basic personal information matching your ID</li>
+                 </ul>
+                 <p style="background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;padding:12px 16px;border-radius:6px;color:#f8fafc;">
+                   <strong>Please note:</strong> Unverified accounts may experience limitations on withdrawals and other platform services. Completing your KYC removes all restrictions.
+                 </p>
+                 <p>If you have any questions or encounter any difficulties during the process, please do not hesitate to contact our support team — we are happy to assist you.</p>
+                 <p>Thank you for your prompt attention to this matter.</p>
+                 <p style="color:#94a3b8;font-size:13px;">Kind regards,<br><strong>The ${APP_NAME} Team</strong></p>`,
+                'Complete My KYC Now', `${APP_URL}/kyc.html`));
+    },
+
+    broadcastEmail(to, username, subject, bodyHtml) {
+        const personalised = bodyHtml.replace(/\{username\}/gi, username);
+        return sendMail(to, subject, wrap(subject,
+            `<p>Dear ${username},</p>
+             ${personalised}
+             <p style="color:#94a3b8;font-size:13px;margin-top:24px;">Kind regards,<br><strong>The ${APP_NAME} Team</strong></p>`
+        ));
+    },
+
     reEngagementReminder(to, username, vipRank, daysSince) {
         const isVip = vipRank && vipRank !== 'REGULAR';
         const nextTiers = { REGULAR: 'Bronze', BRONZE: 'Silver', SILVER: 'Gold', GOLD: 'Platinum', PLATINUM: 'Diamond', DIAMOND: null };

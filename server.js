@@ -1215,6 +1215,50 @@ app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
+// --- Email Centre ---
+app.post('/api/admin/email/kyc-reminder', authenticateAdmin, async (req, res) => {
+    try {
+        const users = await dbAll(
+            `SELECT u.email, u.username FROM users u
+             WHERE u.email_verified = 1 AND u.is_admin = 0
+               AND (u.kyc_status IS NULL OR u.kyc_status NOT IN ('APPROVED','PENDING'))`
+        );
+        if (!users.length) return res.json({ msg: 'No eligible users found (all are verified or already pending).', sent: 0 });
+        for (const u of users) {
+            try { Emails.kycReminder(u.email, u.username); } catch(e) {}
+        }
+        res.json({ msg: `KYC reminder sent to ${users.length} user${users.length !== 1 ? 's' : ''}.`, sent: users.length });
+    } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/email/broadcast', authenticateAdmin, async (req, res) => {
+    try {
+        const { audience, subject, body } = req.body;
+        if (!audience || !subject || !body) return res.status(400).json({ msg: 'Audience, subject, and message are required.' });
+
+        const audienceMap = {
+            all:          `WHERE u.email_verified = 1 AND u.is_admin = 0`,
+            kyc_verified: `WHERE u.email_verified = 1 AND u.is_admin = 0 AND u.kyc_status = 'APPROVED'`,
+            regular:      `WHERE u.email_verified = 1 AND u.is_admin = 0 AND (u.vip_rank IS NULL OR u.vip_rank = 'REGULAR')`,
+            bronze:       `WHERE u.email_verified = 1 AND u.is_admin = 0 AND UPPER(u.vip_rank) = 'BRONZE'`,
+            silver:       `WHERE u.email_verified = 1 AND u.is_admin = 0 AND UPPER(u.vip_rank) = 'SILVER'`,
+            gold:         `WHERE u.email_verified = 1 AND u.is_admin = 0 AND UPPER(u.vip_rank) = 'GOLD'`,
+            platinum:     `WHERE u.email_verified = 1 AND u.is_admin = 0 AND UPPER(u.vip_rank) = 'PLATINUM'`,
+            diamond:      `WHERE u.email_verified = 1 AND u.is_admin = 0 AND UPPER(u.vip_rank) = 'DIAMOND'`,
+        };
+        const where = audienceMap[audience.toLowerCase()];
+        if (!where) return res.status(400).json({ msg: 'Invalid audience selection.' });
+
+        const users = await dbAll(`SELECT u.email, u.username FROM users u ${where}`);
+        if (!users.length) return res.json({ msg: 'No users found for the selected audience.', sent: 0 });
+
+        for (const u of users) {
+            try { Emails.broadcastEmail(u.email, u.username, subject, body); } catch(e) {}
+        }
+        res.json({ msg: `Email sent to ${users.length} user${users.length !== 1 ? 's' : ''}.`, sent: users.length });
+    } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
 app.get('*path', (req, res) => {
     // If the request looks like an asset (has a dot) but wasn't caught by static middleware, return 404
     if (req.path.includes('.') || req.path.startsWith('/api')) {

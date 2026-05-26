@@ -399,6 +399,25 @@ const API = {
             headers: { 'x-auth-token': token }
         });
         return res.json();
+    },
+
+    async sendKycReminder() {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/email/kyc-reminder`, {
+            method: 'POST',
+            headers: { 'x-auth-token': token }
+        });
+        return res.json();
+    },
+
+    async broadcastEmail(audience, subject, body) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/email/broadcast`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            body: JSON.stringify({ audience, subject, body })
+        });
+        return res.json();
     }
 };
 
