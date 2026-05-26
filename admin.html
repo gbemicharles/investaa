@@ -205,9 +205,14 @@
                             <h4 style="margin:0 0 6px; color:#f8fafc; font-size:1rem;"><i class="fas fa-id-card" style="color:#a855f7;margin-right:8px;"></i>KYC Reminder Blast</h4>
                             <p style="margin:0; color:var(--text-muted); font-size:0.88rem;">Sends an official reminder to all verified members who have not yet submitted or completed KYC. Excludes pending submissions.</p>
                         </div>
-                        <button id="kyc-reminder-btn" class="btn primary" style="background:#a855f7; border:none; padding:12px 26px; border-radius:12px; white-space:nowrap; min-width:160px;">
-                            <i class="fas fa-paper-plane"></i> Send KYC Reminder
-                        </button>
+                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                            <button id="kyc-reminder-btn" class="btn primary" style="background:#a855f7; border:none; padding:12px 26px; border-radius:12px; white-space:nowrap; min-width:190px;">
+                                <i class="fas fa-paper-plane"></i> Send KYC Reminder
+                            </button>
+                            <span id="kyc-reminder-cooldown" style="display:none; font-size:0.78rem; color:#94a3b8; text-align:right;">
+                                <i class="fas fa-clock"></i> Next send available in <strong id="kyc-reminder-timer"></strong>
+                            </span>
+                        </div>
                     </div>
                     <div id="kyc-reminder-result" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; font-size:0.9rem;"></div>
                 </div>
@@ -820,10 +825,59 @@
             loadKyc();
             loadVerifiedKyc();
 
-            // KYC Reminder
-            document.getElementById('kyc-reminder-btn').addEventListener('click', async () => {
-                if (!confirm('Send a KYC reminder email to all members who have not yet submitted or completed KYC?')) return;
+            // KYC Reminder — 48-hour cooldown
+            const KYC_COOLDOWN_MS = 48 * 60 * 60 * 1000;
+            const KYC_LS_KEY = 'kycReminderLastSent';
+            let kycCooldownInterval = null;
+
+            function formatCountdown(ms) {
+                if (ms <= 0) return '00:00:00';
+                const h = Math.floor(ms / 3600000);
+                const m = Math.floor((ms % 3600000) / 60000);
+                const s = Math.floor((ms % 60000) / 1000);
+                return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            }
+
+            function startKycCooldown(lastSentAt) {
                 const btn = document.getElementById('kyc-reminder-btn');
+                const cooldownEl = document.getElementById('kyc-reminder-cooldown');
+                const timerEl = document.getElementById('kyc-reminder-timer');
+
+                if (kycCooldownInterval) clearInterval(kycCooldownInterval);
+
+                function tick() {
+                    const remaining = KYC_COOLDOWN_MS - (Date.now() - lastSentAt);
+                    if (remaining <= 0) {
+                        clearInterval(kycCooldownInterval);
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        btn.style.cursor = 'pointer';
+                        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
+                        cooldownEl.style.display = 'none';
+                        return;
+                    }
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                    btn.innerHTML = `<i class="fas fa-lock"></i> Cooldown Active`;
+                    cooldownEl.style.display = 'inline';
+                    timerEl.textContent = formatCountdown(remaining);
+                }
+                tick();
+                kycCooldownInterval = setInterval(tick, 1000);
+            }
+
+            // Check cooldown on load
+            const kycLastSent = parseInt(localStorage.getItem(KYC_LS_KEY) || '0');
+            if (kycLastSent && (Date.now() - kycLastSent) < KYC_COOLDOWN_MS) {
+                startKycCooldown(kycLastSent);
+            }
+
+            document.getElementById('kyc-reminder-btn').addEventListener('click', async () => {
+                const btn = document.getElementById('kyc-reminder-btn');
+                if (btn.disabled) return;
+                if (!confirm('Send a KYC reminder email to all members who have not yet submitted or completed KYC?')) return;
+
                 const result = document.getElementById('kyc-reminder-result');
                 btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
                 try {
@@ -833,13 +887,23 @@
                     result.style.color = res.sent > 0 ? '#22c55e' : '#f59e0b';
                     result.style.border = res.sent > 0 ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(245,158,11,0.25)';
                     result.innerHTML = `<i class="fas ${res.sent > 0 ? 'fa-check-circle' : 'fa-info-circle'}"></i> ${res.msg}`;
+                    if (res.sent > 0) {
+                        const now = Date.now();
+                        localStorage.setItem(KYC_LS_KEY, String(now));
+                        startKycCooldown(now);
+                    } else {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
+                    }
                 } catch(e) {
                     result.style.display = 'block';
                     result.style.background = 'rgba(239,68,68,0.1)';
                     result.style.color = '#ef4444';
                     result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send. Please try again.';
-                } finally {
-                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
                 }
             });
 
