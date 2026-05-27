@@ -81,7 +81,8 @@ function inlineStyleBroadcast(html) {
         .replace(/<li(\s[^>]*)?>/gi, '<li$1 style="margin:4px 0;font-size:15px;line-height:1.65;color:#cbd5e1;">')
         .replace(/<blockquote(\s[^>]*)?>/gi, '<blockquote$1 style="border-left:3px solid #3b82f6;margin:12px 0;padding:10px 16px;background:rgba(59,130,246,0.07);border-radius:0 8px 8px 0;color:#93c5fd;font-style:italic;font-size:15px;">')
         .replace(/<hr(\s[^>]*)?>/gi, '<hr$1 style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:16px 0;">')
-        .replace(/<a(\s[^>]*)?>/gi, '<a$1 style="color:#3b82f6;text-decoration:underline;">');
+        .replace(/<a(\s[^>]*)?>/gi, '<a$1 style="color:#3b82f6;text-decoration:underline;">')
+        .replace(/<div(\s[^>]*)?>/gi, '<div$1 style="margin:4px 0;font-size:15px;line-height:1.7;color:#cbd5e1;">');
 }
 
 const Emails = {
