@@ -219,19 +219,23 @@ const Emails = {
                  <table style="width:100%;border-collapse:collapse;margin:16px 0;background:rgba(59,130,246,0.05);border-radius:10px;overflow:hidden;">
                    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
                      <td style="padding:10px 14px;color:#94a3b8;">🥉 Bronze VIP</td>
-                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">1% daily compounding returns</td>
+                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">0.5% daily compounding returns</td>
                    </tr>
                    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
                      <td style="padding:10px 14px;color:#94a3b8;">🥈 Silver VIP</td>
-                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">2% daily compounding returns</td>
+                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">0.75% daily compounding returns</td>
                    </tr>
                    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
                      <td style="padding:10px 14px;color:#94a3b8;">🥇 Gold VIP</td>
-                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">2.5% daily compounding returns</td>
+                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">1% daily compounding returns</td>
+                   </tr>
+                   <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                     <td style="padding:10px 14px;color:#94a3b8;">💎 Platinum VIP</td>
+                     <td style="padding:10px 14px;text-align:right;color:#f8fafc;font-weight:600;">1.5% daily compounding returns</td>
                    </tr>
                    <tr>
-                     <td style="padding:10px 14px;color:#94a3b8;">💎 Diamond VIP</td>
-                     <td style="padding:10px 14px;text-align:right;color:#3b82f6;font-weight:700;">5% daily compounding returns</td>
+                     <td style="padding:10px 14px;color:#94a3b8;">👑 Diamond VIP</td>
+                     <td style="padding:10px 14px;text-align:right;color:#3b82f6;font-weight:700;">2% daily compounding returns</td>
                    </tr>
                  </table>
                  <p>If you have any questions or require assistance, please do not hesitate to contact our support team.</p>

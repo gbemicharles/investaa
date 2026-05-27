@@ -144,11 +144,11 @@ async function initDb() {
 }
 
 const EARNING_RATES = {
-    BRONZE:   0.01,
-    SILVER:   0.02,
-    GOLD:     0.025,
-    PLATINUM: 0.04,
-    DIAMOND:  0.05
+    BRONZE:   0.005,
+    SILVER:   0.0075,
+    GOLD:     0.01,
+    PLATINUM: 0.015,
+    DIAMOND:  0.02
 };
 
 async function applyDailyEarnings() {
