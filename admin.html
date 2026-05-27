@@ -174,6 +174,96 @@
             transition: background-color 5000s ease-in-out 0s;
         }
 
+        /* ── Rich text editor ── */
+        .rte-wrap {
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.08);
+            transition: border-color .2s, background .2s;
+        }
+        .rte-wrap:focus-within {
+            border-color: var(--accent-primary);
+            background: rgba(255,255,255,0.10);
+        }
+        .rte-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(0,0,0,0.18);
+            align-items: center;
+        }
+        .rte-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.82rem;
+            padding: 5px 8px;
+            line-height: 1;
+            transition: background .15s, color .15s, border-color .15s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .rte-btn:hover { background: rgba(255,255,255,0.1); color: #f8fafc; border-color: var(--glass-border); }
+        .rte-btn.active { background: rgba(59,130,246,0.18); color: #93c5fd; border-color: rgba(59,130,246,0.35); }
+        .rte-sep { width: 1px; height: 22px; background: var(--glass-border); margin: 0 4px; flex-shrink: 0; }
+        .rte-select {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
+            border-radius: 6px;
+            color: #94a3b8;
+            font-size: 0.82rem;
+            padding: 4px 6px;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+        }
+        .rte-select:focus { border-color: var(--accent-primary); color: #f8fafc; }
+        .rte-body {
+            min-height: 200px;
+            max-height: 480px;
+            overflow-y: auto;
+            padding: 16px 18px;
+            color: #f8fafc;
+            font-size: 0.95rem;
+            line-height: 1.75;
+            outline: none;
+            font-family: inherit;
+        }
+        .rte-body:empty::before {
+            content: attr(data-placeholder);
+            color: rgba(255,255,255,0.35);
+            pointer-events: none;
+        }
+        .rte-body h1 { font-size:1.5rem; font-weight:700; margin:.6em 0 .3em; color:#f8fafc; }
+        .rte-body h2 { font-size:1.2rem; font-weight:700; margin:.5em 0 .25em; color:#f8fafc; }
+        .rte-body h3 { font-size:1rem; font-weight:700; margin:.4em 0 .2em; color:#f8fafc; }
+        .rte-body p  { margin:.25em 0; }
+        .rte-body ul, .rte-body ol { padding-left:22px; margin:.3em 0; }
+        .rte-body li { margin:.15em 0; }
+        .rte-body blockquote {
+            border-left: 3px solid #3b82f6;
+            margin: .5em 0;
+            padding: 8px 14px;
+            background: rgba(59,130,246,0.07);
+            border-radius: 0 8px 8px 0;
+            color: #93c5fd;
+            font-style: italic;
+        }
+        .rte-body a { color: #93c5fd; text-decoration: underline; }
+        .rte-body hr { border: none; border-top: 1px solid var(--glass-border); margin: .8em 0; }
+        .rte-preview-badge {
+            display:inline-flex;align-items:center;gap:6px;
+            font-size:0.78rem;color:#94a3b8;padding:4px 10px;
+            background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);
+            border-radius:20px;cursor:pointer;transition:background .15s;
+        }
+        .rte-preview-badge:hover { background:rgba(255,255,255,0.09); color:#f8fafc; }
+
         /* ── Overview stats ── */
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px; margin-bottom: 32px; }
         .stat-card {
@@ -580,7 +670,50 @@
                     </div>
                     <div>
                         <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Message</label>
-                        <textarea id="broadcast-body" rows="8" placeholder="Write your message here…&#10;&#10;Tip: use {username} to insert each member's name automatically." class="admin-input" style="width:100%;resize:vertical;line-height:1.65;"></textarea>
+                        <div class="rte-wrap">
+                            <!-- Toolbar -->
+                            <div class="rte-toolbar">
+                                <select class="rte-select" onchange="rteBlock(this.value); this.value='p';" title="Text style">
+                                    <option value="p">Paragraph</option>
+                                    <option value="h1">Heading 1</option>
+                                    <option value="h2">Heading 2</option>
+                                    <option value="h3">Heading 3</option>
+                                </select>
+                                <div class="rte-sep"></div>
+                                <button type="button" class="rte-btn" onclick="rteExec('bold')"          title="Bold"><b>B</b></button>
+                                <button type="button" class="rte-btn" onclick="rteExec('italic')"        title="Italic"><i>I</i></button>
+                                <button type="button" class="rte-btn" onclick="rteExec('underline')"     title="Underline"><u>U</u></button>
+                                <button type="button" class="rte-btn" onclick="rteExec('strikeThrough')" title="Strikethrough"><s>S</s></button>
+                                <div class="rte-sep"></div>
+                                <button type="button" class="rte-btn" onclick="rteExec('insertUnorderedList')" title="Bullet list"><i class="fas fa-list-ul"></i></button>
+                                <button type="button" class="rte-btn" onclick="rteExec('insertOrderedList')"   title="Numbered list"><i class="fas fa-list-ol"></i></button>
+                                <div class="rte-sep"></div>
+                                <button type="button" class="rte-btn" onclick="rteExec('justifyLeft')"   title="Align left"><i class="fas fa-align-left"></i></button>
+                                <button type="button" class="rte-btn" onclick="rteExec('justifyCenter')" title="Align center"><i class="fas fa-align-center"></i></button>
+                                <button type="button" class="rte-btn" onclick="rteExec('justifyRight')"  title="Align right"><i class="fas fa-align-right"></i></button>
+                                <div class="rte-sep"></div>
+                                <button type="button" class="rte-btn" onclick="rteBlockquote()"          title="Blockquote"><i class="fas fa-quote-left"></i></button>
+                                <button type="button" class="rte-btn" onclick="rteInsertHr()"            title="Divider"><i class="fas fa-minus"></i></button>
+                                <button type="button" class="rte-btn" onclick="rteInsertLink()"          title="Insert link"><i class="fas fa-link"></i></button>
+                                <div class="rte-sep"></div>
+                                <button type="button" class="rte-btn" onclick="rteExec('removeFormat')"  title="Clear formatting" style="font-size:0.75rem;"><i class="fas fa-eraser"></i></button>
+                                <div style="margin-left:auto;">
+                                    <span class="rte-preview-badge" onclick="rteTogglePreview()" title="Toggle preview"><i class="fas fa-eye"></i> Preview</span>
+                                </div>
+                            </div>
+                            <!-- Editable area -->
+                            <div id="broadcast-body"
+                                 class="rte-body"
+                                 contenteditable="true"
+                                 data-placeholder="Write your message here… Use {username} to personalise each email automatically."
+                                 spellcheck="true">
+                            </div>
+                            <!-- Preview panel (hidden by default) -->
+                            <div id="rte-preview-panel" style="display:none;padding:20px 22px;border-top:1px solid var(--glass-border);background:rgba(255,255,255,0.03);">
+                                <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;"><i class="fas fa-eye"></i> Email Preview</div>
+                                <div id="rte-preview-content" style="background:#0f172a;border-radius:10px;padding:24px 28px;color:#f8fafc;font-size:0.95rem;line-height:1.75;max-width:600px;margin:0 auto;border:1px solid var(--glass-border);"></div>
+                            </div>
+                        </div>
                     </div>
                     <div style="display:flex;justify-content:flex-end;align-items:center;gap:14px;flex-wrap:wrap;">
                         <div id="broadcast-result" style="display:none;padding:10px 16px;border-radius:10px;font-size:0.9rem;flex:1;"></div>
@@ -1174,11 +1307,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Broadcast button
     document.getElementById('broadcast-btn').addEventListener('click', async () => {
-        const audience = document.getElementById('broadcast-audience').value;
-        const subject  = document.getElementById('broadcast-subject').value.trim();
-        const body     = document.getElementById('broadcast-body').value.trim();
-        const result   = document.getElementById('broadcast-result');
-        if (!subject || !body) { alert('Please fill in both the subject and message.'); return; }
+        const audience  = document.getElementById('broadcast-audience').value;
+        const subject   = document.getElementById('broadcast-subject').value.trim();
+        const bodyEl    = document.getElementById('broadcast-body');
+        const body      = bodyEl.innerHTML.trim();
+        const result    = document.getElementById('broadcast-result');
+        if (!subject || !body || body === '<br>') { alert('Please fill in both the subject and message.'); return; }
         const audienceLabel = document.getElementById('broadcast-audience').options[document.getElementById('broadcast-audience').selectedIndex].text;
         if (!confirm(`Send to: ${audienceLabel}?\n\nSubject: ${subject}\n\nThis cannot be undone.`)) return;
         const btn = document.getElementById('broadcast-btn');
@@ -1192,7 +1326,7 @@ window.addEventListener('DOMContentLoaded', () => {
             result.style.color      = ok ? '#22c55e' : '#f59e0b';
             result.style.border     = ok ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(245,158,11,0.25)';
             result.innerHTML = `<i class="fas ${ok?'fa-check-circle':'fa-info-circle'}"></i> ${res.msg}`;
-            if (ok) { document.getElementById('broadcast-subject').value = ''; document.getElementById('broadcast-body').value = ''; }
+            if (ok) { document.getElementById('broadcast-subject').value = ''; bodyEl.innerHTML = ''; }
         } catch(e) {
             result.style.display = 'block'; result.style.background = 'rgba(239,68,68,0.1)';
             result.style.color = '#ef4444'; result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send.';
@@ -1219,6 +1353,58 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         } catch(e) { alert('Failed to fund user.'); }
         finally { btn.disabled = false; btn.textContent = 'Fund Account'; }
+    });
+
+    // ── Rich Text Editor helpers ──────────────────────────────
+    function rteExec(cmd, value = null) {
+        document.getElementById('broadcast-body').focus();
+        document.execCommand(cmd, false, value);
+        rteUpdateToolbar();
+    }
+    function rteBlock(tag) {
+        document.getElementById('broadcast-body').focus();
+        document.execCommand('formatBlock', false, tag);
+        rteUpdateToolbar();
+    }
+    function rteBlockquote() {
+        document.getElementById('broadcast-body').focus();
+        document.execCommand('formatBlock', false, 'blockquote');
+        rteUpdateToolbar();
+    }
+    function rteInsertHr() {
+        document.getElementById('broadcast-body').focus();
+        document.execCommand('insertHTML', false, '<hr>');
+    }
+    function rteInsertLink() {
+        const url = prompt('Enter URL:', 'https://');
+        if (url) {
+            document.getElementById('broadcast-body').focus();
+            document.execCommand('createLink', false, url);
+        }
+    }
+    function rteUpdateToolbar() {
+        const cmds = ['bold','italic','underline','strikeThrough','insertUnorderedList','insertOrderedList','justifyLeft','justifyCenter','justifyRight'];
+        cmds.forEach(cmd => {
+            const btn = document.querySelector(`.rte-btn[onclick="rteExec('${cmd}')"]`);
+            if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
+        });
+    }
+    function rteTogglePreview() {
+        const panel   = document.getElementById('rte-preview-panel');
+        const content = document.getElementById('rte-preview-content');
+        const body    = document.getElementById('broadcast-body');
+        const visible = panel.style.display !== 'none';
+        if (!visible) {
+            content.innerHTML = body.innerHTML || '<em style="color:#64748b;">Nothing to preview yet.</em>';
+        }
+        panel.style.display = visible ? 'none' : 'block';
+    }
+    document.getElementById('broadcast-body').addEventListener('keyup',    rteUpdateToolbar);
+    document.getElementById('broadcast-body').addEventListener('mouseup',  rteUpdateToolbar);
+    document.getElementById('broadcast-body').addEventListener('selectionchange', rteUpdateToolbar);
+    // Prevent toolbar buttons from losing selection focus
+    document.querySelector('.rte-toolbar').addEventListener('mousedown', e => {
+        if (e.target.closest('.rte-btn') || e.target.closest('.rte-select')) e.preventDefault();
     });
 
     // Reset password button

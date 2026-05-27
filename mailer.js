@@ -70,6 +70,20 @@ async function sendMail(to, subject, html) {
 
 const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+function inlineStyleBroadcast(html) {
+    return html
+        .replace(/<h1(\s[^>]*)?>/gi, '<h1$1 style="font-size:22px;font-weight:800;color:#f8fafc;margin:18px 0 8px;line-height:1.3;">')
+        .replace(/<h2(\s[^>]*)?>/gi, '<h2$1 style="font-size:18px;font-weight:700;color:#f8fafc;margin:16px 0 6px;line-height:1.35;">')
+        .replace(/<h3(\s[^>]*)?>/gi, '<h3$1 style="font-size:15px;font-weight:700;color:#f8fafc;margin:14px 0 5px;line-height:1.4;">')
+        .replace(/<p(\s[^>]*)?>/gi, '<p$1 style="margin:8px 0;font-size:15px;line-height:1.7;color:#cbd5e1;">')
+        .replace(/<ul(\s[^>]*)?>/gi, '<ul$1 style="padding-left:22px;margin:8px 0;color:#cbd5e1;">')
+        .replace(/<ol(\s[^>]*)?>/gi, '<ol$1 style="padding-left:22px;margin:8px 0;color:#cbd5e1;">')
+        .replace(/<li(\s[^>]*)?>/gi, '<li$1 style="margin:4px 0;font-size:15px;line-height:1.65;color:#cbd5e1;">')
+        .replace(/<blockquote(\s[^>]*)?>/gi, '<blockquote$1 style="border-left:3px solid #3b82f6;margin:12px 0;padding:10px 16px;background:rgba(59,130,246,0.07);border-radius:0 8px 8px 0;color:#93c5fd;font-style:italic;font-size:15px;">')
+        .replace(/<hr(\s[^>]*)?>/gi, '<hr$1 style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:16px 0;">')
+        .replace(/<a(\s[^>]*)?>/gi, '<a$1 style="color:#3b82f6;text-decoration:underline;">');
+}
+
 const Emails = {
     verificationCode(to, username, code) {
         return sendMail(to, `Your ${APP_NAME} verification code is ${code}`,
@@ -267,9 +281,10 @@ const Emails = {
 
     broadcastEmail(to, username, subject, bodyHtml) {
         const personalised = bodyHtml.replace(/\{username\}/gi, username);
+        const styled = inlineStyleBroadcast(personalised);
         return sendMail(to, subject, wrap(subject,
-            `<p>Dear ${username},</p>
-             ${personalised}
+            `<p style="margin:.3em 0;">Dear ${username},</p>
+             ${styled}
              <p style="color:#94a3b8;font-size:13px;margin-top:24px;">Kind regards,<br><strong>The ${APP_NAME} Team</strong></p>`
         ));
     },
