@@ -100,6 +100,10 @@ async function notifyKycApproved(sub, user) {
         if (sub.selfie) {
             await sendPhoto(sub.selfie, `🤳 Selfie — ${user.username}`);
         }
+        if (sub.extra_document) {
+            const label = sub.extra_field_name ? `${sub.extra_field_name} Document` : 'Supporting Document';
+            await sendPhoto(sub.extra_document, `📄 ${label} — ${user.username}`);
+        }
     } catch(e) {
         console.error('[TELEGRAM] notifyKycApproved error:', e.message);
     }
