@@ -669,51 +669,13 @@
                         </div>
                     </div>
                     <div>
-                        <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Message</label>
-                        <div class="rte-wrap">
-                            <!-- Toolbar -->
-                            <div class="rte-toolbar">
-                                <select class="rte-select" onchange="rteBlock(this.value); this.value='p';" title="Text style">
-                                    <option value="p">Paragraph</option>
-                                    <option value="h1">Heading 1</option>
-                                    <option value="h2">Heading 2</option>
-                                    <option value="h3">Heading 3</option>
-                                </select>
-                                <div class="rte-sep"></div>
-                                <button type="button" class="rte-btn" onclick="rteExec('bold')"          title="Bold"><b>B</b></button>
-                                <button type="button" class="rte-btn" onclick="rteExec('italic')"        title="Italic"><i>I</i></button>
-                                <button type="button" class="rte-btn" onclick="rteExec('underline')"     title="Underline"><u>U</u></button>
-                                <button type="button" class="rte-btn" onclick="rteExec('strikeThrough')" title="Strikethrough"><s>S</s></button>
-                                <div class="rte-sep"></div>
-                                <button type="button" class="rte-btn" onclick="rteExec('insertUnorderedList')" title="Bullet list"><i class="fas fa-list-ul"></i></button>
-                                <button type="button" class="rte-btn" onclick="rteExec('insertOrderedList')"   title="Numbered list"><i class="fas fa-list-ol"></i></button>
-                                <div class="rte-sep"></div>
-                                <button type="button" class="rte-btn" onclick="rteExec('justifyLeft')"   title="Align left"><i class="fas fa-align-left"></i></button>
-                                <button type="button" class="rte-btn" onclick="rteExec('justifyCenter')" title="Align center"><i class="fas fa-align-center"></i></button>
-                                <button type="button" class="rte-btn" onclick="rteExec('justifyRight')"  title="Align right"><i class="fas fa-align-right"></i></button>
-                                <div class="rte-sep"></div>
-                                <button type="button" class="rte-btn" onclick="rteBlockquote()"          title="Blockquote"><i class="fas fa-quote-left"></i></button>
-                                <button type="button" class="rte-btn" onclick="rteInsertHr()"            title="Divider"><i class="fas fa-minus"></i></button>
-                                <button type="button" class="rte-btn" onclick="rteInsertLink()"          title="Insert link"><i class="fas fa-link"></i></button>
-                                <div class="rte-sep"></div>
-                                <button type="button" class="rte-btn" onclick="rteExec('removeFormat')"  title="Clear formatting" style="font-size:0.75rem;"><i class="fas fa-eraser"></i></button>
-                                <div style="margin-left:auto;">
-                                    <span class="rte-preview-badge" onclick="rteTogglePreview()" title="Toggle preview"><i class="fas fa-eye"></i> Preview</span>
-                                </div>
-                            </div>
-                            <!-- Editable area -->
-                            <div id="broadcast-body"
-                                 class="rte-body"
-                                 contenteditable="true"
-                                 data-placeholder="Write your message here… Use {username} to personalise each email automatically."
-                                 spellcheck="true">
-                            </div>
-                            <!-- Preview panel (hidden by default) -->
-                            <div id="rte-preview-panel" style="display:none;padding:20px 22px;border-top:1px solid var(--glass-border);background:rgba(255,255,255,0.03);">
-                                <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;"><i class="fas fa-eye"></i> Email Preview</div>
-                                <div id="rte-preview-content" style="background:#0f172a;border-radius:10px;padding:24px 28px;color:#f8fafc;font-size:0.95rem;line-height:1.75;max-width:600px;margin:0 auto;border:1px solid var(--glass-border);"></div>
-                            </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <label style="display:block;font-size:0.8rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Message</label>
+                            <span style="font-size:0.75rem;color:#64748b;"><i class="fas fa-info-circle"></i> Press Enter for new line · blank line = new paragraph</span>
                         </div>
+                        <textarea id="broadcast-body" rows="12"
+                            placeholder="Write your message here exactly as you want it to appear.&#10;&#10;Leave a blank line between paragraphs.&#10;&#10;Use {username} to insert each member's name automatically."
+                            class="admin-input" style="width:100%;resize:vertical;line-height:1.75;font-size:0.95rem;font-family:inherit;white-space:pre-wrap;"></textarea>
                     </div>
                     <div style="display:flex;justify-content:flex-end;align-items:center;gap:14px;flex-wrap:wrap;">
                         <div id="broadcast-result" style="display:none;padding:10px 16px;border-radius:10px;font-size:0.9rem;flex:1;"></div>
@@ -1309,24 +1271,24 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('broadcast-btn').addEventListener('click', async () => {
         const audience  = document.getElementById('broadcast-audience').value;
         const subject   = document.getElementById('broadcast-subject').value.trim();
-        const bodyEl    = document.getElementById('broadcast-body');
-        const body      = bodyEl.innerHTML.trim();
+        const rawText   = document.getElementById('broadcast-body').value.trim();
         const result    = document.getElementById('broadcast-result');
-        if (!subject || !body || body === '<br>') { alert('Please fill in both the subject and message.'); return; }
+        if (!subject || !rawText) { alert('Please fill in both the subject and message.'); return; }
         const audienceLabel = document.getElementById('broadcast-audience').options[document.getElementById('broadcast-audience').selectedIndex].text;
         if (!confirm(`Send to: ${audienceLabel}?\n\nSubject: ${subject}\n\nThis cannot be undone.`)) return;
         const btn = document.getElementById('broadcast-btn');
         btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
         result.style.display = 'none';
         try {
-            const res = await API.broadcastEmail(audience, subject, body);
+            const body = textToEmailHtml(rawText);
+            const res  = await API.broadcastEmail(audience, subject, body);
             result.style.display = 'block';
             const ok = res.sent > 0;
             result.style.background = ok ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)';
             result.style.color      = ok ? '#22c55e' : '#f59e0b';
             result.style.border     = ok ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(245,158,11,0.25)';
             result.innerHTML = `<i class="fas ${ok?'fa-check-circle':'fa-info-circle'}"></i> ${res.msg}`;
-            if (ok) { document.getElementById('broadcast-subject').value = ''; bodyEl.innerHTML = ''; }
+            if (ok) { document.getElementById('broadcast-subject').value = ''; document.getElementById('broadcast-body').value = ''; }
         } catch(e) {
             result.style.display = 'block'; result.style.background = 'rgba(239,68,68,0.1)';
             result.style.color = '#ef4444'; result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send.';
@@ -1355,57 +1317,27 @@ window.addEventListener('DOMContentLoaded', () => {
         finally { btn.disabled = false; btn.textContent = 'Fund Account'; }
     });
 
-    // ── Rich Text Editor helpers ──────────────────────────────
-    function rteExec(cmd, value = null) {
-        document.getElementById('broadcast-body').focus();
-        document.execCommand(cmd, false, value);
-        rteUpdateToolbar();
+    // ── Plain-text → HTML converter ───────────────────────────
+    // Converts what the admin typed (with newlines/blank lines) into
+    // properly spaced HTML paragraphs that render correctly in email clients.
+    function textToEmailHtml(text) {
+        // Escape any raw HTML chars so intentional text isn't parsed as markup
+        const esc = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        // Split on one or more blank lines → separate paragraphs
+        const blocks = esc.split(/\n{2,}/);
+        return blocks
+            .map(block => {
+                const trimmed = block.trim();
+                if (!trimmed) return '';
+                // Single newlines within a block → <br>
+                return '<p>' + trimmed.replace(/\n/g, '<br>') + '</p>';
+            })
+            .filter(Boolean)
+            .join('\n');
     }
-    function rteBlock(tag) {
-        document.getElementById('broadcast-body').focus();
-        document.execCommand('formatBlock', false, tag);
-        rteUpdateToolbar();
-    }
-    function rteBlockquote() {
-        document.getElementById('broadcast-body').focus();
-        document.execCommand('formatBlock', false, 'blockquote');
-        rteUpdateToolbar();
-    }
-    function rteInsertHr() {
-        document.getElementById('broadcast-body').focus();
-        document.execCommand('insertHTML', false, '<hr>');
-    }
-    function rteInsertLink() {
-        const url = prompt('Enter URL:', 'https://');
-        if (url) {
-            document.getElementById('broadcast-body').focus();
-            document.execCommand('createLink', false, url);
-        }
-    }
-    function rteUpdateToolbar() {
-        const cmds = ['bold','italic','underline','strikeThrough','insertUnorderedList','insertOrderedList','justifyLeft','justifyCenter','justifyRight'];
-        cmds.forEach(cmd => {
-            const btn = document.querySelector(`.rte-btn[onclick="rteExec('${cmd}')"]`);
-            if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
-        });
-    }
-    function rteTogglePreview() {
-        const panel   = document.getElementById('rte-preview-panel');
-        const content = document.getElementById('rte-preview-content');
-        const body    = document.getElementById('broadcast-body');
-        const visible = panel.style.display !== 'none';
-        if (!visible) {
-            content.innerHTML = body.innerHTML || '<em style="color:#64748b;">Nothing to preview yet.</em>';
-        }
-        panel.style.display = visible ? 'none' : 'block';
-    }
-    document.getElementById('broadcast-body').addEventListener('keyup',    rteUpdateToolbar);
-    document.getElementById('broadcast-body').addEventListener('mouseup',  rteUpdateToolbar);
-    document.getElementById('broadcast-body').addEventListener('selectionchange', rteUpdateToolbar);
-    // Prevent toolbar buttons from losing selection focus
-    document.querySelector('.rte-toolbar').addEventListener('mousedown', e => {
-        if (e.target.closest('.rte-btn') || e.target.closest('.rte-select')) e.preventDefault();
-    });
 
     // Reset password button
     document.getElementById('reset-pw-btn').addEventListener('click', async () => {
