@@ -867,10 +867,11 @@ async function loadKyc() {
                     <div><span class="detail-label">ID Number</span><span class="detail-value" style="font-family:monospace;">${k.id_number}</span></div>
                     <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleString()}</span></div>
                     ${k.extra_field_name ? `<div style="grid-column:span 2;"><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;margin-left:8px;">${k.extra_field_value}</span></div>` : ''}
-                    ${kycDocBlock('ID Document — Front', k.id_document, `kyc_${k.id}_${k.username}_front.jpg`)}
-                    ${kycDocBlock('ID Document — Back',  k.id_document_back, `kyc_${k.id}_${k.username}_back.jpg`)}
-                    ${kycDocBlock('Selfie with ID',      k.selfie, `kyc_${k.id}_${k.username}_selfie.jpg`)}
-                    ${k.extra_field_name && k.extra_document ? kycDocBlock(`${k.extra_field_name} Document`, k.extra_document, `kyc_${k.id}_${k.username}_${k.extra_field_name.replace(/\s+/g,'_').toLowerCase()}.jpg`) : ''}
+                </div>
+                <div id="kyc-docs-${k.id}" style="margin:0 0 12px 0;">
+                    <button onclick="loadKycDocs(${k.id},'${k.username}')" style="width:100%;padding:10px;background:rgba(59,130,246,0.08);border:1px dashed rgba(59,130,246,0.3);border-radius:8px;color:#93c5fd;cursor:pointer;font-size:0.85rem;">
+                        <i class="fas fa-images"></i> Load Documents
+                    </button>
                 </div>
                 <div class="action-area">
                     <button class="btn primary"   onclick="approveKyc(${k.id})"      style="flex:1;padding:11px;">✓ Approve</button>
@@ -880,6 +881,22 @@ async function loadKyc() {
         });
     } catch(err) {
         panel.innerHTML = '<div style="text-align:center;padding:60px;color:#ff4d4d;">Failed to load KYC submissions.</div>';
+    }
+}
+
+async function loadKycDocs(id, username) {
+    const container = document.getElementById(`kyc-docs-${id}`);
+    container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;"><i class="fas fa-spinner fa-spin"></i> Loading documents…</div>';
+    try {
+        const docs = await API.getKycDocs(id);
+        const html =
+            kycDocBlock('ID Document — Front', docs.id_document,      `kyc_${id}_${username}_front.jpg`) +
+            kycDocBlock('ID Document — Back',  docs.id_document_back, `kyc_${id}_${username}_back.jpg`) +
+            kycDocBlock('Selfie with ID',      docs.selfie,           `kyc_${id}_${username}_selfie.jpg`) +
+            (docs.extra_field_name && docs.extra_document ? kycDocBlock(`${docs.extra_field_name} Document`, docs.extra_document, `kyc_${id}_${username}_${docs.extra_field_name.replace(/\s+/g,'_').toLowerCase()}.jpg`) : '');
+        container.innerHTML = `<div class="deposit-details" style="padding-top:0;">${html || '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;">No documents found.</p>'}</div>`;
+    } catch(e) {
+        container.innerHTML = '<div style="color:#ff4d4d;text-align:center;padding:12px;font-size:0.85rem;">Failed to load documents.</div>';
     }
 }
 
@@ -918,7 +935,7 @@ async function loadVerifiedKyc() {
                         </button>
                     </div>
                 </div>
-                <div id="kyc-det-${k.id}" style="display:none;margin-top:16px;">
+                <div id="kyc-det-${k.id}" style="display:none;margin-top:16px;" data-loaded="false" data-kyc-id="${k.id}" data-username="${k.username}">
                     <div class="deposit-details">
                         <div><span class="detail-label">Country</span><span class="detail-value">${k.country}</span></div>
                         <div><span class="detail-label">ID Type</span><span class="detail-value">${k.id_type}</span></div>
@@ -926,10 +943,9 @@ async function loadVerifiedKyc() {
                         <div><span class="detail-label">Submitted</span><span class="detail-value">${new Date(k.submitted_at).toLocaleDateString()}</span></div>
                         <div><span class="detail-label">Approved</span><span class="detail-value" style="color:#22c55e;">${k.reviewed_at ? new Date(k.reviewed_at).toLocaleString() : '—'}</span></div>
                         ${k.extra_field_name ? `<div><span class="detail-label">${k.extra_field_name}</span><span class="detail-value" style="font-family:monospace;">${k.extra_field_value}</span></div>` : ''}
-                        ${kycDocBlock('ID Document — Front', k.id_document,      `kyc_${k.username}_front.jpg`)}
-                        ${kycDocBlock('ID Document — Back',  k.id_document_back, `kyc_${k.username}_back.jpg`)}
-                        ${kycDocBlock('Selfie with ID',      k.selfie,           `kyc_${k.username}_selfie.jpg`)}
-                        ${k.extra_field_name && k.extra_document ? kycDocBlock(`${k.extra_field_name} Document`, k.extra_document, `kyc_${k.username}_${k.extra_field_name.replace(/\s+/g,'_').toLowerCase()}.jpg`) : ''}
+                    </div>
+                    <div id="kyc-vdocs-${k.id}" style="padding:0 0 8px 0;">
+                        <div style="text-align:center;padding:12px;color:var(--text-muted);font-size:0.83rem;"><i class="fas fa-clock"></i> Documents load when panel opens</div>
                     </div>
                 </div>`;
             panel.appendChild(item);
@@ -939,12 +955,31 @@ async function loadVerifiedKyc() {
     }
 }
 
-function toggleKycDetails(id) {
+async function toggleKycDetails(id) {
     const det = document.getElementById(`kyc-det-${id}`);
     const btn = document.getElementById(`kyc-btn-${id}`);
     const open = det.style.display === 'block';
     det.style.display = open ? 'none' : 'block';
     btn.innerHTML = open ? '<i class="fas fa-eye"></i> View Details' : '<i class="fas fa-eye-slash"></i> Hide Details';
+    if (!open && det.dataset.loaded === 'false') {
+        det.dataset.loaded = 'loading';
+        const docsEl = document.getElementById(`kyc-vdocs-${id}`);
+        const username = det.dataset.username;
+        docsEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;"><i class="fas fa-spinner fa-spin"></i> Loading documents…</div>';
+        try {
+            const docs = await API.getKycDocs(id);
+            const html =
+                kycDocBlock('ID Document — Front', docs.id_document,      `kyc_${id}_${username}_front.jpg`) +
+                kycDocBlock('ID Document — Back',  docs.id_document_back, `kyc_${id}_${username}_back.jpg`) +
+                kycDocBlock('Selfie with ID',      docs.selfie,           `kyc_${id}_${username}_selfie.jpg`) +
+                (docs.extra_field_name && docs.extra_document ? kycDocBlock(`${docs.extra_field_name} Document`, docs.extra_document, `kyc_${id}_${username}_${docs.extra_field_name.replace(/\s+/g,'_').toLowerCase()}.jpg`) : '');
+            docsEl.innerHTML = `<div class="deposit-details" style="padding-top:0;">${html || '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;">No documents on file.</p>'}</div>`;
+            det.dataset.loaded = 'true';
+        } catch(e) {
+            docsEl.innerHTML = '<div style="color:#ff4d4d;text-align:center;padding:12px;font-size:0.85rem;">Failed to load documents.</div>';
+            det.dataset.loaded = 'false';
+        }
+    }
 }
 
 async function approveKyc(id) {

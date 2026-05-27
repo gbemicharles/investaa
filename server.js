@@ -1172,7 +1172,7 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
 app.get('/api/admin/kyc/pending', authenticateAdmin, async (req, res) => {
     try {
         const rows = await dbAll(
-            `SELECT k.*, u.username, u.email FROM kyc_submissions k JOIN users u ON k.user_id = u.id WHERE k.status = 'PENDING' ORDER BY k.submitted_at DESC`
+            `SELECT k.id, k.user_id, k.country, k.id_type, k.id_number, k.extra_field_name, k.extra_field_value, k.status, k.submitted_at, k.reviewed_at, k.rejection_reason, u.username, u.email FROM kyc_submissions k JOIN users u ON k.user_id = u.id WHERE k.status = 'PENDING' ORDER BY k.submitted_at DESC`
         );
         res.json(rows);
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
@@ -1181,9 +1181,20 @@ app.get('/api/admin/kyc/pending', authenticateAdmin, async (req, res) => {
 app.get('/api/admin/kyc/verified', authenticateAdmin, async (req, res) => {
     try {
         const rows = await dbAll(
-            `SELECT k.*, u.username, u.email, u.phone, u.country AS user_country FROM kyc_submissions k JOIN users u ON k.user_id = u.id WHERE k.status = 'APPROVED' ORDER BY k.reviewed_at DESC`
+            `SELECT k.id, k.user_id, k.country, k.id_type, k.id_number, k.extra_field_name, k.extra_field_value, k.status, k.submitted_at, k.reviewed_at, u.username, u.email, u.phone, u.country AS user_country FROM kyc_submissions k JOIN users u ON k.user_id = u.id WHERE k.status = 'APPROVED' ORDER BY k.reviewed_at DESC`
         );
         res.json(rows);
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.get('/api/admin/kyc/:id/docs', authenticateAdmin, async (req, res) => {
+    try {
+        const row = await dbGet(
+            `SELECT id_document, id_document_back, selfie, extra_document, extra_field_name FROM kyc_submissions WHERE id = ?`,
+            [req.params.id]
+        );
+        if (!row) return res.status(404).json({ msg: 'Not found' });
+        res.json(row);
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
