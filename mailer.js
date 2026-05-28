@@ -285,37 +285,17 @@ const Emails = {
 
         const NEXT = { BRONZE: 'SILVER', SILVER: 'GOLD', GOLD: 'PLATINUM', PLATINUM: 'DIAMOND', DIAMOND: null };
         const RATES = { BRONZE: '0.5', SILVER: '0.75', GOLD: '1', PLATINUM: '1.5', DIAMOND: '2' };
-        const DAILY_LIMITS = { BRONZE: '$10', SILVER: '$100', GOLD: '$30,000', PLATINUM: '$200,000', DIAMOND: '$1,000,000' };
-        const MONTHLY_LIMITS = { BRONZE: '$30', SILVER: '$3,000', GOLD: '$200,000', PLATINUM: '$6,000,000', DIAMOND: '$30,000,000' };
         const TIER_EMOJI = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎', DIAMOND: '👑' };
 
         const nextRank = NEXT[rank];
         const upgradeSection = nextRank ? `
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:12px;overflow:hidden;">
-              <tr><td style="padding:18px 20px;">
-                <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:0.5px;">🚀 Upgrade to ${TIER_EMOJI[nextRank]} ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP — Earn More</p>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                  <tr>
-                    <td style="padding:6px 0;font-size:14px;color:#94a3b8;width:50%;">Daily rate</td>
-                    <td style="padding:6px 0;font-size:14px;color:#f8fafc;font-weight:700;">${RATES[rank]}% → <span style="color:#22c55e;">${RATES[nextRank]}% daily</span></td>
-                  </tr>
-                  <tr>
-                    <td style="padding:6px 0;font-size:14px;color:#94a3b8;">Daily withdrawal</td>
-                    <td style="padding:6px 0;font-size:14px;color:#f8fafc;font-weight:700;">${DAILY_LIMITS[rank]} → <span style="color:#22c55e;">${DAILY_LIMITS[nextRank]}</span></td>
-                  </tr>
-                  <tr>
-                    <td style="padding:6px 0;font-size:14px;color:#94a3b8;">Monthly withdrawal</td>
-                    <td style="padding:6px 0;font-size:14px;color:#f8fafc;font-weight:700;">${MONTHLY_LIMITS[rank]} → <span style="color:#22c55e;">${MONTHLY_LIMITS[nextRank]}</span></td>
-                  </tr>
-                  <tr>
-                    <td style="padding:6px 0;font-size:14px;color:#94a3b8;">Est. daily earning*</td>
-                    <td style="padding:6px 0;font-size:14px;color:#22c55e;font-weight:700;">$${fmt(newBalance * (parseFloat(RATES[nextRank]) / 100))}</td>
-                  </tr>
-                </table>
-                <p style="margin:14px 0 0;font-size:12px;color:#64748b;">*Based on your current balance of $${fmt(newBalance)} USDT</p>
+              <tr><td style="padding:22px 24px;text-align:center;">
+                <p style="margin:0 0 8px;font-size:18px;font-weight:800;color:#f8fafc;">Want to earn even more tomorrow?</p>
+                <p style="margin:0 0 16px;font-size:14px;color:#94a3b8;line-height:1.6;">Upgrading to <strong style="color:#93c5fd;">${TIER_EMOJI[nextRank]} ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP</strong> raises your daily rate from <strong style="color:#f8fafc;">${RATES[rank]}%</strong> to <strong style="color:#22c55e;">${RATES[nextRank]}%</strong> — meaning your balance of <strong style="color:#f8fafc;">$${fmt(newBalance)}</strong> would earn you <strong style="color:#22c55e;">$${fmt(newBalance * (parseFloat(RATES[nextRank]) / 100))}</strong> per day instead of <strong style="color:#f8fafc;">$${fmt(newBalance * (parseFloat(RATES[rank]) / 100))}</strong>. Every day you wait is money left on the table.</p>
+                <a href="${APP_URL}/vip.html" style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#ffffff;padding:13px 32px;border-radius:10px;font-weight:700;text-decoration:none;font-family:Inter,Arial,sans-serif;font-size:15px;">Upgrade to ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP Now →</a>
               </td></tr>
-            </table>
-            <p style="text-align:center;margin:0 0 8px;"><a href="${APP_URL}/vip.html" style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#ffffff;padding:13px 28px;border-radius:10px;font-weight:700;text-decoration:none;font-family:Inter,Arial,sans-serif;">Upgrade My VIP Tier →</a></p>` :
+            </table>` :
             `<p style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:16px 20px;color:#a5b4fc;font-size:14px;margin:24px 0;">
                 👑 You are on our highest <strong>Diamond VIP</strong> tier — earning the maximum <strong>2% daily return</strong> with a <strong>$1,000,000</strong> daily withdrawal limit. Keep compounding and growing!
              </p>`;
