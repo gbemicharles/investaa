@@ -201,6 +201,13 @@ async function applyDailyEarnings() {
                 ]
             );
 
+            // Daily earning email
+            const newBalance = parseFloat((balance + earning).toFixed(2));
+            if (user.email) {
+                Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance)
+                    .catch(e => console.error(`[EARNINGS] Email failed for ${user.username}:`, e.message));
+            }
+
             console.log(`[EARNINGS] Credited ${user.username}: +$${earning} (${ratePercent}% of $${balance})`);
         }
 

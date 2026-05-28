@@ -280,6 +280,81 @@ const Emails = {
                 'Complete My KYC Now', `${APP_URL}/kyc.html`));
     },
 
+    dailyEarning(to, username, earning, balance, ratePercent, rank, newBalance) {
+        const fmt = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const NEXT = { BRONZE: 'SILVER', SILVER: 'GOLD', GOLD: 'PLATINUM', PLATINUM: 'DIAMOND', DIAMOND: null };
+        const RATES = { BRONZE: '0.5', SILVER: '0.75', GOLD: '1', PLATINUM: '1.5', DIAMOND: '2' };
+        const DAILY_LIMITS = { BRONZE: '$10', SILVER: '$100', GOLD: '$30,000', PLATINUM: '$200,000', DIAMOND: '$1,000,000' };
+        const MONTHLY_LIMITS = { BRONZE: '$30', SILVER: '$3,000', GOLD: '$200,000', PLATINUM: '$6,000,000', DIAMOND: '$30,000,000' };
+        const TIER_EMOJI = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎', DIAMOND: '👑' };
+
+        const nextRank = NEXT[rank];
+        const upgradeSection = nextRank ? `
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:12px;overflow:hidden;">
+              <tr><td style="padding:18px 20px;">
+                <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:0.5px;">🚀 Upgrade to ${TIER_EMOJI[nextRank]} ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP — Earn More</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding:6px 0;font-size:14px;color:#94a3b8;width:50%;">Daily rate</td>
+                    <td style="padding:6px 0;font-size:14px;color:#f8fafc;font-weight:700;">${RATES[rank]}% → <span style="color:#22c55e;">${RATES[nextRank]}% daily</span></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0;font-size:14px;color:#94a3b8;">Daily withdrawal</td>
+                    <td style="padding:6px 0;font-size:14px;color:#f8fafc;font-weight:700;">${DAILY_LIMITS[rank]} → <span style="color:#22c55e;">${DAILY_LIMITS[nextRank]}</span></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0;font-size:14px;color:#94a3b8;">Monthly withdrawal</td>
+                    <td style="padding:6px 0;font-size:14px;color:#f8fafc;font-weight:700;">${MONTHLY_LIMITS[rank]} → <span style="color:#22c55e;">${MONTHLY_LIMITS[nextRank]}</span></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0;font-size:14px;color:#94a3b8;">Est. daily earning*</td>
+                    <td style="padding:6px 0;font-size:14px;color:#22c55e;font-weight:700;">$${fmt(newBalance * (parseFloat(RATES[nextRank]) / 100))}</td>
+                  </tr>
+                </table>
+                <p style="margin:14px 0 0;font-size:12px;color:#64748b;">*Based on your current balance of $${fmt(newBalance)} USDT</p>
+              </td></tr>
+            </table>
+            <p style="text-align:center;margin:0 0 8px;"><a href="${APP_URL}/vip.html" style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#ffffff;padding:13px 28px;border-radius:10px;font-weight:700;text-decoration:none;font-family:Inter,Arial,sans-serif;">Upgrade My VIP Tier →</a></p>` :
+            `<p style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:16px 20px;color:#a5b4fc;font-size:14px;margin:24px 0;">
+                👑 You are on our highest <strong>Diamond VIP</strong> tier — earning the maximum <strong>2% daily return</strong> with a <strong>$1,000,000</strong> daily withdrawal limit. Keep compounding and growing!
+             </p>`;
+
+        return sendMail(to, `💰 You earned $${fmt(earning)} today — ${APP_NAME}`,
+            wrap('Your Daily Investment Return',
+                `<p>Hi ${username},</p>
+                 <p>Great news — your daily compounding return has just been credited to your account.</p>
+
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border-radius:12px;overflow:hidden;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);">
+                   <tr><td style="padding:22px 24px;text-align:center;">
+                     <div style="font-size:13px;color:#86efac;text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:6px;">${TIER_EMOJI[rank]} ${rank.charAt(0) + rank.slice(1).toLowerCase()} VIP · ${ratePercent}% Daily Return</div>
+                     <div style="font-size:38px;font-weight:800;color:#22c55e;letter-spacing:-1px;">+$${fmt(earning)}</div>
+                     <div style="font-size:13px;color:#94a3b8;margin-top:6px;">credited to your account</div>
+                   </td></tr>
+                 </table>
+
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 8px;">
+                   <tr>
+                     <td style="padding:8px 0;font-size:14px;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,0.06);">Balance before earning</td>
+                     <td style="padding:8px 0;font-size:14px;color:#f8fafc;font-weight:600;text-align:right;border-bottom:1px solid rgba(255,255,255,0.06);">$${fmt(balance)}</td>
+                   </tr>
+                   <tr>
+                     <td style="padding:8px 0;font-size:14px;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,0.06);">Today's earning</td>
+                     <td style="padding:8px 0;font-size:14px;color:#22c55e;font-weight:700;text-align:right;border-bottom:1px solid rgba(255,255,255,0.06);">+$${fmt(earning)}</td>
+                   </tr>
+                   <tr>
+                     <td style="padding:10px 0 4px;font-size:15px;color:#f8fafc;font-weight:700;">New balance</td>
+                     <td style="padding:10px 0 4px;font-size:15px;color:#3b82f6;font-weight:800;text-align:right;">$${fmt(newBalance)}</td>
+                   </tr>
+                 </table>
+
+                 ${upgradeSection}
+
+                 <p style="color:#94a3b8;font-size:13px;">This return compounds automatically every 24 hours. The larger your balance, the more you earn — keep investing to maximise your returns.</p>`,
+                'View My Dashboard', `${APP_URL}/dashboard.html`
+            ));
+    },
+
     broadcastEmail(to, username, subject, bodyHtml) {
         const personalised = bodyHtml.replace(/\{username\}/gi, username);
         const styled = inlineStyleBroadcast(personalised);
