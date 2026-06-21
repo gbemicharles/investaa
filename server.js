@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const cors = require('cors');
 const multer = require('multer');
+const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const Emails   = require('./mailer');
 const Telegram = require('./telegram');
@@ -339,7 +340,43 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '.'))); // Changed to '.' for Replit root static serving
+app.use(cookieParser());
+
+const PROTECTED_HTML_PAGES = new Set([
+    'index.html', 'wallet.html', 'deposit.html', 'withdraw.html',
+    'transfer.html', 'notifications.html', 'vip.html', 'kyc.html',
+    'admin.html', 'help.html', 'support.html'
+]);
+
+function htmlAuthGuard(req, res, next) {
+    const reqPath = req.path;
+    const filename = reqPath === '/' ? 'index.html' : path.basename(reqPath);
+    if (!PROTECTED_HTML_PAGES.has(filename)) {
+        return next();
+    }
+    const token = req.cookies && req.cookies['auth_token'];
+    if (!token) {
+        return res.redirect(302, '/login.html');
+    }
+    try {
+        jwt.verify(token, JWT_SECRET);
+        next();
+    } catch (e) {
+        res.clearCookie('auth_token');
+        return res.redirect(302, '/login.html');
+    }
+}
+
+app.use(htmlAuthGuard);
+
+app.use(express.static(path.join(__dirname, '.'), {
+    setHeaders(res, filePath) {
+        const filename = path.basename(filePath);
+        if (PROTECTED_HTML_PAGES.has(filename)) {
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+    }
+})); // Changed to '.' for Replit root static serving
 app.use('/css', express.static(path.join(__dirname, 'css')));
 app.use('/js', express.static(path.join(__dirname, 'js')));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
@@ -452,6 +489,7 @@ app.post('/api/auth/register', async (req, res) => {
 
         if (is_admin) {
             const userToken = jwt.sign({ id: result.lastID, username, is_admin: 1 }, JWT_SECRET, { expiresIn: '7d' });
+            res.cookie('auth_token', userToken, { httpOnly: true, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
             Emails.welcome(email, username);
             return res.json({ token: userToken, msg: 'Registration successful' });
         }
@@ -522,11 +560,17 @@ app.post('/api/auth/login', async (req, res) => {
         }
         await dbRun('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
         const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+        res.cookie('auth_token', token, { httpOnly: true, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
         res.json({ token, user: formatUser(user) });
     } catch (e) {
         console.error('Login failed:', e.message);
         res.status(500).json({ msg: 'Server error during login' });
     }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('auth_token');
+    res.json({ msg: 'Logged out' });
 });
 
 // Email verification endpoints
@@ -538,6 +582,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
         if (!user) return res.status(404).json({ msg: 'Account not found' });
         if (user.email_verified) {
             const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+            res.cookie('auth_token', token, { httpOnly: true, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
             return res.json({ token, user: formatUser(user), msg: 'Already verified' });
         }
         if (!user.verification_code || String(user.verification_code) !== String(code).trim()) {
@@ -549,6 +594,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
         await dbRun('UPDATE users SET email_verified = 1, verification_code = NULL, verification_expires = NULL WHERE id = ?', [user.id]);
         Emails.welcome(user.email, user.username);
         const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+        res.cookie('auth_token', token, { httpOnly: true, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
         res.json({ token, user: formatUser({ ...user, email_verified: 1 }), msg: 'Email verified successfully' });
     } catch (e) {
         console.error('Verify email failed:', e.message);
@@ -1304,6 +1350,16 @@ app.get('*path', (req, res) => {
     // If the request looks like an asset (has a dot) but wasn't caught by static middleware, return 404
     if (req.path.includes('.') || req.path.startsWith('/api')) {
         return res.status(404).send('Not Found');
+    }
+
+    // Unauthenticated users reaching any non-asset path go to login
+    const token = req.cookies && req.cookies['auth_token'];
+    let authenticated = false;
+    if (token) {
+        try { jwt.verify(token, JWT_SECRET); authenticated = true; } catch (e) { /* invalid */ }
+    }
+    if (!authenticated) {
+        return res.redirect(302, '/login.html');
     }
 
     const indexPath = path.join(__dirname, 'index.html');

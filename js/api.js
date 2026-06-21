@@ -197,7 +197,9 @@ const API = {
     logout() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = 'login.html';
+        fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).finally(() => {
+            window.location.href = 'login.html';
+        });
     },
 
     isAuthenticated() {
