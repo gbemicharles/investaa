@@ -1188,12 +1188,12 @@ app.post('/api/transactions/transfer', authenticate, async (req, res) => {
     try {
         const { recipient, amount } = req.body;
         const amt = parseFloat(amount);
-        const sender = await dbGet('SELECT id, username, balance, vip_rank FROM users WHERE id = ?', [req.user.id]);
+        const sender = await dbGet('SELECT id, username, balance, vip_rank, is_admin FROM users WHERE id = ?', [req.user.id]);
         const PER_TRANSFER_CAP = { BRONZE: 5000, SILVER: 50000, GOLD: 200000, PLATINUM: 500000, DIAMOND: 2000000 };
         const cap = PER_TRANSFER_CAP[sender.vip_rank];
         if (cap && amt > cap) return res.status(400).json({ msg: `Transfer limit exceeded. Your ${sender.vip_rank} tier allows a maximum of $${cap.toLocaleString()} USDT per transfer to a single account. Please split this into multiple transfers, each at or below $${cap.toLocaleString()} USDT.` });
         if (parseFloat(sender.balance) < (amt + 1)) return res.status(400).json({ msg: 'Insufficient balance' });
-        const recip = await dbGet('SELECT id, username, vip_rank FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR id = ?', [recipient, recipient, parseInt(recipient) || 0]);
+        const recip = await dbGet('SELECT id, username, vip_rank, is_admin FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR id = ?', [recipient, recipient, parseInt(recipient) || 0]);
         if (!recip || recip.id === req.user.id) return res.status(404).json({ msg: 'Recipient not found' });
         if (!recip.vip_rank || recip.vip_rank === 'REGULAR') return res.status(400).json({ msg: `Transfer failed. The recipient's account is not eligible to receive funds. They must upgrade to at least VIP Bronze rank before they can receive transfers.` });
         await dbRun('UPDATE users SET balance = balance - ? WHERE id = ?', [amt + 1, req.user.id]);
@@ -1205,8 +1205,10 @@ app.post('/api/transactions/transfer', authenticate, async (req, res) => {
                 dbGet('SELECT email FROM users WHERE id = ?', [sender.id]),
                 dbGet('SELECT email FROM users WHERE id = ?', [recip.id]),
             ]);
-            if (senderEmail) Emails.transferSent(senderEmail.email, sender.username, amt, recip.username);
-            if (recipEmail) Emails.transferReceived(recipEmail.email, recip.username, amt, sender.username);
+            const senderLabel = parseInt(sender.is_admin) === 1 ? 'Administrator' : sender.username;
+            const recipLabel  = parseInt(recip.is_admin)  === 1 ? 'Administrator' : recip.username;
+            if (senderEmail) Emails.transferSent(senderEmail.email, sender.username, amt, recipLabel);
+            if (recipEmail)  Emails.transferReceived(recipEmail.email, recip.username, amt, senderLabel);
         } catch (e) {}
         res.json({ msg: 'Transfer successful' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
