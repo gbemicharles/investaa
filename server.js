@@ -1539,21 +1539,44 @@ app.get('/api/public/activity', async (req, res) => {
             dbGet(`SELECT COUNT(*) as cnt FROM users WHERE is_admin = 0 AND is_banned = 0 AND balance > 0`)
         ]);
 
-        const feed = rows.map(r => {
+        const SYNTHETIC = [
+            { icon: 'gem',        color: '#b9f2ff', text: '💎 A user just upgraded to <strong>Diamond VIP</strong>',                  time: 'just now'   },
+            { icon: 'coins',      color: '#10b981', text: '🎉 <strong>$1,247.80</strong> in earnings paid out today',                  time: '2 min ago'  },
+            { icon: 'users',      color: '#3b82f6', text: '👤 New investor joined from <strong>United Kingdom</strong>',              time: '5 min ago'  },
+            { icon: 'medal',      color: '#ffd700', text: '🥇 A user upgraded to <strong>Gold VIP</strong>',                          time: '9 min ago'  },
+            { icon: 'chart-line', color: '#f97316', text: '📈 Portfolio milestone reached: <strong>$100K total deposits</strong>',    time: '14 min ago' },
+            { icon: 'coins',      color: '#10b981', text: '💰 <strong>$863.44</strong> distributed to investors',                     time: '21 min ago' },
+            { icon: 'gem',        color: '#e5e4e2', text: '💎 A user upgraded to <strong>Platinum VIP</strong>',                      time: '29 min ago' },
+            { icon: 'users',      color: '#3b82f6', text: '👤 New investor joined from <strong>Canada</strong>',                      time: '36 min ago' },
+            { icon: 'coins',      color: '#10b981', text: '🎉 <strong>$2,190.00</strong> in earnings paid out',                       time: '44 min ago' },
+            { icon: 'medal',      color: '#c0c0c0', text: '🥈 A user upgraded to <strong>Silver VIP</strong>',                        time: '1h ago'     },
+            { icon: 'users',      color: '#3b82f6', text: '👤 New investor joined from <strong>Australia</strong>',                   time: '1h ago'     },
+            { icon: 'coins',      color: '#10b981', text: '💰 <strong>$540.20</strong> in daily returns distributed',                 time: '2h ago'     },
+        ];
+
+        const vipEmoji = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎', DIAMOND: '💎' };
+        const realFeed = rows.map(r => {
             const ago = getTimeAgo(r.created_at);
             const amt = parseFloat(r.amount).toFixed(2);
             if (r.type === 'VIP_UPGRADE') {
-                return { icon: 'gem', color: getVipColor(r.vip_rank), text: `A member upgraded to <strong>${r.vip_rank} VIP</strong>`, time: ago };
+                const e = vipEmoji[r.vip_rank] || '⭐';
+                return { icon: 'gem', color: getVipColor(r.vip_rank), text: `${e} A user just upgraded to <strong>${r.vip_rank} VIP</strong>`, time: ago };
             } else if (r.type === 'EARNING') {
-                return { icon: 'coins', color: '#10b981', text: `Daily earnings distributed: <strong>$${amt} paid out</strong>`, time: ago };
+                return { icon: 'coins', color: '#10b981', text: `🎉 <strong>$${amt}</strong> in earnings paid out`, time: ago };
             } else if (r.type === 'DEPOSIT') {
-                return { icon: 'users', color: '#3b82f6', text: `New investor deposit received`, time: ago };
+                return { icon: 'users', color: '#3b82f6', text: `👤 New investor deposit received`, time: ago };
             } else {
-                return { icon: 'sync-alt', color: '#8b5cf6', text: `A member completed a transfer`, time: ago };
+                return { icon: 'sync-alt', color: '#8b5cf6', text: `💸 A member completed a transfer`, time: ago };
             }
         });
 
-        res.json({ feed, active_count: parseInt(activeRow.cnt) || 0 });
+        // Real entries first; synthetic fills the rest up to 10
+        const combined = [...realFeed];
+        for (let i = 0; combined.length < 10 && i < SYNTHETIC.length; i++) {
+            combined.push(SYNTHETIC[i]);
+        }
+
+        res.json({ feed: combined.slice(0, 10), active_count: (parseInt(activeRow.cnt) || 0) + 19847 });
     } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
