@@ -1,0 +1,18 @@
+# InvestAA
+
+> InvestAA is an online investment platform where users can create accounts, manage portfolios, make deposits and withdrawals, and access VIP investment tiers.
+
+## Public Pages
+
+- [Login](/login.html): Sign in to your InvestAA account.
+- [Register](/register.html): Create a new InvestAA account.
+- [Forgot Password](/forgot-password.html): Reset your account password.
+- [Verify Account](/verify.html): Complete account email or identity verification.
+- [Support](/support.html): Contact InvestAA customer support.
+- [Help](/help.html): Frequently asked questions and platform guidance.
+
+## Notes
+
+- Authenticated dashboard, wallet, deposit, withdrawal, transfer, KYC, admin, and VIP pages require a logged-in session and are not intended for crawling.
+- For crawling permissions, refer to `/robots.txt`.
+- For a structured list of public URLs, refer to `/sitemap.xml`.
