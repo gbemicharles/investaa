@@ -244,13 +244,21 @@
                                     const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
                                     const item = document.createElement('div');
                                     item.className = 'transaction';
+                                    item.style.cssText = 'cursor:pointer;transition:background .2s,transform .15s;border-radius:12px;padding:4px 6px;margin:0 -6px;';
+                                    item.title = 'Tap to view details';
+                                    item.addEventListener('mouseenter', () => { item.style.background = 'rgba(59,130,246,0.07)'; item.style.transform = 'translateX(3px)'; });
+                                    item.addEventListener('mouseleave', () => { item.style.background = ''; item.style.transform = ''; });
+                                    item.addEventListener('click', () => showTxDetail(tx.id));
                                     item.innerHTML = `
                                         <div class="icon ${iconClass}"><i class="fas ${icon}"></i></div>
                                         <div class="details">
                                             <p class="title">${txLabel}</p>
                                             <p class="date">${date}</p>
                                         </div>
-                                        <div class="amount ${amountClass}">${prefix}$${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <div class="amount ${amountClass}">${prefix}$${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                            <i class="fas fa-chevron-right" style="color:#475569;font-size:0.7rem;flex-shrink:0;"></i>
+                                        </div>
                                     `;
                                     list.appendChild(item);
                                 });
@@ -309,6 +317,7 @@
             }
         });
     </script>
+    <script src="js/tx-modal.js"></script>
     <script src="js/main.js"></script>
     <script src="js/chat.js"></script>
 </body>

@@ -1009,6 +1009,39 @@ app.get('/api/transactions/limits', authenticate, async (req, res) => {
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
+// --- Single Transaction Detail ---
+app.get('/api/transactions/:id', authenticate, async (req, res) => {
+    try {
+        const tx = await dbGet('SELECT * FROM transactions WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+        if (!tx) return res.status(404).json({ msg: 'Transaction not found' });
+
+        const result = { ...tx };
+
+        // Resolve transfer counterparty and mask admin usernames
+        if (tx.type === 'TRANSFER_OUT' && tx.details && tx.details.startsWith('To: ')) {
+            const username = tx.details.slice(4).trim();
+            const counterparty = await dbGet('SELECT username, is_admin FROM users WHERE LOWER(username) = LOWER(?)', [username]);
+            result.counterparty_label = 'Sent To';
+            result.counterparty = (counterparty && parseInt(counterparty.is_admin) === 1) ? 'Administrator' : (username || 'Unknown');
+        } else if (tx.type === 'TRANSFER_IN' && tx.details && tx.details.startsWith('From: ')) {
+            const username = tx.details.slice(6).trim();
+            const counterparty = await dbGet('SELECT username, is_admin FROM users WHERE LOWER(username) = LOWER(?)', [username]);
+            result.counterparty_label = 'Received From';
+            result.counterparty = (counterparty && parseInt(counterparty.is_admin) === 1) ? 'Administrator' : (username || 'Unknown');
+        }
+
+        // Flag admin-credited deposits
+        if (tx.type === 'DEPOSIT' && tx.details === 'Admin credit') {
+            result.credited_by = 'Administrator';
+        }
+
+        res.json(result);
+    } catch (e) {
+        console.error('Transaction detail error:', e);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 // --- Actions ---
 app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'), async (req, res) => {
     try {

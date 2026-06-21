@@ -633,8 +633,16 @@
                                 icon = 'fa-chart-line';
                             }
 
+                            const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Processing Fee', EARNING: 'Daily Investment Return' };
+                            const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
+
                             const item = document.createElement('div');
                             item.className = 'transaction';
+                            item.style.cssText = 'cursor:pointer;transition:background .2s,transform .15s;border-radius:12px;padding:4px 6px;margin:0 -6px;';
+                            item.title = 'Tap to view details';
+                            item.addEventListener('mouseenter', () => { item.style.background = 'rgba(59,130,246,0.07)'; item.style.transform = 'translateX(3px)'; });
+                            item.addEventListener('mouseleave', () => { item.style.background = ''; item.style.transform = ''; });
+                            item.addEventListener('click', () => showTxDetail(tx.id));
 
                             item.innerHTML = `
                                 <div style="display:flex;justify-content:space-between;width:100%;align-items:center;gap:12px;">
@@ -643,12 +651,15 @@
                                             <i class="fas ${icon}"></i>
                                         </div>
                                         <div style="min-width:0;">
-                                            <p>${tx.type.replace(/_/g, ' ')}</p>
+                                            <p style="font-weight:600;">${txLabel}</p>
                                             <small>${date}</small>
                                         </div>
                                     </div>
-                                    <div class="amount ${amountClass}">
-                                        ${prefix}$${tx.amount.toLocaleString()}
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <div class="amount ${amountClass}">
+                                            ${prefix}$${parseFloat(tx.amount).toLocaleString('en-US',{minimumFractionDigits:2})}
+                                        </div>
+                                        <i class="fas fa-chevron-right" style="color:#475569;font-size:0.7rem;flex-shrink:0;"></i>
                                     </div>
                                 </div>
                             `;
@@ -869,6 +880,7 @@
         cancelEmail.addEventListener('click', resetEmailFlow);
     }
     </script>
+    <script src="js/tx-modal.js"></script>
     <script src="js/chat.js"></script>
 </body>
 </html>
