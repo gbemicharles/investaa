@@ -286,9 +286,10 @@
         openModal();
 
         try {
-            const token = localStorage.getItem('auth_token');
+            const token = localStorage.getItem('token');
             const res = await fetch(`/api/transactions/${id}`, {
-                headers: { 'x-auth-token': token || '', 'Authorization': token ? `Bearer ${token}` : '' }
+                headers: { 'x-auth-token': token || '' },
+                credentials: 'include'
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const tx = await res.json();
