@@ -76,36 +76,34 @@
         <div class="auth-brand-panel">
             <div class="auth-brand-logo">Invest<span>AA</span></div>
             <div class="auth-brand-tagline">Your wealth.<br>Growing every day.</div>
-            <p class="auth-brand-sub">Join thousands of investors earning daily compounding returns through our premium VIP tiers — starting from just $50.</p>
-            <div class="auth-brand-features">
-                <div class="auth-feat-item">
-                    <div class="auth-feat-icon"><i class="fas fa-chart-line"></i></div>
-                    <div class="auth-feat-text">
-                        <strong>Daily Compounding Returns</strong>
-                        <span>Earn up to 2% daily on your portfolio</span>
-                    </div>
+
+            <!-- Mini Stats Row -->
+            <div id="login-stats" style="display:flex;gap:16px;margin:20px 0 24px;">
+                <div style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 16px;">
+                    <div style="font-size:1.35rem;font-weight:900;font-family:'Outfit',sans-serif;color:#f8fafc;" id="ls-members">—</div>
+                    <div style="font-size:0.7rem;color:#94a3b8;margin-top:2px;">Total Members</div>
                 </div>
-                <div class="auth-feat-item">
-                    <div class="auth-feat-icon"><i class="fas fa-shield-alt"></i></div>
-                    <div class="auth-feat-text">
-                        <strong>Bank-Grade Security</strong>
-                        <span>PIN, 2FA & KYC protection on every account</span>
-                    </div>
+                <div style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 16px;">
+                    <div style="font-size:1.35rem;font-weight:900;font-family:'Outfit',sans-serif;color:#10b981;" id="ls-active">—</div>
+                    <div style="font-size:0.7rem;color:#94a3b8;margin-top:2px;">Active Investors</div>
                 </div>
-                <div class="auth-feat-item">
-                    <div class="auth-feat-icon"><i class="fas fa-gem"></i></div>
-                    <div class="auth-feat-text">
-                        <strong>5 VIP Investment Tiers</strong>
-                        <span>Bronze, Silver, Gold, Platinum & Diamond</span>
-                    </div>
+                <div style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 16px;">
+                    <div style="font-size:1.35rem;font-weight:900;font-family:'Outfit',sans-serif;color:#eab308;">99.9%</div>
+                    <div style="font-size:0.7rem;color:#94a3b8;margin-top:2px;">Uptime</div>
                 </div>
-                <div class="auth-feat-item">
-                    <div class="auth-feat-icon"><i class="fas fa-headset"></i></div>
-                    <div class="auth-feat-text">
-                        <strong>24/7 VIP Support</strong>
-                        <span>Dedicated team always on standby for you</span>
-                    </div>
-                </div>
+            </div>
+
+            <!-- Live Activity Feed -->
+            <div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:0.72rem;font-weight:700;letter-spacing:.06em;color:#94a3b8;">LIVE ACTIVITY</span>
+                <span style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:#10b981;font-weight:600;"><span style="width:6px;height:6px;background:#10b981;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite;"></span> Live</span>
+            </div>
+            <div id="login-feed" style="display:flex;flex-direction:column;gap:6px;">
+                <div style="height:46px;border-radius:10px;background:rgba(255,255,255,0.04);animation:shimmer 1.5s infinite;"></div>
+                <div style="height:46px;border-radius:10px;background:rgba(255,255,255,0.04);animation:shimmer 1.5s infinite;"></div>
+                <div style="height:46px;border-radius:10px;background:rgba(255,255,255,0.04);animation:shimmer 1.5s infinite;"></div>
+                <div style="height:46px;border-radius:10px;background:rgba(255,255,255,0.04);animation:shimmer 1.5s infinite;"></div>
+                <div style="height:46px;border-radius:10px;background:rgba(255,255,255,0.04);animation:shimmer 1.5s infinite;"></div>
             </div>
         </div>
 
@@ -159,6 +157,41 @@
     </div>
 
     <script src="js/api.js"></script>
+    <script>
+    // Load live activity feed + stats on login page
+    (async () => {
+        try {
+            const [statsRes, feedRes] = await Promise.all([
+                fetch('/api/public/stats'),
+                fetch('/api/public/activity')
+            ]);
+            const stats = await statsRes.json();
+            const feedData = await feedRes.json();
+
+            // Stats
+            const fmt = n => n >= 1000 ? (n/1000).toFixed(1) + 'K' : n;
+            const mEl = document.getElementById('ls-members');
+            const aEl = document.getElementById('ls-active');
+            if (mEl) mEl.textContent = fmt(stats.total_members);
+            if (aEl) aEl.textContent = fmt(stats.active_investors);
+
+            // Feed
+            const list = document.getElementById('login-feed');
+            if (!list) return;
+            list.innerHTML = '';
+            (feedData.feed || []).slice(0, 6).forEach((item, i) => {
+                const row = document.createElement('div');
+                row.style.cssText = `display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);animation:feedSlideIn .35s ease both;animation-delay:${i*0.07}s;`;
+                row.innerHTML = `
+                    <div style="width:30px;height:30px;border-radius:8px;background:${item.color}22;color:${item.color};display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;"><i class="fas fa-${item.icon}"></i></div>
+                    <div style="flex:1;font-size:.77rem;color:#cbd5e1;line-height:1.35;">${item.text}</div>
+                    <div style="font-size:.68rem;color:#475569;white-space:nowrap;">${item.time}</div>
+                `;
+                list.appendChild(row);
+            });
+        } catch(e) {}
+    })();
+    </script>
     <script>
         const num1 = Math.floor(Math.random() * 10) + 1;
         const num2 = Math.floor(Math.random() * 10) + 1;
