@@ -1439,6 +1439,124 @@ app.post('/api/admin/email/broadcast', authenticateAdmin, async (req, res) => {
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
+// ===== ANALYTICS ROUTES =====
+
+function getTimeAgo(date) {
+    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} min ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
+function getVipColor(rank) {
+    const colors = { BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700', PLATINUM: '#e5e4e2', DIAMOND: '#b9f2ff', REGULAR: '#94a3b8' };
+    return colors[rank] || '#94a3b8';
+}
+
+app.get('/api/public/stats', async (req, res) => {
+    try {
+        const [members, paid, active] = await Promise.all([
+            dbGet(`SELECT COUNT(*) as cnt FROM users WHERE is_admin = 0 AND is_banned = 0`),
+            dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'EARNING' AND status = 'COMPLETED'`),
+            dbGet(`SELECT COUNT(*) as cnt FROM users WHERE is_admin = 0 AND is_banned = 0 AND balance > 0`)
+        ]);
+        res.json({
+            total_members: parseInt(members.cnt) || 0,
+            total_paid_out: parseFloat(paid.total) || 0,
+            active_investors: parseInt(active.cnt) || 0,
+            uptime: 99.9
+        });
+    } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.get('/api/user/balance-history', authenticate, async (req, res) => {
+    try {
+        const daysMap = { '7': 7, '30': 30, '90': 90, '365': 365 };
+        const days = daysMap[req.query.days] || 30;
+        const userId = req.user.id;
+
+        const user = await dbGet(`SELECT balance FROM users WHERE id = ?`, [userId]);
+        const currentBalance = parseFloat(user.balance) || 0;
+
+        const rows = await dbAll(
+            `SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as day,
+             SUM(CASE
+               WHEN type IN ('DEPOSIT', 'EARNING', 'TRANSFER_IN') THEN amount
+               WHEN type IN ('WITHDRAW', 'TRANSFER_OUT', 'VIP_UPGRADE', 'FEE') THEN -amount
+               ELSE 0
+             END) as net_change
+             FROM transactions
+             WHERE user_id = ? AND created_at >= NOW() - INTERVAL '${days} days' AND status = 'COMPLETED'
+             GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD') ORDER BY day ASC`,
+            [userId]
+        );
+
+        const changeMap = {};
+        let totalChange = 0;
+        rows.forEach(r => {
+            const k = String(r.day).slice(0, 10);
+            changeMap[k] = parseFloat(r.net_change) || 0;
+            totalChange += changeMap[k];
+        });
+
+        let balance = currentBalance - totalChange;
+        const result = [];
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            balance += (changeMap[key] || 0);
+            result.push({ date: key, balance: Math.max(0, parseFloat(balance.toFixed(2))) });
+        }
+
+        const startBalance = result[0]?.balance || 0;
+        const endBalance = result[result.length - 1]?.balance || 0;
+        const change = endBalance - startBalance;
+        const changePct = startBalance > 0 ? (change / startBalance * 100) : 0;
+
+        res.json({ points: result, change, changePct, currentBalance });
+    } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.get('/api/public/activity', async (req, res) => {
+    try {
+        const [rows, activeRow] = await Promise.all([
+            dbAll(
+                `SELECT t.type, t.amount, t.created_at, u.vip_rank
+                 FROM transactions t
+                 JOIN users u ON u.id = t.user_id
+                 WHERE t.type IN ('VIP_UPGRADE', 'DEPOSIT', 'EARNING', 'TRANSFER_IN')
+                   AND t.status = 'COMPLETED'
+                   AND u.is_admin = 0
+                 ORDER BY t.created_at DESC
+                 LIMIT 15`,
+                []
+            ),
+            dbGet(`SELECT COUNT(*) as cnt FROM users WHERE is_admin = 0 AND is_banned = 0 AND balance > 0`)
+        ]);
+
+        const feed = rows.map(r => {
+            const ago = getTimeAgo(r.created_at);
+            const amt = parseFloat(r.amount).toFixed(2);
+            if (r.type === 'VIP_UPGRADE') {
+                return { icon: 'gem', color: getVipColor(r.vip_rank), text: `A member upgraded to <strong>${r.vip_rank} VIP</strong>`, time: ago };
+            } else if (r.type === 'EARNING') {
+                return { icon: 'coins', color: '#10b981', text: `Daily earnings distributed: <strong>$${amt} paid out</strong>`, time: ago };
+            } else if (r.type === 'DEPOSIT') {
+                return { icon: 'users', color: '#3b82f6', text: `New investor deposit received`, time: ago };
+            } else {
+                return { icon: 'sync-alt', color: '#8b5cf6', text: `A member completed a transfer`, time: ago };
+            }
+        });
+
+        res.json({ feed, active_count: parseInt(activeRow.cnt) || 0 });
+    } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
 app.get('*path', (req, res) => {
     res.status(404).send('Not Found');
 });

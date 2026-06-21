@@ -161,6 +161,110 @@
                 </div>
             </div>
         </section>
+
+        <!-- Analytics Row: Growth Chart + Activity Feed -->
+        <section class="analytics-section">
+            <!-- Growth Chart -->
+            <div class="card glass analytics-chart-card">
+                <div class="chart-card-header">
+                    <div>
+                        <h3>Portfolio Growth</h3>
+                        <p class="chart-subtitle">Your balance over time</p>
+                    </div>
+                    <div class="chart-tabs" id="chart-tabs">
+                        <button class="chart-tab" data-days="7">7D</button>
+                        <button class="chart-tab active" data-days="30">30D</button>
+                        <button class="chart-tab" data-days="90">90D</button>
+                        <button class="chart-tab" data-days="365">1Y</button>
+                    </div>
+                </div>
+                <div class="chart-amount-display">
+                    <span class="chart-balance" id="chart-balance">$0.00</span>
+                    <span class="chart-change-badge positive" id="chart-change">+0.00%</span>
+                </div>
+                <div class="chart-svg-wrap">
+                    <svg id="portfolio-chart" viewBox="0 0 800 150" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.28"/>
+                                <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <path id="chart-fill" fill="url(#chartGrad)" d=""/>
+                        <path id="chart-line" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d=""/>
+                        <circle id="chart-dot" r="5" fill="#3b82f6" stroke="#fff" stroke-width="2" cx="0" cy="0"/>
+                    </svg>
+                </div>
+                <div class="chart-summary-row">
+                    <div class="chart-stat">
+                        <span class="chart-stat-val" id="cs-start">—</span>
+                        <span class="chart-stat-label">Starting Balance</span>
+                    </div>
+                    <div class="chart-stat">
+                        <span class="chart-stat-val positive" id="cs-earned">—</span>
+                        <span class="chart-stat-label">Total Earned</span>
+                    </div>
+                    <div class="chart-stat">
+                        <span class="chart-stat-val accent" id="cs-rate">—</span>
+                        <span class="chart-stat-label">Daily Rate</span>
+                    </div>
+                    <div class="chart-stat">
+                        <span class="chart-stat-val" id="cs-days">—</span>
+                        <span class="chart-stat-label">Days Active</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Feed -->
+            <div class="card glass analytics-feed-card">
+                <div class="chart-card-header">
+                    <div>
+                        <h3>Platform Activity</h3>
+                        <p class="chart-subtitle">Live anonymized feed</p>
+                    </div>
+                    <div class="live-badge-wrap">
+                        <span class="live-indicator">LIVE</span>
+                        <span class="feed-active-count" id="feed-active-count"></span>
+                    </div>
+                </div>
+                <div class="feed-list" id="activity-feed-list">
+                    <div class="feed-skeleton"></div>
+                    <div class="feed-skeleton"></div>
+                    <div class="feed-skeleton"></div>
+                    <div class="feed-skeleton"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Platform Stats Banner -->
+        <section class="platform-stats-section">
+            <div class="pstats-header">
+                <div><span class="pstats-badge">● LIVE PLATFORM STATS</span></div>
+                <h3>Trusted by thousands of investors</h3>
+            </div>
+            <div class="pstats-grid">
+                <div class="pstat-card">
+                    <div class="pstat-icon" style="background:rgba(59,130,246,0.15)"><i class="fas fa-users" style="color:#3b82f6"></i></div>
+                    <div class="pstat-num" id="ps-members">—</div>
+                    <div class="pstat-label">Total Members</div>
+                </div>
+                <div class="pstat-card">
+                    <div class="pstat-icon" style="background:rgba(16,185,129,0.15)"><i class="fas fa-coins" style="color:#10b981"></i></div>
+                    <div class="pstat-num" id="ps-paid">—</div>
+                    <div class="pstat-label">Total Paid Out</div>
+                </div>
+                <div class="pstat-card">
+                    <div class="pstat-icon" style="background:rgba(249,115,22,0.15)"><i class="fas fa-chart-bar" style="color:#f97316"></i></div>
+                    <div class="pstat-num" id="ps-active">—</div>
+                    <div class="pstat-label">Active Investors</div>
+                </div>
+                <div class="pstat-card">
+                    <div class="pstat-icon" style="background:rgba(234,179,8,0.15)"><i class="fas fa-bolt" style="color:#eab308"></i></div>
+                    <div class="pstat-num" id="ps-uptime">—</div>
+                    <div class="pstat-label">Platform Uptime</div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Mobile Bottom Navigation -->
@@ -311,6 +415,7 @@
                     setInterval(refreshNotifs, 30000); // Check every 30s
 
                     await loadTransactions(1);
+                    loadAnalytics(user);
                 }
             } catch (err) {
                 console.error('Failed to load profile', err);
@@ -320,5 +425,152 @@
     <script src="js/tx-modal.js"></script>
     <script src="js/main.js"></script>
     <script src="js/chat.js"></script>
+    <script>
+    // ===== ANALYTICS: Growth Chart + Activity Feed + Platform Stats =====
+    function loadAnalytics(user) {
+        loadGrowthChart(30, user);
+        loadActivityFeed();
+        loadPlatformStats();
+        document.querySelectorAll('.chart-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                loadGrowthChart(parseInt(btn.dataset.days), user);
+            });
+        });
+    }
+
+    async function loadGrowthChart(days, user) {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/user/balance-history?days=${days}`, { headers: { 'x-auth-token': token } });
+            if (!res.ok) return;
+            const data = await res.json();
+            renderChart(data, days, user);
+        } catch(e) {}
+    }
+
+    function renderChart(data, days, user) {
+        const { points = [], change = 0, changePct = 0, currentBalance = 0 } = data;
+        const W = 800, H = 150, PAD = 10;
+        const vals = points.map(p => p.balance);
+        if (!vals.length) return;
+
+        const balEl = document.getElementById('chart-balance');
+        if (balEl) balEl.textContent = '$' + currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const badge = document.getElementById('chart-change');
+        if (badge) {
+            const pct = Math.abs(changePct).toFixed(2);
+            badge.textContent = (change >= 0 ? '+' : '-') + pct + '%';
+            badge.className = 'chart-change-badge ' + (change >= 0 ? 'positive' : 'negative');
+        }
+
+        const minV = Math.min(...vals);
+        const maxV = Math.max(...vals);
+        const range = maxV - minV || 1;
+        const toX = i => PAD + (i / Math.max(vals.length - 1, 1)) * (W - PAD * 2);
+        const toY = v => H - PAD - ((v - minV) / range) * (H - PAD * 2);
+
+        const coords = vals.map((v, i) => [toX(i), toY(v)]);
+        const linePts = coords.map(([x, y]) => `${x},${y}`).join(' L ');
+        const lineD = `M ${linePts}`;
+        const fillD = `M ${PAD},${H} L ${linePts} L ${toX(vals.length-1)},${H} Z`;
+
+        const lineEl = document.getElementById('chart-line');
+        const fillEl = document.getElementById('chart-fill');
+        const dotEl  = document.getElementById('chart-dot');
+        if (lineEl) lineEl.setAttribute('d', lineD);
+        if (fillEl) fillEl.setAttribute('d', fillD);
+        if (dotEl) {
+            const [lx, ly] = coords[coords.length - 1];
+            dotEl.setAttribute('cx', lx);
+            dotEl.setAttribute('cy', ly);
+        }
+
+        // Animate the line drawing
+        if (lineEl) {
+            const len = lineEl.getTotalLength ? lineEl.getTotalLength() : 1000;
+            lineEl.style.strokeDasharray = len;
+            lineEl.style.strokeDashoffset = len;
+            lineEl.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)';
+            requestAnimationFrame(() => { lineEl.style.strokeDashoffset = 0; });
+        }
+
+        const startBal = vals[0] || 0;
+        const earned = currentBalance - startBal;
+        const startEl = document.getElementById('cs-start');
+        const earnEl  = document.getElementById('cs-earned');
+        const rateEl  = document.getElementById('cs-rate');
+        const daysEl  = document.getElementById('cs-days');
+        if (startEl) startEl.textContent = '$' + startBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (earnEl)  earnEl.textContent  = (earned >= 0 ? '+' : '') + '$' + Math.abs(earned).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (rateEl) {
+            const vipRates = { REGULAR: 0, BRONZE: 0.5, SILVER: 0.75, GOLD: 1.0, PLATINUM: 1.5, DIAMOND: 2.0 };
+            const rate = vipRates[user?.vip_rank] ?? 0;
+            rateEl.textContent = rate > 0 ? rate + '% / day' : 'No plan';
+        }
+        if (daysEl) daysEl.textContent = days + 'D';
+    }
+
+    async function loadActivityFeed() {
+        try {
+            const res = await fetch('/api/public/activity');
+            if (!res.ok) return;
+            const data = await res.json();
+            const list = document.getElementById('activity-feed-list');
+            if (!list) return;
+            list.innerHTML = '';
+            const activeEl = document.getElementById('feed-active-count');
+            if (activeEl && data.active_count) activeEl.textContent = data.active_count + ' Active';
+            const feed = data.feed || [];
+            if (!feed.length) {
+                list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);opacity:.6;font-size:.82rem;">No recent activity</div>';
+                return;
+            }
+            feed.forEach((item, i) => {
+                const row = document.createElement('div');
+                row.className = 'feed-row';
+                row.style.animationDelay = (i * 0.07) + 's';
+                row.innerHTML = `
+                    <div class="feed-icon" style="background:${item.color}22;color:${item.color}"><i class="fas fa-${item.icon}"></i></div>
+                    <div class="feed-text">${item.text}</div>
+                    <div class="feed-time">${item.time}</div>
+                `;
+                list.appendChild(row);
+            });
+        } catch(e) {}
+    }
+
+    async function loadPlatformStats() {
+        try {
+            const res = await fetch('/api/public/stats');
+            if (!res.ok) return;
+            const data = await res.json();
+            animCount('ps-members', data.total_members, '', false);
+            animCount('ps-paid', data.total_paid_out, '$', true);
+            animCount('ps-active', data.active_investors, '', false);
+            const uptimeEl = document.getElementById('ps-uptime');
+            if (uptimeEl) uptimeEl.textContent = data.uptime + '%';
+        } catch(e) {}
+    }
+
+    function animCount(id, target, prefix, isDollar) {
+        const el = document.getElementById(id);
+        if (!el || !target) { if (el) el.textContent = prefix + '0'; return; }
+        const duration = 1400, step = 28;
+        let current = 0;
+        const increment = target / (duration / step);
+        const timer = setInterval(() => {
+            current = Math.min(current + increment, target);
+            if (isDollar) {
+                el.textContent = prefix + Math.floor(current).toLocaleString();
+            } else {
+                el.textContent = prefix + Math.floor(current).toLocaleString();
+            }
+            if (current >= target) clearInterval(timer);
+        }, step);
+    }
+    </script>
 </body>
 </html>
