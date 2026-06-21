@@ -645,3 +645,252 @@ body::after {
     .chat-semipage { width: 100%; right: -100%; }
 }
 
+/* ============================================================
+   PREMIUM DESIGN UPGRADES
+   ============================================================ */
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.45); }
+
+/* Gradient Logo */
+.logo {
+    background: linear-gradient(135deg, #f8fafc 40%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.logo span {
+    background: linear-gradient(135deg, #3b82f6, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: unset;
+}
+
+/* Gradient Primary Button */
+.btn.primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    box-shadow: 0 4px 18px rgba(59, 130, 246, 0.35);
+    border: none;
+}
+.btn.primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    box-shadow: 0 8px 28px rgba(59, 130, 246, 0.55);
+    transform: translateY(-2px);
+}
+.btn.primary:active { transform: translateY(0); }
+
+/* Better Sidebar Active State */
+.sidebar-nav li.active a {
+    background: linear-gradient(135deg, rgba(59,130,246,0.18), rgba(99,102,241,0.1));
+    color: #93c5fd;
+    border-left: 3px solid #3b82f6;
+    box-shadow: inset 3px 0 20px rgba(59,130,246,0.06);
+    border-radius: 0 12px 12px 0;
+}
+
+/* Card subtle top-glow on hover */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 20px; right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59,130,246,0.5), transparent);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+}
+.card:hover::before { opacity: 1; }
+
+/* Balance card gradient shimmer */
+.balance-card {
+    background: linear-gradient(145deg, rgba(59,130,246,0.07) 0%, rgba(99,102,241,0.04) 100%), var(--glass-bg);
+}
+
+/* Mobile nav active glow */
+.mobile-nav a.active {
+    color: var(--accent-primary);
+    filter: drop-shadow(0 0 7px rgba(59,130,246,0.65));
+}
+
+/* View-all links */
+a.view-all {
+    color: var(--accent-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    opacity: 0.75;
+    transition: opacity 0.2s;
+}
+a.view-all:hover { opacity: 1; }
+
+/* Better autofill style */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px rgba(12, 15, 25, 0.98) inset;
+    -webkit-text-fill-color: var(--text-main);
+    caret-color: var(--text-main);
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── Auth Split Layout ── */
+.auth-split {
+    display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+}
+
+.auth-brand-panel {
+    flex: 1;
+    background: linear-gradient(145deg, rgba(59,130,246,0.09) 0%, rgba(139,92,246,0.09) 100%);
+    border-right: 1px solid var(--glass-border);
+    padding: 60px 56px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+.auth-brand-panel::before {
+    content: '';
+    position: absolute;
+    width: 360px; height: 360px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    filter: blur(110px);
+    opacity: 0.1;
+    top: -80px; left: -80px;
+    pointer-events: none;
+}
+.auth-brand-panel::after {
+    content: '';
+    position: absolute;
+    width: 300px; height: 300px;
+    background: var(--accent-secondary);
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.1;
+    bottom: -60px; right: -60px;
+    pointer-events: none;
+}
+
+.auth-brand-logo {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 900;
+    margin-bottom: 36px;
+    position: relative;
+    z-index: 1;
+    background: linear-gradient(135deg, #f8fafc 40%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.auth-brand-logo span {
+    background: linear-gradient(135deg, #3b82f6, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.auth-brand-tagline {
+    font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 14px;
+    font-family: 'Outfit', sans-serif;
+    position: relative;
+    z-index: 1;
+}
+
+.auth-brand-sub {
+    color: var(--text-muted);
+    font-size: 0.97rem;
+    line-height: 1.65;
+    margin-bottom: 44px;
+    position: relative;
+    z-index: 1;
+    max-width: 380px;
+}
+
+.auth-brand-features {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.auth-feat-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.auth-feat-icon {
+    width: 44px; height: 44px;
+    border-radius: 13px;
+    background: rgba(59,130,246,0.12);
+    border: 1px solid rgba(59,130,246,0.22);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem;
+    color: #60a5fa;
+    flex-shrink: 0;
+}
+
+.auth-feat-text strong {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+    color: var(--text-main);
+}
+.auth-feat-text span { color: var(--text-muted); font-size: 0.8rem; }
+
+.auth-form-panel {
+    width: 480px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 50px 44px;
+    overflow-y: auto;
+}
+
+.auth-form-inner { width: 100%; }
+
+.auth-form-logo {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 900;
+    margin-bottom: 28px;
+    display: none;
+    text-align: center;
+    background: linear-gradient(135deg, #f8fafc 40%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.auth-form-logo span {
+    background: linear-gradient(135deg, #3b82f6, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+@media (max-width: 900px) {
+    .auth-brand-panel { display: none; }
+    .auth-form-panel {
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 40px 24px;
+    }
+    .auth-form-logo { display: block; }
+}
+

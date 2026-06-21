@@ -3,59 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | Secure Access</title>
+    <title>InvestAA | Sign In</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <style>
-        body {
-            justify-content: center;
-            align-items: center;
-            background: #0a0b10;
-        }
-        .auth-container {
-            width: 100%;
-            max-width: 450px;
-            padding: 20px;
-        }
-        .auth-card {
-            text-align: center;
-        }
-        .auth-header h2 {
-            font-size: 2.2rem;
-            margin-bottom: 10px;
-        }
-        .auth-header p {
-            color: var(--text-muted);
-            margin-bottom: 35px;
-        }
-        .form-group {
-            text-align: left;
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-        .input-wrapper {
-            position: relative;
-        }
-        .input-wrapper i {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-        }
+        body { justify-content: flex-start; align-items: stretch; }
+        .auth-header h2 { font-size: 2rem; margin-bottom: 8px; }
+        .auth-header p { color: var(--text-muted); margin-bottom: 32px; font-size: 0.95rem; }
+        .form-group { text-align: left; margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 7px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; pointer-events: none; }
         .input-wrapper input {
             width: 100%;
-            background: var(--glass-bg);
+            background: rgba(255,255,255,0.04);
             border: 1px solid var(--glass-border);
-            padding: 14px 14px 14px 45px;
+            padding: 13px 14px 13px 44px;
             border-radius: 12px;
             color: var(--text-main);
             outline: none;
@@ -63,16 +29,31 @@
         }
         .input-wrapper input:focus {
             border-color: var(--accent-primary);
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+            background: rgba(59,130,246,0.06);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
         }
-        .captcha-container {
-            margin-bottom: 25px;
+        .btn-auth {
+            width: 100%;
+            justify-content: center;
+            padding: 14px;
+            font-size: 1rem;
+            margin-top: 8px;
+            letter-spacing: 0.02em;
+        }
+        .auth-footer {
+            margin-top: 24px;
+            color: var(--text-muted);
+            font-size: 0.88rem;
             display: flex;
-            align-items: center;
-            gap: 15px;
+            flex-direction: column;
+            gap: 10px;
+            text-align: center;
         }
+        .auth-footer a { color: var(--accent-primary); text-decoration: none; font-weight: 600; }
+        .auth-footer a:hover { text-decoration: underline; }
         .captcha-box {
-            background: var(--glass-border);
+            background: rgba(59,130,246,0.08);
+            border: 1px solid rgba(59,130,246,0.2);
             padding: 10px 20px;
             border-radius: 8px;
             font-family: 'Outfit', sans-serif;
@@ -81,100 +62,104 @@
             color: var(--accent-primary);
             user-select: none;
         }
-        .btn-auth {
-            width: 100%;
-            justify-content: center;
-            padding: 15px;
-            font-size: 1rem;
-            margin-top: 10px;
-        }
-        .auth-footer {
-            margin-top: 25px;
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-        .auth-footer a {
-            color: var(--accent-primary);
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .back-nav {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-        }
-        .back-btn {
-            width: 40px;
-            height: 40px;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-main);
-            text-decoration: none;
-            transition: var(--transition);
-            backdrop-filter: blur(10px);
-        }
-        .back-btn:hover {
-            background: var(--accent-primary);
-            border-color: var(--accent-primary);
-            transform: scale(1.1);
-        }
+        .divider { height: 1px; background: var(--glass-border); margin: 24px 0; }
+        .auth-back { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 0.85rem; text-decoration: none; margin-bottom: 32px; transition: color 0.2s; }
+        .auth-back:hover { color: var(--text-main); }
+        .auth-back i { font-size: 0.8rem; }
     </style>
 </head>
 <body class="dark-theme">
-    
-    <div class="back-nav">
-        <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
-    </div>
-    
-    <div class="auth-container">
-        <div class="card auth-card glass">
-            <div class="auth-header">
-                <h2>Welcome Back</h2>
-                <p>Please enter your details to sign in.</p>
-            </div>
-            
-            <form id="loginForm">
-                <div class="form-group">
-                    <label>Username</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-user"></i>
-                        <input type="text" id="username" placeholder="Enter your username" required>
+
+    <div class="auth-split">
+
+        <!-- Left: Branded Panel -->
+        <div class="auth-brand-panel">
+            <div class="auth-brand-logo">Invest<span>AA</span></div>
+            <div class="auth-brand-tagline">Your wealth.<br>Growing every day.</div>
+            <p class="auth-brand-sub">Join thousands of investors earning daily compounding returns through our premium VIP tiers — starting from just $50.</p>
+            <div class="auth-brand-features">
+                <div class="auth-feat-item">
+                    <div class="auth-feat-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="auth-feat-text">
+                        <strong>Daily Compounding Returns</strong>
+                        <span>Earn up to 2% daily on your portfolio</span>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <label>Password</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="password" placeholder="••••••••" required>
+                <div class="auth-feat-item">
+                    <div class="auth-feat-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="auth-feat-text">
+                        <strong>Bank-Grade Security</strong>
+                        <span>PIN, 2FA & KYC protection on every account</span>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Bot Verification: <span id="captcha-eq"></span></label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-robot"></i>
-                        <input type="number" id="captcha-input" placeholder="Your answer" required>
+                <div class="auth-feat-item">
+                    <div class="auth-feat-icon"><i class="fas fa-gem"></i></div>
+                    <div class="auth-feat-text">
+                        <strong>5 VIP Investment Tiers</strong>
+                        <span>Bronze, Silver, Gold, Platinum & Diamond</span>
                     </div>
                 </div>
-
-                <button type="submit" class="btn btn-auth primary">Sign In</button>
-            </form>
-
-            <div class="auth-footer" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-                <div><a href="forgot-password.html">Forgot your password?</a></div>
-                <div>Don't have an account? <a href="register.html">Sign up for free</a></div>
+                <div class="auth-feat-item">
+                    <div class="auth-feat-icon"><i class="fas fa-headset"></i></div>
+                    <div class="auth-feat-text">
+                        <strong>24/7 VIP Support</strong>
+                        <span>Dedicated team always on standby for you</span>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- Right: Form Panel -->
+        <div class="auth-form-panel">
+            <div class="auth-form-inner">
+
+                <div class="auth-form-logo">Invest<span>AA</span></div>
+
+                <div class="auth-header">
+                    <h2>Welcome back</h2>
+                    <p>Sign in to access your investment dashboard.</p>
+                </div>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="username" placeholder="Enter your username" autocomplete="username" autocapitalize="none" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Bot Verification: <span id="captcha-eq"></span></label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-robot"></i>
+                            <input type="number" id="captcha-input" placeholder="Your answer" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-auth primary"><i class="fas fa-sign-in-alt"></i> Sign In</button>
+                </form>
+
+                <div class="auth-footer">
+                    <div><a href="forgot-password.html">Forgot your password?</a></div>
+                    <div>Don't have an account? <a href="register.html">Sign up for free</a></div>
+                </div>
+
+            </div>
+        </div>
+
     </div>
 
     <script src="js/api.js"></script>
     <script>
-        // Simple Bot Verification
         const num1 = Math.floor(Math.random() * 10) + 1;
         const num2 = Math.floor(Math.random() * 10) + 1;
         const answer = num1 + num2;
@@ -185,7 +170,7 @@
             const login = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const userInput = parseInt(document.getElementById('captcha-input').value);
-            
+
             if (userInput !== answer) {
                 alert('Captcha incorrect! Are you a bot?');
                 return;

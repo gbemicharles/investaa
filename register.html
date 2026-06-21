@@ -3,61 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register | Join Us</title>
+    <title>InvestAA | Create Account</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <style>
-        body {
-            justify-content: center;
-            align-items: center;
-            background: #0a0b10;
-        }
-        .auth-container {
-            width: 100%;
-            max-width: 450px;
-            padding: 40px 20px;
-            overflow-y: auto;
-            max-height: 100vh;
-        }
-        .auth-card {
-            text-align: center;
-        }
-        .auth-header h2 {
-            font-size: 2.2rem;
-            margin-bottom: 10px;
-        }
-        .auth-header p {
-            color: var(--text-muted);
-            margin-bottom: 35px;
-        }
-        .form-group {
-            text-align: left;
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-        .input-wrapper {
-            position: relative;
-        }
-        .input-wrapper i {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-        }
+        body { justify-content: flex-start; align-items: stretch; }
+        .auth-header h2 { font-size: 2rem; margin-bottom: 8px; }
+        .auth-header p { color: var(--text-muted); margin-bottom: 28px; font-size: 0.95rem; }
+        .form-group { text-align: left; margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 7px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; pointer-events: none; }
         .input-wrapper input {
             width: 100%;
-            background: var(--glass-bg);
+            background: rgba(255,255,255,0.04);
             border: 1px solid var(--glass-border);
-            padding: 14px 14px 14px 45px;
+            padding: 13px 14px 13px 44px;
             border-radius: 12px;
             color: var(--text-main);
             outline: none;
@@ -65,15 +29,12 @@
         }
         .input-wrapper input:focus {
             border-color: var(--accent-primary);
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+            background: rgba(59,130,246,0.06);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
         }
-        .phone-input-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+        .phone-input-container { display: flex; flex-direction: column; gap: 10px; }
         .country-select {
-            background: var(--glass-bg);
+            background: rgba(255,255,255,0.04);
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             color: var(--text-main);
@@ -82,140 +43,151 @@
             cursor: pointer;
             font-size: 0.875rem;
             width: 100%;
+            transition: var(--transition);
         }
-        .country-select option {
-            background: var(--sidebar-bg);
-            color: var(--text-main);
+        .country-select:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
         }
-        .captcha-container {
-            width: 100%;
-            justify-content: center;
-            padding: 15px;
-            font-size: 1rem;
-            margin-top: 10px;
-        }
+        .country-select option { background: var(--sidebar-bg); color: var(--text-main); }
         .btn-auth {
             width: 100%;
             justify-content: center;
-            padding: 15px;
+            padding: 14px;
             font-size: 1rem;
-            margin-top: 10px;
+            margin-top: 8px;
+            letter-spacing: 0.02em;
         }
         .auth-footer {
-            margin-top: 25px;
+            margin-top: 20px;
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-size: 0.88rem;
+            text-align: center;
         }
-        .auth-footer a {
-            color: var(--accent-primary);
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .back-nav {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-        }
-        .back-btn {
-            width: 40px;
-            height: 40px;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-main);
-            text-decoration: none;
-            transition: var(--transition);
-            backdrop-filter: blur(10px);
-        }
-        .back-btn:hover {
-            background: var(--accent-primary);
-            border-color: var(--accent-primary);
-            transform: scale(1.1);
-        }
+        .auth-footer a { color: var(--accent-primary); text-decoration: none; font-weight: 600; }
+        .auth-footer a:hover { text-decoration: underline; }
+        .auth-form-panel { padding-top: 30px; padding-bottom: 30px; }
     </style>
 </head>
 <body class="dark-theme">
 
-    <div class="back-nav">
-        <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
-    </div>
-    
-    <div class="auth-container">
-        <div class="card auth-card glass">
-            <div class="auth-header">
-                <h2>Create Account</h2>
-                <p>Start your investment journey today.</p>
-            </div>
-            
-            <form id="registerForm">
-                <div class="form-group">
-                    <label>Username</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-user"></i>
-                        <input type="text" id="username" placeholder="Choose a username (no spaces)" required pattern="[a-zA-Z0-9_]{3,20}" title="3-20 characters, letters/numbers/underscore only — no spaces" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <div class="auth-split">
+
+        <!-- Left: Branded Panel -->
+        <div class="auth-brand-panel">
+            <div class="auth-brand-logo">Invest<span>AA</span></div>
+            <div class="auth-brand-tagline">Start growing<br>your wealth today.</div>
+            <p class="auth-brand-sub">Create your free account in minutes and unlock access to premium VIP investment tiers with daily compounding returns.</p>
+            <div class="auth-brand-features">
+                <div class="auth-feat-item">
+                    <div class="auth-feat-icon"><i class="fas fa-bolt"></i></div>
+                    <div class="auth-feat-text">
+                        <strong>Quick Setup</strong>
+                        <span>Account ready in under 2 minutes</span>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-envelope"></i>
-                        <input type="email" id="email" placeholder="name@example.com" required>
+                <div class="auth-feat-item">
+                    <div class="auth-feat-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="auth-feat-text">
+                        <strong>Earn From Day One</strong>
+                        <span>Daily returns credited to your wallet</span>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Phone Number</label>
-                    <div class="input-wrapper phone-input-container">
-                        <select id="country-code" class="country-select">
-                            <!-- Populated by JS -->
-                        </select>
-                        <input type="tel" id="phone" placeholder="Phone Number" required>
+                <div class="auth-feat-item">
+                    <div class="auth-feat-icon"><i class="fas fa-globe"></i></div>
+                    <div class="auth-feat-text">
+                        <strong>Global Access</strong>
+                        <span>Available in 150+ countries worldwide</span>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <label>Password</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="password" placeholder="Create a strong password" required>
+                <div class="auth-feat-item">
+                    <div class="auth-feat-icon"><i class="fas fa-lock"></i></div>
+                    <div class="auth-feat-text">
+                        <strong>Fully Secured</strong>
+                        <span>PIN, 2FA & KYC on every account</span>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Confirm Password</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-check-double"></i>
-                        <input type="password" id="confirm-password" placeholder="Repeat your password" required>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Transaction PIN (4-6 digits)</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-key"></i>
-                        <input type="password" id="pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Confirm Transaction PIN</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-check-circle"></i>
-                        <input type="password" id="confirm-pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-auth primary">Register Now</button>
-            </form>
-
-            <div class="auth-footer">
-                Already have an account? <a href="login.html">Sign in</a>
             </div>
         </div>
+
+        <!-- Right: Form Panel -->
+        <div class="auth-form-panel">
+            <div class="auth-form-inner">
+
+                <div class="auth-form-logo">Invest<span>AA</span></div>
+
+                <div class="auth-header">
+                    <h2>Create your account</h2>
+                    <p>Start your investment journey today.</p>
+                </div>
+
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="username" placeholder="Choose a username (no spaces)" required pattern="[a-zA-Z0-9_]{3,20}" title="3-20 characters, letters/numbers/underscore only — no spaces" autocomplete="username" autocapitalize="none" spellcheck="false">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="email" placeholder="name@example.com" required autocomplete="email">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <div class="input-wrapper phone-input-container">
+                            <select id="country-code" class="country-select"></select>
+                            <input type="tel" id="phone" placeholder="Phone Number" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="password" placeholder="Create a strong password" required autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-check-double"></i>
+                            <input type="password" id="confirm-password" placeholder="Repeat your password" required autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Transaction PIN (4-6 digits)</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-key"></i>
+                            <input type="password" id="pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Confirm Transaction PIN</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-check-circle"></i>
+                            <input type="password" id="confirm-pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-auth primary"><i class="fas fa-user-plus"></i> Create Account</button>
+                </form>
+
+                <div class="auth-footer">
+                    Already have an account? <a href="login.html">Sign in</a>
+                </div>
+
+            </div>
+        </div>
+
     </div>
 
     <script src="js/api.js"></script>
@@ -441,28 +413,17 @@
             const countryCode = countrySelect.value;
             const country = countrySelect.options[countrySelect.selectedIndex]?.dataset.country || '';
 
-            if (!country) {
-                alert('Please select your country.');
-                return;
-            }
-            
-            if (password !== confirmPassword) {
-                alert('Passwords do not match!');
-                return;
-            }
-
-            if (pin !== confirmPin) {
-                alert('Transaction PINs do not match!');
-                return;
-            }
+            if (!country) { alert('Please select your country.'); return; }
+            if (password !== confirmPassword) { alert('Passwords do not match!'); return; }
+            if (pin !== confirmPin) { alert('Transaction PINs do not match!'); return; }
 
             try {
-                const data = await API.register({ 
+                const data = await API.register({
                     username, email, password, pin,
                     phone: `${countryCode}${phone}`,
                     country
                 });
-                
+
                 if (data.requiresVerification) {
                     sessionStorage.setItem('verifyUsername', data.username || username);
                     sessionStorage.setItem('verifyEmail', data.email || email);
