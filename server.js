@@ -367,6 +367,64 @@ function htmlAuthGuard(req, res, next) {
     }
 }
 
+app.get('/robots.txt', (req, res) => {
+    const base = `${req.protocol}://${req.get('host')}`;
+    res.type('text/plain').send(
+`User-agent: *
+Allow: /login.html
+Allow: /register.html
+Allow: /forgot-password.html
+Allow: /help.html
+Allow: /support.html
+Disallow: /admin.html
+Disallow: /index.html
+Disallow: /deposit.html
+Disallow: /kyc.html
+Disallow: /notifications.html
+Disallow: /transfer.html
+Disallow: /vip.html
+Disallow: /wallet.html
+Disallow: /withdraw.html
+Disallow: /api/
+
+Sitemap: ${base}/sitemap.xml`
+    );
+});
+
+app.get('/sitemap.xml', (req, res) => {
+    const base = `${req.protocol}://${req.get('host')}`;
+    res.type('application/xml').send(
+`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${base}/login.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${base}/register.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${base}/forgot-password.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>${base}/help.html</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>${base}/support.html</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset>`
+    );
+});
+
 app.use(htmlAuthGuard);
 
 app.use(express.static(path.join(__dirname, '.'), {
@@ -1347,29 +1405,7 @@ app.post('/api/admin/email/broadcast', authenticateAdmin, async (req, res) => {
 });
 
 app.get('*path', (req, res) => {
-    // If the request looks like an asset (has a dot) but wasn't caught by static middleware, return 404
-    if (req.path.includes('.') || req.path.startsWith('/api')) {
-        return res.status(404).send('Not Found');
-    }
-
-    // Unauthenticated users reaching any non-asset path go to login
-    const token = req.cookies && req.cookies['auth_token'];
-    let authenticated = false;
-    if (token) {
-        try { jwt.verify(token, JWT_SECRET); authenticated = true; } catch (e) { /* invalid */ }
-    }
-    if (!authenticated) {
-        return res.redirect(302, '/login.html');
-    }
-
-    const indexPath = path.join(__dirname, 'index.html');
-    res.sendFile(indexPath, (err) => {
-        if (err) {
-            console.error('CRITICAL: Failed to serve index.html from:', indexPath);
-            console.error('If you see this, make sure index.html is in the SAME folder as server.js!');
-            res.status(500).send('Project Error: index.html is missing from the server root. File structure audit required.');
-        }
-    });
+    res.status(404).send('Not Found');
 });
 app.listen(PORT, '0.0.0.0', () => { 
     console.log(`Server running on port ${PORT}`); 
