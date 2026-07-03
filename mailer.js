@@ -345,8 +345,20 @@ const Emails = {
         ));
     },
 
-    outreachEmail(to, subject, bodyHtml) {
+    outreachEmail(to, subject, bodyHtml, bonusAmount = 0) {
         const styled = inlineStyleBroadcast(bodyHtml);
+        const registerUrl = bonusAmount > 0
+            ? `${APP_URL}/register.html?bonus=${encodeURIComponent(bonusAmount)}`
+            : `${APP_URL}/register.html`;
+        const bonusSection = bonusAmount > 0
+            ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.25);border-radius:12px;">
+                 <tr><td style="padding:18px 22px;text-align:center;">
+                   <div style="font-size:13px;color:#fbbf24;text-transform:uppercase;letter-spacing:0.6px;font-weight:700;margin-bottom:6px;">🎁 Exclusive Welcome Bonus</div>
+                   <div style="font-size:32px;font-weight:800;color:#f59e0b;">$${Number(bonusAmount).toLocaleString('en-US', {minimumFractionDigits:2})}</div>
+                   <div style="font-size:13px;color:#94a3b8;margin-top:6px;">Pre-loaded into your account the moment you register — free.</div>
+                 </td></tr>
+               </table>`
+            : '';
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#0a0b10;font-family:Inter,Arial,sans-serif;color:#f8fafc;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0b10;padding:32px 16px;">
@@ -358,8 +370,9 @@ const Emails = {
         <tr><td style="padding:24px 32px 8px;">
           <h2 style="margin:0 0 16px;font-size:20px;color:#f8fafc;">${subject}</h2>
           <div style="font-size:15px;line-height:1.65;color:#cbd5e1;">${styled}</div>
+          ${bonusSection}
           <p style="margin:32px 0 0;text-align:center;">
-            <a href="${APP_URL}/register.html" style="display:inline-block;background:#3b82f6;color:#ffffff;padding:14px 32px;border-radius:10px;font-weight:700;text-decoration:none;font-family:Inter,Arial,sans-serif;font-size:15px;">Create Free Account →</a>
+            <a href="${registerUrl}" style="display:inline-block;background:#3b82f6;color:#ffffff;padding:14px 32px;border-radius:10px;font-weight:700;text-decoration:none;font-family:Inter,Arial,sans-serif;font-size:15px;">Create Free Account →</a>
           </p>
         </td></tr>
         <tr><td style="padding:24px 32px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;color:#64748b;font-size:12px;line-height:1.7;">

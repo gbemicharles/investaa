@@ -427,12 +427,12 @@ const API = {
         return res.json();
     },
 
-    async outreachEmail(emails, subject, body) {
+    async outreachEmail(emails, subject, body, bonus_amount = 0) {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_URL}/admin/email/outreach`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-            body: JSON.stringify({ emails, subject, body })
+            body: JSON.stringify({ emails, subject, body, bonus_amount })
         });
         return res.json();
     }

@@ -418,10 +418,12 @@
             if (pin !== confirmPin) { alert('Transaction PINs do not match!'); return; }
 
             try {
+                const urlBonus = parseFloat(new URLSearchParams(window.location.search).get('bonus')) || 0;
                 const data = await API.register({
                     username, email, password, pin,
                     phone: `${countryCode}${phone}`,
-                    country
+                    country,
+                    ...(urlBonus > 0 ? { bonus_amount: urlBonus } : {})
                 });
 
                 if (data.requiresVerification) {

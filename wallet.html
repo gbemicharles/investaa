@@ -320,6 +320,12 @@
                         <span style="color: var(--text-muted); font-size: 0.75rem;">Total Profit:</span>
                         <span id="wallet-total-profit" style="color: #10b981; font-size: 0.85rem; font-weight: 700; margin-left: 2px;">+$0.00</span>
                     </div>
+                    <div id="bonus-balance-display" style="display:none;margin-top:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:9px 14px;font-size:0.82rem;text-align:right;">
+                        <i class="fas fa-lock" style="color:#f59e0b;margin-right:5px;"></i>
+                        <span style="color:#94a3b8;">Welcome Bonus (Locked):</span>
+                        <strong id="bonus-balance-amount" style="color:#f59e0b;margin-left:5px;">$0.00</strong>
+                        <div style="color:#64748b;font-size:0.73rem;margin-top:3px;">Make a deposit to activate your VIP account &amp; unlock earnings</div>
+                    </div>
                 </div>
             </div>
 
@@ -537,6 +543,17 @@
                     `$${user.balance.toLocaleString(undefined, {
                         minimumFractionDigits: 2
                     })}`;
+
+                // Welcome bonus (locked)
+                const bonusBal = parseFloat(user.bonus_balance) || 0;
+                if (bonusBal > 0) {
+                    const bonusDisplay = document.getElementById('bonus-balance-display');
+                    if (bonusDisplay) {
+                        bonusDisplay.style.display = 'block';
+                        document.getElementById('bonus-balance-amount').innerText =
+                            `$${bonusBal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    }
+                }
 
                 // Profit
                 const walletProfit = user.total_earnings || 0;

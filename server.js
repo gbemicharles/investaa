@@ -117,6 +117,8 @@ async function initDb() {
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status TEXT DEFAULT 'NONE'`);
         // Moderation
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned INTEGER DEFAULT 0`);
+        // Welcome bonus (for outreach campaigns — locked, non-withdrawable, non-upgradeable)
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bonus_balance NUMERIC DEFAULT 0`);
         await pool.query(`ALTER TABLE kyc_submissions ADD COLUMN IF NOT EXISTS extra_document TEXT`);
         await pool.query(`
             CREATE TABLE IF NOT EXISTS kyc_submissions (
@@ -455,6 +457,7 @@ function formatUser(user) {
         date_of_birth: user.date_of_birth || null,
         balance: parseFloat(user.balance || 0),
         deposit_balance: parseFloat(user.deposit_balance || 0),
+        bonus_balance: parseFloat(user.bonus_balance || 0),
         vip_rank: user.vip_rank || 'REGULAR',
         is_admin: user.is_admin || 0,
         role: user.is_admin === 1 ? 'ADMIN' : 'USER',
@@ -523,6 +526,12 @@ app.post('/api/auth/register', async (req, res) => {
             'INSERT INTO users (username, email, password, pin, phone, country, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [username, email, hashed, hashedPin, phone || '', country || 'United States', is_admin]
         );
+
+        // Credit welcome bonus if user came via outreach link
+        const bonusAmount = parseFloat(req.body.bonus_amount) || 0;
+        if (bonusAmount > 0 && bonusAmount <= 100000) {
+            await dbRun('UPDATE users SET bonus_balance = ? WHERE id = ?', [bonusAmount, result.lastID]);
+        }
 
         // Generate verification code (6 digits, expires in 30 minutes)
         const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -890,7 +899,7 @@ app.post('/api/admin/reject-withdrawal/:id', authenticateAdmin, async (req, res)
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
     try {
         const users = await dbAll(
-            'SELECT id, username, email, phone, country, balance, deposit_balance, vip_rank, is_admin, is_banned, created_at FROM users ORDER BY created_at DESC'
+            'SELECT id, username, email, phone, country, balance, deposit_balance, bonus_balance, vip_rank, is_admin, is_banned, created_at FROM users ORDER BY created_at DESC'
         );
         res.json(users.map(u => ({ ...u, balance: parseFloat(u.balance || 0), deposit_balance: parseFloat(u.deposit_balance || 0) })));
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
@@ -1592,8 +1601,9 @@ app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {
         const unique = [...new Set(parsed)];
         if (!unique.length) return res.status(400).json({ msg: 'No valid email addresses found. Check formatting.' });
         if (unique.length > 500) return res.status(400).json({ msg: 'Maximum 500 addresses per send. Please split into batches.' });
+        const bonus_amount = parseFloat(req.body.bonus_amount) || 0;
         res.json({ msg: `Outreach queued for ${unique.length} address${unique.length !== 1 ? 'es' : ''}. Emails are sending now.`, sent: unique.length });
-        drip(unique.map(e => ({ email: e })), (u) => Emails.outreachEmail(u.email, subject, body), `OUTREACH:${subject}`);
+        drip(unique.map(e => ({ email: e })), (u) => Emails.outreachEmail(u.email, subject, body, bonus_amount), `OUTREACH:${subject}`);
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 

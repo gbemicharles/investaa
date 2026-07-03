@@ -299,6 +299,20 @@
                     // Update Balance
                     document.querySelector('.balance-card .value').innerText = user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+                    // Welcome bonus notice (locked)
+                    const bonusBal = parseFloat(user.bonus_balance) || 0;
+                    if (bonusBal > 0) {
+                        let bonusNotice = document.getElementById('bonus-notice');
+                        if (!bonusNotice) {
+                            bonusNotice = document.createElement('div');
+                            bonusNotice.id = 'bonus-notice';
+                            bonusNotice.style.cssText = 'margin-top:12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:10px 16px;font-size:0.83rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+                            bonusNotice.innerHTML = `<i class="fas fa-lock" style="color:#f59e0b;flex-shrink:0;"></i><span style="color:#f59e0b;font-weight:700;">Welcome Bonus: $${bonusBal.toLocaleString(undefined,{minimumFractionDigits:2})}</span><span style="color:#94a3b8;font-size:0.78rem;">Locked — deposit to activate earnings</span>`;
+                            const balCard = document.querySelector('.balance-card');
+                            if (balCard) balCard.appendChild(bonusNotice);
+                        }
+                    }
+
                     // Update Total Profit
                     const profit = user.total_earnings || 0;
                     document.getElementById('total-profit').innerText = `+$${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
