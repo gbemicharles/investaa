@@ -647,11 +647,11 @@
                             if (tx.type === 'FEE') {
                                 icon = 'fa-receipt';
                             }
-                            if (tx.type === 'EARNING') {
-                                icon = 'fa-chart-line';
+                            if (tx.type === 'BONUS') {
+                                icon = 'fa-gift'; iconClass = 'deposit';
                             }
 
-                            const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Processing Fee', EARNING: 'Daily Investment Return' };
+                            const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Processing Fee', EARNING: 'Daily Investment Return', BONUS: '🎁 Welcome Bonus' };
                             const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
 
                             const item = document.createElement('div');
