@@ -950,6 +950,8 @@ app.post('/api/admin/delete-user', authenticateAdmin, async (req, res) => {
         await dbRun('DELETE FROM transactions WHERE user_id = ?', [user_id]);
         await dbRun('DELETE FROM notifications WHERE user_id = ?', [user_id]);
         await dbRun('DELETE FROM kyc_submissions WHERE user_id = ?', [user_id]);
+        await dbRun('DELETE FROM deposits WHERE user_id = ?', [user_id]);
+        await dbRun('DELETE FROM withdrawals WHERE user_id = ?', [user_id]);
         await dbRun('DELETE FROM users WHERE id = ?', [user_id]);
         res.json({ msg: `${target.username} has been permanently deleted.` });
     } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
