@@ -1405,6 +1405,20 @@ app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
 });
 
 // --- Email Centre ---
+app.post('/api/admin/email/test', authenticateAdmin, async (req, res) => {
+    try {
+        const admin = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]);
+        if (!admin || !admin.email) return res.status(400).json({ ok: false, msg: 'No email on your admin account.' });
+        if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+            return res.status(500).json({ ok: false, msg: 'GMAIL_USER or GMAIL_APP_PASSWORD secret is missing from environment.' });
+        }
+        await Emails.securityAlert(admin.email, admin.username, 'Test email fired from the Admin Email Centre — if you received this, email is working correctly.');
+        res.json({ ok: true, msg: `Test email sent to ${admin.email}. Check your inbox (and spam folder).` });
+    } catch (e) {
+        console.error('[EMAIL-TEST]', e);
+        res.status(500).json({ ok: false, msg: e.message });
+    }
+});
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function drip(users, sendFn, label) {

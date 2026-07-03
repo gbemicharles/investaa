@@ -623,6 +623,20 @@
                 </div>
             </div>
 
+            <!-- Email Health Check -->
+            <div class="card glass" style="padding:22px 28px;margin-bottom:24px;border-left:4px solid #3b82f6;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+                <div>
+                    <h3 style="margin:0 0 4px;color:#3b82f6;font-size:1rem;"><i class="fas fa-stethoscope"></i> Email Health Check</h3>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">Sends a test email to your admin address to confirm Gmail is connected and working.</p>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+                    <button id="test-email-btn" class="btn primary" style="background:#3b82f6;border:none;padding:11px 24px;border-radius:10px;white-space:nowrap;">
+                        <i class="fas fa-vial"></i> Send Test Email
+                    </button>
+                    <div id="test-email-result" style="display:none;font-size:0.82rem;text-align:right;"></div>
+                </div>
+            </div>
+
             <!-- KYC Reminder -->
             <div class="card glass" style="padding:28px;margin-bottom:24px;border-left:4px solid #a855f7;">
                 <h3 style="margin:0 0 8px;color:#a855f7;font-size:1.2rem;"><i class="fas fa-id-card"></i> KYC Reminder Blast</h3>
@@ -1241,6 +1255,28 @@ async function adminRemoveAdmin(userId, username) {
 // ════════════════════════════════════════════
 //  Email Centre
 // ════════════════════════════════════════════
+document.getElementById('test-email-btn').addEventListener('click', async function() {
+    const btn = this;
+    const result = document.getElementById('test-email-result');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+    result.style.display = 'none';
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/admin/email/test', { method: 'POST', headers: { 'x-auth-token': token } });
+        const data = await res.json();
+        result.style.display = 'block';
+        result.style.color = data.ok ? '#22c55e' : '#ef4444';
+        result.textContent = data.msg || data.error;
+    } catch(e) {
+        result.style.display = 'block';
+        result.style.color = '#ef4444';
+        result.textContent = 'Request failed: ' + e.message;
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-vial"></i> Send Test Email';
+});
+
 const KYC_COOLDOWN_MS = 48 * 60 * 60 * 1000;
 const KYC_LS_KEY = 'kycReminderLastSent';
 let kycCooldownInterval = null;
