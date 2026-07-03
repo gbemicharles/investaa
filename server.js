@@ -832,9 +832,22 @@ app.post('/api/admin/deposits/approve', authenticateAdmin, async (req, res) => {
         if (!deposit) return res.status(404).json({ msg: 'Deposit not found' });
         const amount = parseFloat(usdt_amount || deposit.amount);
         await dbRun('UPDATE deposits SET status = ? WHERE id = ?', ['APPROVED', deposit_id]);
-        await dbRun('UPDATE users SET balance = balance + ?, deposit_balance = deposit_balance + ? WHERE id = ?', [amount, amount, deposit.user_id]);
+
+        // Merge welcome bonus into active balance (earns daily returns) but NOT deposit_balance (so it can't be used for VIP upgrades)
+        const userForBonus = await dbGet('SELECT bonus_balance FROM users WHERE id = ?', [deposit.user_id]);
+        const bonusToMerge = parseFloat(userForBonus?.bonus_balance || 0);
+        const totalBalanceCredit = amount + bonusToMerge;
+        await dbRun(
+            'UPDATE users SET balance = balance + ?, deposit_balance = deposit_balance + ?, bonus_balance = 0 WHERE id = ?',
+            [totalBalanceCredit, amount, deposit.user_id]
+        );
+
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [deposit.user_id, 'DEPOSIT', amount, `Via ${deposit.network}`, 'COMPLETED']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [deposit.user_id, 'Deposit Approved', `Your deposit of $${amount.toFixed(2)} was approved!`, 'DEPOSIT', 'SUCCESS']);
+        if (bonusToMerge > 0) {
+            await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
+                [deposit.user_id, '🎁 Welcome Bonus Activated!', `Your $${bonusToMerge.toFixed(2)} welcome bonus has been merged into your active balance and is now earning daily returns!`, 'SYSTEM', 'SUCCESS']);
+        }
         try {
             const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]);
             if (u) Emails.depositApproved(u.email, u.username, amount);
