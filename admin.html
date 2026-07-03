@@ -645,6 +645,42 @@
                 <div id="kyc-reminder-result" style="display:none;margin-top:16px;padding:12px 16px;border-radius:10px;font-size:0.9rem;"></div>
             </div>
 
+            <!-- External Outreach -->
+            <div class="card glass" style="padding:28px;margin-bottom:24px;border-left:4px solid #10b981;">
+                <h3 style="margin:0 0 8px;color:#10b981;font-size:1.2rem;"><i class="fas fa-paper-plane"></i> External Outreach</h3>
+                <p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 22px;">Send a promotional email to any list of addresses — including people not yet registered. Paste emails below (comma, semicolon, or one per line). Max 500 per send. A "Create Free Account" button is appended automatically.</p>
+                <div style="display:grid;gap:16px;">
+                    <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <label style="font-size:0.8rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Email Addresses</label>
+                            <span id="outreach-count" style="font-size:0.78rem;color:#10b981;font-weight:600;">0 addresses</span>
+                        </div>
+                        <textarea id="outreach-emails" rows="5"
+                            placeholder="john@example.com, jane@gmail.com&#10;bob@yahoo.com&#10;&#10;Or paste a comma-separated list..."
+                            class="admin-input" style="width:100%;resize:vertical;font-size:0.88rem;font-family:monospace;line-height:1.6;"></textarea>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Subject Line</label>
+                        <input type="text" id="outreach-subject" placeholder="e.g. Earn up to 2% daily — join InvestAA free" class="admin-input" style="width:100%;">
+                    </div>
+                    <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <label style="font-size:0.8rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Message</label>
+                            <span style="font-size:0.75rem;color:#64748b;"><i class="fas fa-info-circle"></i> A "Create Free Account" button is added automatically at the bottom</span>
+                        </div>
+                        <textarea id="outreach-body" rows="10"
+                            placeholder="Write your message here. Be concise and compelling.&#10;&#10;Example:&#10;We're inviting select individuals to join InvestAA — a premium investment platform where members earn daily compounding returns starting from 0.5% per day.&#10;&#10;Our platform offers 5 VIP tiers (Bronze through Diamond) with returns up to 2% daily on your portfolio balance. Sign up is free and takes 60 seconds."
+                            class="admin-input" style="width:100%;resize:vertical;line-height:1.75;font-size:0.95rem;font-family:inherit;"></textarea>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;align-items:center;gap:14px;flex-wrap:wrap;">
+                        <div id="outreach-result" style="display:none;padding:10px 16px;border-radius:10px;font-size:0.9rem;flex:1;"></div>
+                        <button id="outreach-btn" class="btn primary" style="background:#10b981;border:none;padding:13px 32px;border-radius:12px;white-space:nowrap;min-width:170px;">
+                            <i class="fas fa-paper-plane"></i> Send Outreach
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Broadcast -->
             <div class="card glass" style="padding:28px;border-left:4px solid #3b82f6;">
                 <h3 style="margin:0 0 8px;color:#3b82f6;font-size:1.2rem;"><i class="fas fa-broadcast-tower"></i> Compose &amp; Broadcast</h3>
@@ -1265,6 +1301,47 @@ window.addEventListener('DOMContentLoaded', () => {
             result.style.display = 'block'; result.style.background = 'rgba(239,68,68,0.1)';
             result.style.color = '#ef4444'; result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send.';
             btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send KYC Reminder';
+        }
+    });
+
+    // Outreach email count updater
+    document.getElementById('outreach-emails').addEventListener('input', () => {
+        const raw = document.getElementById('outreach-emails').value;
+        const count = raw.split(/[\n,;]+/).map(e => e.trim()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)).length;
+        document.getElementById('outreach-count').textContent = count + ' address' + (count !== 1 ? 'es' : '');
+    });
+
+    // Outreach send button
+    document.getElementById('outreach-btn').addEventListener('click', async () => {
+        const emails  = document.getElementById('outreach-emails').value.trim();
+        const subject = document.getElementById('outreach-subject').value.trim();
+        const rawText = document.getElementById('outreach-body').value.trim();
+        const result  = document.getElementById('outreach-result');
+        if (!emails || !subject || !rawText) { alert('Please fill in all three fields.'); return; }
+        const body = textToEmailHtml(rawText);
+        if (!confirm(`Send outreach to the pasted list?\n\nSubject: ${subject}\n\nThis cannot be undone.`)) return;
+        const btn = document.getElementById('outreach-btn');
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+        result.style.display = 'none';
+        try {
+            const res = await API.outreachEmail(emails, subject, body);
+            result.style.display = 'block';
+            const ok = res.sent > 0;
+            result.style.background = ok ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)';
+            result.style.color      = ok ? '#10b981' : '#f59e0b';
+            result.style.border     = ok ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(245,158,11,0.25)';
+            result.innerHTML = `<i class="fas ${ok ? 'fa-check-circle' : 'fa-info-circle'}"></i> ${res.msg}`;
+            if (ok) {
+                document.getElementById('outreach-emails').value = '';
+                document.getElementById('outreach-subject').value = '';
+                document.getElementById('outreach-body').value = '';
+                document.getElementById('outreach-count').textContent = '0 addresses';
+            }
+        } catch(e) {
+            result.style.display = 'block'; result.style.background = 'rgba(239,68,68,0.1)';
+            result.style.color = '#ef4444'; result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send.';
+        } finally {
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Outreach';
         }
     });
 

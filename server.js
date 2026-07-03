@@ -1580,6 +1580,23 @@ app.get('/api/public/activity', async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
+app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {
+    try {
+        const { emails, subject, body } = req.body;
+        if (!emails || !subject || !body) return res.status(400).json({ msg: 'emails, subject, and body are required.' });
+        const rawList = typeof emails === 'string' ? emails : emails.join('\n');
+        const parsed = rawList
+            .split(/[\n,;]+/)
+            .map(e => e.trim().toLowerCase())
+            .filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+        const unique = [...new Set(parsed)];
+        if (!unique.length) return res.status(400).json({ msg: 'No valid email addresses found. Check formatting.' });
+        if (unique.length > 500) return res.status(400).json({ msg: 'Maximum 500 addresses per send. Please split into batches.' });
+        res.json({ msg: `Outreach queued for ${unique.length} address${unique.length !== 1 ? 'es' : ''}. Emails are sending now.`, sent: unique.length });
+        drip(unique.map(e => ({ email: e })), (u) => Emails.outreachEmail(u.email, subject, body), `OUTREACH:${subject}`);
+    } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
 app.get('*path', (req, res) => {
     res.status(404).send('Not Found');
 });

@@ -345,6 +345,35 @@ const Emails = {
         ));
     },
 
+    outreachEmail(to, subject, bodyHtml) {
+        const styled = inlineStyleBroadcast(bodyHtml);
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0b10;font-family:Inter,Arial,sans-serif;color:#f8fafc;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0b10;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#12141d;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;">
+        <tr><td style="padding:28px 32px 0;text-align:center;">
+          <h1 style="margin:0;font-size:22px;font-weight:800;color:#3b82f6;letter-spacing:0.5px;">${APP_NAME}</h1>
+        </td></tr>
+        <tr><td style="padding:24px 32px 8px;">
+          <h2 style="margin:0 0 16px;font-size:20px;color:#f8fafc;">${subject}</h2>
+          <div style="font-size:15px;line-height:1.65;color:#cbd5e1;">${styled}</div>
+          <p style="margin:32px 0 0;text-align:center;">
+            <a href="${APP_URL}/register.html" style="display:inline-block;background:#3b82f6;color:#ffffff;padding:14px 32px;border-radius:10px;font-weight:700;text-decoration:none;font-family:Inter,Arial,sans-serif;font-size:15px;">Create Free Account →</a>
+          </p>
+        </td></tr>
+        <tr><td style="padding:24px 32px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;color:#64748b;font-size:12px;line-height:1.7;">
+          You received this email as part of a promotional outreach from <strong>${APP_NAME}</strong>.<br>
+          To opt out of future messages, reply to this email with <em>Unsubscribe</em> in the subject line.<br>
+          &copy; ${new Date().getFullYear()} ${APP_NAME} &middot; <a href="mailto:${SUPPORT_EMAIL}" style="color:#3b82f6;text-decoration:none;">${SUPPORT_EMAIL}</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+        return sendMail(to, subject, html);
+    },
+
     reEngagementReminder(to, username, vipRank, daysSince) {
         const isVip = vipRank && vipRank !== 'REGULAR';
         const nextTiers = { REGULAR: 'Bronze', BRONZE: 'Silver', SILVER: 'Gold', GOLD: 'Platinum', PLATINUM: 'Diamond', DIAMOND: null };
