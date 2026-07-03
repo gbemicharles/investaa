@@ -582,6 +582,7 @@ body::after {
     animation: fadeIn 0.3s ease;
 }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes bonusPulse { 0%, 100% { box-shadow: 0 0 20px rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.5); } 50% { box-shadow: 0 0 38px rgba(245,158,11,0.38); border-color: rgba(245,158,11,0.85); } }
 
 .msg.bot {
     background: rgba(255, 255, 255, 0.05);
