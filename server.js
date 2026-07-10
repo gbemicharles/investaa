@@ -140,6 +140,28 @@ async function initDb() {
             )
         `);
 
+        // Outreach campaign tracking + suppression list
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS outreach_suppressions (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                reason TEXT DEFAULT 'unsubscribe',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS outreach_campaigns (
+                id SERIAL PRIMARY KEY,
+                subject TEXT NOT NULL,
+                total INTEGER DEFAULT 0,
+                sent INTEGER DEFAULT 0,
+                failed INTEGER DEFAULT 0,
+                suppressed INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'RUNNING',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         console.log('PostgreSQL database initialized.');
     } catch (err) {
         console.error('CRITICAL: Database initialization failed!', err);
@@ -1620,37 +1642,127 @@ app.get('/api/public/activity', async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
+// --- Smart Outreach Queue helpers ---
+function shuffleArray(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+function isHardBounce(err) {
+    const msg = (err.message || '').toLowerCase();
+    const code = err.responseCode || 0;
+    return code >= 550 || msg.includes('user unknown') || msg.includes('does not exist') ||
+        msg.includes('no such user') || msg.includes('invalid address') || msg.includes('mailbox not found');
+}
+
 app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {
     try {
         const { emails, subject, body } = req.body;
         if (!emails || !subject || !body) return res.status(400).json({ msg: 'emails, subject, and body are required.' });
         const rawList = typeof emails === 'string' ? emails : emails.join('\n');
-        const parsed = rawList
-            .split(/[\n,;]+/)
-            .map(e => e.trim().toLowerCase())
+        const parsed = rawList.split(/[\n,;]+/).map(e => e.trim().toLowerCase())
             .filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
         const unique = [...new Set(parsed)];
-        if (!unique.length) return res.status(400).json({ msg: 'No valid email addresses found. Check formatting.' });
-        if (unique.length > 500) return res.status(400).json({ msg: 'Maximum 500 addresses per send. Please split into batches.' });
+        if (!unique.length) return res.status(400).json({ msg: 'No valid email addresses found.' });
+        if (unique.length > 500) return res.status(400).json({ msg: 'Maximum 500 addresses per send. Split into batches.' });
+
         const bonus_amount = parseFloat(req.body.bonus_amount) || 0;
-        res.json({ msg: `Outreach queued for ${unique.length} address${unique.length !== 1 ? 'es' : ''}. Sending at a steady pace to maximise deliverability.`, sent: unique.length });
-        // Use 2 s gap for outreach (vs 400 ms for transactional) — reduces burst signals that trigger spam filters
+        const daily_limit  = Math.max(10, Math.min(parseInt(req.body.daily_limit) || 200, 500));
+
+        // Filter suppressed
+        const suppressedRows = await dbAll('SELECT email FROM outreach_suppressions', []);
+        const suppressedSet  = new Set(suppressedRows.map(r => r.email.toLowerCase()));
+        const active         = unique.filter(e => !suppressedSet.has(e));
+        const suppressedCount = unique.length - active.length;
+        if (!active.length) return res.status(400).json({ msg: 'All addresses are on the suppression list.' });
+
+        // Shuffle order
+        const shuffled = shuffleArray(active);
+
+        // Create campaign record
+        const campRow = await pool.query(
+            'INSERT INTO outreach_campaigns (subject, total, suppressed, status) VALUES ($1, $2, $3, $4) RETURNING id',
+            [subject, shuffled.length, suppressedCount, 'RUNNING']
+        );
+        const campaignId = campRow.rows[0].id;
+
+        res.json({
+            msg: `Campaign #${campaignId} started — ${shuffled.length} recipients queued${suppressedCount ? `, ${suppressedCount} suppressed` : ''}. Sending ~${daily_limit}/day with randomised intervals.`,
+            campaign_id: campaignId, total: shuffled.length, suppressed: suppressedCount
+        });
+
+        // Smart async queue
         (async () => {
+            const baseMs = (86400 / daily_limit) * 1000;
             let sent = 0, failed = 0;
-            for (const email of unique) {
-                try {
-                    await Emails.outreachEmail(email, subject, body, bonus_amount);
-                    sent++;
-                    console.log(`[OUTREACH] ${sent}/${unique.length} → ${email}`);
-                } catch(e) {
-                    failed++;
-                    console.error(`[OUTREACH] Failed → ${email}:`, e.message);
+            for (let i = 0; i < shuffled.length; i++) {
+                const email = shuffled[i];
+                let success = false;
+                for (let attempt = 1; attempt <= 2 && !success; attempt++) {
+                    try {
+                        await Emails.outreachEmail(email, subject, body, bonus_amount);
+                        success = true; sent++;
+                        await pool.query('UPDATE outreach_campaigns SET sent=$1 WHERE id=$2', [sent, campaignId]);
+                        console.log(`[CAMPAIGN #${campaignId}] ${sent}/${shuffled.length} ✓ ${email}`);
+                    } catch (err) {
+                        console.warn(`[CAMPAIGN #${campaignId}] attempt ${attempt} failed for ${email}: ${err.message}`);
+                        if (isHardBounce(err)) {
+                            await pool.query('INSERT INTO outreach_suppressions (email, reason) VALUES ($1,$2) ON CONFLICT (email) DO NOTHING', [email, 'hard_bounce']);
+                            break;
+                        } else if (attempt < 2) {
+                            await sleep(60000); // wait 60s before soft-bounce retry
+                        }
+                    }
                 }
-                await sleep(2000);
+                if (!success) {
+                    failed++;
+                    await pool.query('UPDATE outreach_campaigns SET failed=$1 WHERE id=$2', [failed, campaignId]);
+                }
+                if (i < shuffled.length - 1) {
+                    // Random jitter ±30% around base interval
+                    const jitter = (Math.random() * 0.6 - 0.3) * baseMs;
+                    await sleep(Math.max(5000, Math.round(baseMs + jitter)));
+                }
             }
-            console.log(`[OUTREACH] Complete — sent:${sent} failed:${failed}`);
+            await pool.query("UPDATE outreach_campaigns SET status='COMPLETED' WHERE id=$1", [campaignId]);
+            console.log(`[CAMPAIGN #${campaignId}] Done — sent:${sent} failed:${failed} suppressed:${suppressedCount}`);
         })();
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.get('/api/admin/email/campaigns', authenticateAdmin, async (req, res) => {
+    try {
+        const rows = await dbAll('SELECT * FROM outreach_campaigns ORDER BY created_at DESC LIMIT 20', []);
+        res.json({ campaigns: rows });
+    } catch(e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.get('/api/admin/email/suppression', authenticateAdmin, async (req, res) => {
+    try {
+        const list = await dbAll('SELECT * FROM outreach_suppressions ORDER BY created_at DESC', []);
+        res.json({ list });
+    } catch(e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/email/suppression/add', authenticateAdmin, async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ msg: 'Email required.' });
+        await pool.query('INSERT INTO outreach_suppressions (email, reason) VALUES ($1,$2) ON CONFLICT (email) DO NOTHING',
+            [email.toLowerCase().trim(), 'manual']);
+        res.json({ msg: 'Added to suppression list.' });
+    } catch(e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/email/suppression/remove', authenticateAdmin, async (req, res) => {
+    try {
+        const { email } = req.body;
+        await pool.query('DELETE FROM outreach_suppressions WHERE email=$1', [email.toLowerCase().trim()]);
+        res.json({ msg: 'Removed from suppression list.' });
+    } catch(e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
 app.get('*path', (req, res) => {

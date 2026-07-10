@@ -673,16 +673,22 @@
                             placeholder="john@example.com, jane@gmail.com&#10;bob@yahoo.com&#10;&#10;Or paste a comma-separated list..."
                             class="admin-input" style="width:100%;resize:vertical;font-size:0.88rem;font-family:monospace;line-height:1.6;"></textarea>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;">
                         <div>
                             <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Subject Line</label>
                             <input type="text" id="outreach-subject" placeholder="e.g. Earn up to 2% daily — join InvestAA free" class="admin-input" style="width:100%;">
                         </div>
                         <div>
                             <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
-                                Welcome Bonus ($) <span style="color:#f59e0b;font-size:0.7rem;text-transform:none;font-weight:400;">— pre-loaded on signup, locked until deposit</span>
+                                Welcome Bonus ($)
                             </label>
-                            <input type="number" id="outreach-bonus" min="0" max="100000" step="0.01" placeholder="e.g. 500.00 (leave blank for none)" class="admin-input" style="width:100%;">
+                            <input type="number" id="outreach-bonus" min="0" max="100000" step="0.01" placeholder="e.g. 500.00" class="admin-input" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+                                Daily Limit <span style="color:#64748b;font-size:0.7rem;text-transform:none;font-weight:400;">max 500</span>
+                            </label>
+                            <input type="number" id="outreach-daily-limit" min="10" max="500" step="1" value="200" class="admin-input" style="width:100%;">
                         </div>
                     </div>
                     <div>
@@ -701,6 +707,31 @@
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Campaign History -->
+            <div class="card glass" style="padding:28px;margin-bottom:24px;border-left:4px solid #6366f1;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+                    <h3 style="margin:0;color:#6366f1;font-size:1.1rem;"><i class="fas fa-history"></i> Campaign History</h3>
+                    <button onclick="loadCampaigns()" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);color:#6366f1;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div id="campaign-list"><p style="color:var(--text-muted);font-size:0.9rem;">No campaigns yet.</p></div>
+            </div>
+
+            <!-- Suppression List -->
+            <div class="card glass" style="padding:28px;margin-bottom:24px;border-left:4px solid #ef4444;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+                    <div>
+                        <h3 style="margin:0 0 4px;color:#ef4444;font-size:1.1rem;"><i class="fas fa-ban"></i> Suppression List</h3>
+                        <p style="color:var(--text-muted);font-size:0.82rem;margin:0;">Addresses that will never receive outreach — hard bounces and manual blocks.</p>
+                    </div>
+                    <button onclick="loadSuppression()" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#ef4444;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div style="display:flex;gap:10px;margin-bottom:16px;">
+                    <input type="email" id="suppress-add-email" placeholder="email@example.com" class="admin-input" style="flex:1;">
+                    <button onclick="addSuppression()" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:10px 18px;border-radius:10px;cursor:pointer;white-space:nowrap;font-weight:600;"><i class="fas fa-plus"></i> Block</button>
+                </div>
+                <div id="suppression-list"><p style="color:var(--text-muted);font-size:0.9rem;">Suppression list is empty.</p></div>
             </div>
 
             <!-- Broadcast -->
@@ -1357,22 +1388,29 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Outreach send button
     document.getElementById('outreach-btn').addEventListener('click', async () => {
-        const emails  = document.getElementById('outreach-emails').value.trim();
-        const subject = document.getElementById('outreach-subject').value.trim();
-        const rawText = document.getElementById('outreach-body').value.trim();
-        const bonusAmt = parseFloat(document.getElementById('outreach-bonus').value) || 0;
-        const result  = document.getElementById('outreach-result');
+        const emails     = document.getElementById('outreach-emails').value.trim();
+        const subject    = document.getElementById('outreach-subject').value.trim();
+        const rawText    = document.getElementById('outreach-body').value.trim();
+        const bonusAmt   = parseFloat(document.getElementById('outreach-bonus').value) || 0;
+        const dailyLimit = parseInt(document.getElementById('outreach-daily-limit').value) || 200;
+        const result     = document.getElementById('outreach-result');
         if (!emails || !subject || !rawText) { alert('Please fill in all three fields.'); return; }
         const body = textToEmailHtml(rawText);
-        const bonusNote = bonusAmt > 0 ? `\nWelcome Bonus: $${bonusAmt.toLocaleString(undefined,{minimumFractionDigits:2})} (locked until deposit)` : '';
-        if (!confirm(`Send outreach to the pasted list?\n\nSubject: ${subject}${bonusNote}\n\nThis cannot be undone.`)) return;
+        const bonusNote = bonusAmt > 0 ? `\nWelcome Bonus: $${bonusAmt.toLocaleString(undefined,{minimumFractionDigits:2})}` : '';
+        if (!confirm(`Start outreach campaign?\n\nSubject: ${subject}${bonusNote}\nDaily limit: ${dailyLimit}/day\n\nEmails will send with randomised intervals to avoid spam filters.`)) return;
         const btn = document.getElementById('outreach-btn');
-        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting…';
         result.style.display = 'none';
         try {
-            const res = await API.outreachEmail(emails, subject, body, bonusAmt);
+            const token = localStorage.getItem('token');
+            const r = await fetch('/api/admin/email/outreach', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                body: JSON.stringify({ emails, subject, body, bonus_amount: bonusAmt, daily_limit: dailyLimit })
+            });
+            const res = await r.json();
             result.style.display = 'block';
-            const ok = res.sent > 0;
+            const ok = res.campaign_id;
             result.style.background = ok ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)';
             result.style.color      = ok ? '#10b981' : '#f59e0b';
             result.style.border     = ok ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(245,158,11,0.25)';
@@ -1382,14 +1420,90 @@ window.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('outreach-subject').value = '';
                 document.getElementById('outreach-body').value = '';
                 document.getElementById('outreach-count').textContent = '0 addresses';
+                setTimeout(loadCampaigns, 1500);
             }
         } catch(e) {
             result.style.display = 'block'; result.style.background = 'rgba(239,68,68,0.1)';
-            result.style.color = '#ef4444'; result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to send.';
+            result.style.color = '#ef4444'; result.innerHTML = '<i class="fas fa-times-circle"></i> Failed to start campaign.';
         } finally {
             btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Outreach';
         }
     });
+
+    async function loadCampaigns() {
+        const token = localStorage.getItem('token');
+        try {
+            const r = await fetch('/api/admin/email/campaigns', { headers: { 'x-auth-token': token } });
+            const { campaigns } = await r.json();
+            const el = document.getElementById('campaign-list');
+            if (!campaigns || !campaigns.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">No campaigns yet.</p>'; return; }
+            el.innerHTML = campaigns.map(c => {
+                const pct = c.total > 0 ? Math.round(((c.sent + c.failed) / c.total) * 100) : 0;
+                const statusColor = c.status === 'COMPLETED' ? '#10b981' : '#f59e0b';
+                const statusIcon  = c.status === 'COMPLETED' ? 'fa-check-circle' : 'fa-spinner fa-spin';
+                return `<div style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <div>
+                            <span style="font-weight:700;color:#f8fafc;font-size:0.9rem;">#${c.id}</span>
+                            <span style="color:#94a3b8;font-size:0.85rem;margin-left:8px;">${c.subject}</span>
+                        </div>
+                        <span style="color:${statusColor};font-size:0.78rem;font-weight:700;"><i class="fas ${statusIcon}"></i> ${c.status}</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.06);border-radius:6px;height:6px;margin-bottom:6px;overflow:hidden;">
+                        <div style="background:#10b981;height:100%;width:${pct}%;border-radius:6px;transition:width 0.4s;"></div>
+                    </div>
+                    <div style="display:flex;gap:20px;font-size:0.78rem;color:#64748b;">
+                        <span>✓ Sent: <strong style="color:#10b981;">${c.sent}</strong></span>
+                        <span>✗ Failed: <strong style="color:#ef4444;">${c.failed}</strong></span>
+                        <span>⊘ Suppressed: <strong style="color:#94a3b8;">${c.suppressed}</strong></span>
+                        <span>Total: <strong style="color:#f8fafc;">${c.total}</strong></span>
+                        <span style="margin-left:auto;">${new Date(c.created_at).toLocaleString()}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch(e) { console.error('loadCampaigns:', e); }
+    }
+
+    async function loadSuppression() {
+        const token = localStorage.getItem('token');
+        try {
+            const r = await fetch('/api/admin/email/suppression', { headers: { 'x-auth-token': token } });
+            const { list } = await r.json();
+            const el = document.getElementById('suppression-list');
+            if (!list || !list.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Suppression list is empty.</p>'; return; }
+            el.innerHTML = `<div style="max-height:240px;overflow-y:auto;">` + list.map(s => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.85rem;">
+                    <div>
+                        <span style="color:#f8fafc;">${s.email}</span>
+                        <span style="margin-left:10px;color:#64748b;font-size:0.75rem;">${s.reason} · ${new Date(s.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <button onclick="removeSuppression('${s.email}')" style="background:none;border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Remove</button>
+                </div>`).join('') + `</div>`;
+        } catch(e) { console.error('loadSuppression:', e); }
+    }
+
+    async function addSuppression() {
+        const email = document.getElementById('suppress-add-email').value.trim();
+        if (!email) return;
+        const token = localStorage.getItem('token');
+        const r = await fetch('/api/admin/email/suppression/add', { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':token}, body: JSON.stringify({ email }) });
+        const res = await r.json();
+        alert(res.msg);
+        document.getElementById('suppress-add-email').value = '';
+        loadSuppression();
+    }
+
+    async function removeSuppression(email) {
+        if (!confirm(`Remove "${email}" from suppression list?`)) return;
+        const token = localStorage.getItem('token');
+        await fetch('/api/admin/email/suppression/remove', { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':token}, body: JSON.stringify({ email }) });
+        loadSuppression();
+    }
+
+    // Auto-load campaign history when Email Centre tab is opened
+    document.querySelectorAll('[data-page="email"]').forEach(el => el.addEventListener('click', () => {
+        setTimeout(() => { loadCampaigns(); loadSuppression(); }, 100);
+    }));
 
     // Broadcast button
     document.getElementById('broadcast-btn').addEventListener('click', async () => {

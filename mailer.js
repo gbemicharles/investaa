@@ -434,9 +434,11 @@ const Emails = {
             `To opt out, reply with "Unsubscribe" in the subject line.`,
         ].join('\n');
 
+        const msgId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@investaa.site>`;
         return sendMail(to, subject, html, {
             text: plainText,
             headers: {
+                'Message-ID': msgId,
                 'List-Unsubscribe': `<mailto:${SUPPORT_EMAIL}?subject=Unsubscribe>`,
                 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
                 'Precedence': 'bulk',

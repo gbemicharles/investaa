@@ -1,0 +1,117 @@
+. Smart sending queue
+
+Instead of sending all emails immediately, put them in a queue and let a scheduler process them.
+
+For 250 emails over 24 hours:
+	•	Total seconds in 24 hours = 86,400
+	•	Interval = 86,400 / 250 ≈ 346 seconds
+	•	That’s about 5 minutes 46 seconds between sends on average.
+
+Rather than sending exactly every 346 seconds, add a small random variation (for example, ±30–90 seconds) so the pattern isn’t perfectly uniform.
+
+2. Randomized sending order
+
+Don’t send addresses in alphabetical order or by upload order every time. Shuffle the queue so recipients are spread out.
+
+3. Rate limiting
+
+Configure limits such as:
+	•	Maximum emails per hour
+	•	Maximum emails per day
+	•	Maximum simultaneous SMTP connections (if applicable)
+
+This makes it easy to adjust sending behavior without changing code.
+
+4. Retry logic
+
+Handle temporary failures differently from permanent ones.
+
+For example:
+	•	Temporary issues (mailbox busy, temporary server error): retry after increasing delays.
+	•	Permanent issues (invalid address, nonexistent domain): stop retrying and remove the address from future campaigns.
+
+5. Bounce processing
+
+Automatically classify bounces into:
+	•	Hard bounce (invalid address) → suppress future sends.
+	•	Soft bounce (temporary issue) → retry later with limits.
+
+Keeping hard-bouncing addresses on your list will quickly hurt your sender reputation.
+
+6. Suppression list
+
+Maintain a list of recipients who should never receive future emails, including:
+	•	Unsubscribed users
+	•	Hard bounces
+	•	Addresses that repeatedly complain or reject mail
+
+7. Personalized content
+
+Personalization can improve engagement. For example:
+
+Hi John,
+
+instead of
+
+Dear Customer,
+
+Avoid misleading personalization or deceptive subject lines.
+
+8. Tracking
+
+Collect useful metrics such as:
+	•	Sent
+	•	Delivered (where available)
+	•	Bounced
+	•	Opened (if you use open tracking)
+	•	Clicked (if applicable)
+	•	Unsubscribed
+	•	Complaints (if your provider supports feedback loops)
+
+These metrics help you understand whether your campaigns are healthy.
+
+9. Campaign management
+
+Store campaign information such as:
+	•	Campaign name
+	•	Subject
+	•	Email template
+	•	Recipient list
+	•	Scheduled start time
+	•	Current progress
+	•	Completion status
+
+10. Email headers
+
+Generate proper headers for each message, including:
+	•	Unique Message-ID
+	•	Date
+	•	List-Unsubscribe for marketing emails
+	•	Reply-To when different from From
+
+11. Respect user preferences
+
+Include an easy way for recipients to opt out of future marketing emails where required by law. Honor those requests promptly.
+
+12. Logging
+
+Keep logs of:
+	•	Successful sends
+	•	Failures
+	•	SMTP responses
+	•	Retry attempts
+	•	Queue status
+
+These logs are invaluable when troubleshooting delivery issues.
+
+13. Warm-up controls
+
+Make the daily sending limit configurable so you can gradually increase volume as your domain establishes a good reputation.
+
+14. Template system
+
+Separate email templates from your sending code. This makes it easier to edit campaigns without redeploying your application.
+
+15. Domain authentication
+
+You’ve already configured SPF, DKIM, and DMARC. Ensure every email your application sends is actually authenticated with those records.
