@@ -117,6 +117,8 @@ async function initDb() {
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status TEXT DEFAULT 'NONE'`);
         // Moderation
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned INTEGER DEFAULT 0`);
+        // Email deliverability flag — set automatically on hard bounce
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_invalid INTEGER DEFAULT 0`);
         // Welcome bonus (for outreach campaigns — locked, non-withdrawable, non-upgradeable)
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bonus_balance NUMERIC DEFAULT 0`);
         await pool.query(`ALTER TABLE kyc_submissions ADD COLUMN IF NOT EXISTS extra_document TEXT`);
@@ -229,8 +231,7 @@ async function applyDailyEarnings() {
             // Daily earning email
             const newBalance = parseFloat((balance + earning).toFixed(2));
             if (user.email) {
-                Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance)
-                    .catch(e => console.error(`[EARNINGS] Email failed for ${user.username}:`, e.message));
+                await sendUserEmail(user.id, () => Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance));
             }
 
             console.log(`[EARNINGS] Credited ${user.username}: +$${earning} (${ratePercent}% of $${balance})`);
@@ -268,7 +269,7 @@ async function runReminderEmails() {
             [threeDaysAgo, sevenDaysAgo]
         );
         for (const u of dormant) {
-            await Emails.dormantReminder(u.email, u.username);
+            await sendUserEmail(u.id, () => Emails.dormantReminder(u.email, u.username));
             await dbRun('UPDATE users SET last_reminder_sent = NOW() WHERE id = ?', [u.id]);
             console.log(`[REMINDER] Dormant reminder sent → ${u.username}`);
         }
@@ -286,7 +287,7 @@ async function runReminderEmails() {
         );
         for (const u of inactive) {
             const daysSince = Math.floor((now - new Date(u.last_login)) / (24 * 60 * 60 * 1000));
-            await Emails.reEngagementReminder(u.email, u.username, u.vip_rank, daysSince);
+            await sendUserEmail(u.id, () => Emails.reEngagementReminder(u.email, u.username, u.vip_rank, daysSince));
             await dbRun('UPDATE users SET last_reminder_sent = NOW() WHERE id = ?', [u.id]);
             console.log(`[REMINDER] Re-engagement sent → ${u.username} (${daysSince}d inactive)`);
         }
@@ -872,10 +873,8 @@ app.post('/api/admin/deposits/approve', authenticateAdmin, async (req, res) => {
             await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
                 [deposit.user_id, '🎁 Welcome Bonus Activated!', `Your $${bonusToMerge.toFixed(2)} welcome bonus has been merged into your active balance and is now earning daily returns!`, 'SYSTEM', 'SUCCESS']);
         }
-        try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]);
-            if (u) Emails.depositApproved(u.email, u.username, amount);
-        } catch (e) {}
+        const uDep = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]).catch(() => null);
+        if (uDep) await sendUserEmail(deposit.user_id, () => Emails.depositApproved(uDep.email, uDep.username, amount));
         res.json({ msg: 'Deposit approved' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -887,10 +886,8 @@ app.post('/api/admin/deposits/reject', authenticateAdmin, async (req, res) => {
         if (!deposit) return res.status(404).json({ msg: 'Deposit not found' });
         await dbRun('UPDATE deposits SET status = ? WHERE id = ?', ['REJECTED', deposit_id]);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [deposit.user_id, 'Deposit Rejected', 'Your deposit attempt was rejected.', 'DEPOSIT', 'FAILED']);
-        try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]);
-            if (u) Emails.depositRejected(u.email, u.username);
-        } catch (e) {}
+        const uDepR = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]).catch(() => null);
+        if (uDepR) await sendUserEmail(deposit.user_id, () => Emails.depositRejected(uDepR.email, uDepR.username));
         res.json({ msg: 'Deposit rejected' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -909,10 +906,8 @@ app.post('/api/admin/approve-withdrawal/:id', authenticateAdmin, async (req, res
         await dbRun('UPDATE withdrawals SET status = ? WHERE id = ?', ['APPROVED', req.params.id]);
         await dbRun('UPDATE transactions SET status = ? WHERE user_id = ? AND type = ? AND amount = ? AND status = ?', ['COMPLETED', w.user_id, 'WITHDRAW', w.amount, 'PENDING']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Approved', `Your withdrawal of $${parseFloat(w.amount).toFixed(2)} was processed.`, 'WITHDRAWAL', 'SUCCESS']);
-        try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]);
-            if (u) Emails.withdrawalApproved(u.email, u.username, w.amount);
-        } catch (e) {}
+        const uWA = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
+        if (uWA) await sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWA.email, uWA.username, w.amount));
         res.json({ msg: 'Withdrawal approved' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -925,10 +920,8 @@ app.post('/api/admin/reject-withdrawal/:id', authenticateAdmin, async (req, res)
         await dbRun('UPDATE users SET balance = balance + ? WHERE id = ?', [w.amount, w.user_id]);
         await dbRun('UPDATE transactions SET status = ? WHERE user_id = ? AND type = ? AND amount = ? AND status = ?', ['REJECTED', w.user_id, 'WITHDRAW', w.amount, 'PENDING']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Rejected', `Your withdrawal was rejected and refunded.`, 'WITHDRAWAL', 'FAILED']);
-        try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]);
-            if (u) Emails.withdrawalRejected(u.email, u.username, w.amount);
-        } catch (e) {}
+        const uWR = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
+        if (uWR) await sendUserEmail(w.user_id, () => Emails.withdrawalRejected(uWR.email, uWR.username, w.amount));
         res.json({ msg: 'Withdrawal rejected' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -936,9 +929,16 @@ app.post('/api/admin/reject-withdrawal/:id', authenticateAdmin, async (req, res)
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
     try {
         const users = await dbAll(
-            'SELECT id, username, email, phone, country, balance, deposit_balance, bonus_balance, vip_rank, is_admin, is_banned, created_at FROM users ORDER BY created_at DESC'
+            'SELECT id, username, email, phone, country, balance, deposit_balance, bonus_balance, vip_rank, is_admin, is_banned, email_invalid, created_at FROM users ORDER BY created_at DESC'
         );
         res.json(users.map(u => ({ ...u, balance: parseFloat(u.balance || 0), deposit_balance: parseFloat(u.deposit_balance || 0) })));
+    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+});
+
+app.post('/api/admin/users/:id/clear-email-flag', authenticateAdmin, async (req, res) => {
+    try {
+        await pool.query('UPDATE users SET email_invalid = 0 WHERE id = $1', [req.params.id]);
+        res.json({ msg: 'Email flag cleared.' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
@@ -997,10 +997,8 @@ app.post('/api/admin/fund-user', authenticateAdmin, async (req, res) => {
         await dbRun('UPDATE users SET balance = balance + ?, deposit_balance = deposit_balance + ? WHERE id = ?', [parseFloat(amount), parseFloat(amount), user.id]);
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [user.id, 'DEPOSIT', parseFloat(amount), 'Admin credit', 'COMPLETED']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [user.id, 'Account Funded', `Your account has been credited with $${amount}.`, 'SYSTEM', 'SUCCESS']);
-        try {
-            const u = await dbGet('SELECT email FROM users WHERE id = ?', [user.id]);
-            if (u) Emails.accountFunded(u.email, user.username, amount);
-        } catch (e) {}
+        const uAF = await dbGet('SELECT email FROM users WHERE id = ?', [user.id]).catch(() => null);
+        if (uAF) await sendUserEmail(user.id, () => Emails.accountFunded(uAF.email, user.username, amount));
         res.json({ msg: `Successfully funded ${user.username} with $${amount}` });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1024,10 +1022,8 @@ app.post('/api/admin/reset-user-password', authenticateAdmin, async (req, res) =
             'INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
             [user.id, 'Password Reset by Admin', 'Your account password was reset by support. Please sign in with the new password and change it from your wallet if needed.', 'SYSTEM', 'WARNING']
         );
-        try {
-            const u = await dbGet('SELECT email FROM users WHERE id = ?', [user.id]);
-            if (u) Emails.passwordResetByAdmin(u.email, user.username);
-        } catch (e) {}
+        const uPR = await dbGet('SELECT email FROM users WHERE id = ?', [user.id]).catch(() => null);
+        if (uPR) await sendUserEmail(user.id, () => Emails.passwordResetByAdmin(uPR.email, user.username));
         res.json({ msg: `Password reset successfully for ${user.username}` });
     } catch (e) {
         console.error('Admin reset password failed:', e.message);
@@ -1102,10 +1098,8 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
         }
         await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', null, screenshotData, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit of $${usdtAmt.toFixed(2)} USDT via ${network} has been received and is currently under review. Our team will verify your transaction and credit your account within 10–30 minutes. You will be notified once it is approved.`, 'DEPOSIT', 'PENDING']);
-        try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]);
-            if (u) Emails.depositSubmitted(u.email, u.username, usdtAmt, network);
-        } catch (e) {}
+        const uDS = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
+        if (uDS) await sendUserEmail(req.user.id, () => Emails.depositSubmitted(uDS.email, uDS.username, usdtAmt, network));
         res.json({ msg: 'Deposit submitted for review', amount: usdtAmt });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1121,9 +1115,7 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
 
         // ✅ PIN check
         if (!(await bcrypt.compare(String(pin), user.pin))) {
-            try {
-                Emails.securityAlert(user.email, user.username, `An incorrect transaction PIN was entered while attempting to withdraw $${parseFloat(amount || 0).toFixed(2)} USDT from your account.`);
-            } catch (e) {}
+            sendUserEmail(user.id, () => Emails.securityAlert(user.email, user.username, `An incorrect transaction PIN was entered while attempting to withdraw $${parseFloat(amount || 0).toFixed(2)} USDT from your account.`));
             return res.status(401).json({ msg: 'Invalid transaction PIN' });
         }
 
@@ -1220,10 +1212,8 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
             [user.id, 'FEE', FEE, 'Withdrawal processing fee', 'COMPLETED']
         );
 
-        try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [user.id]);
-            if (u) Emails.withdrawalSubmitted(u.email, u.username, amt);
-        } catch (e) {}
+        const uWS = await dbGet('SELECT email, username FROM users WHERE id = ?', [user.id]).catch(() => null);
+        if (uWS) await sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt));
         res.json({ msg: 'Withdrawal submitted' });
 
     } catch (e) {
@@ -1248,16 +1238,16 @@ app.post('/api/transactions/transfer', authenticate, async (req, res) => {
         await dbRun('UPDATE users SET balance = balance + ? WHERE id = ?', [amt, recip.id]);
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'TRANSFER_OUT', amt, `To: ${recip.username}`, 'COMPLETED']);
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [recip.id, 'TRANSFER_IN', amt, `From: ${sender.username}`, 'COMPLETED']);
-        try {
+        {
             const [senderEmail, recipEmail] = await Promise.all([
-                dbGet('SELECT email FROM users WHERE id = ?', [sender.id]),
-                dbGet('SELECT email FROM users WHERE id = ?', [recip.id]),
+                dbGet('SELECT email FROM users WHERE id = ?', [sender.id]).catch(() => null),
+                dbGet('SELECT email FROM users WHERE id = ?', [recip.id]).catch(() => null),
             ]);
             const senderLabel = parseInt(sender.is_admin) === 1 ? 'Administrator' : sender.username;
             const recipLabel  = parseInt(recip.is_admin)  === 1 ? 'Administrator' : recip.username;
-            if (senderEmail) Emails.transferSent(senderEmail.email, sender.username, amt, recipLabel);
-            if (recipEmail)  Emails.transferReceived(recipEmail.email, recip.username, amt, senderLabel);
-        } catch (e) {}
+            if (senderEmail) sendUserEmail(sender.id, () => Emails.transferSent(senderEmail.email, sender.username, amt, recipLabel));
+            if (recipEmail)  sendUserEmail(recip.id,  () => Emails.transferReceived(recipEmail.email, recip.username, amt, senderLabel));
+        }
         res.json({ msg: 'Transfer successful' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1272,10 +1262,8 @@ app.post('/api/user/upgrade', authenticate, async (req, res) => {
         await dbRun('UPDATE users SET balance = balance - ?, deposit_balance = deposit_balance - ?, vip_rank = ? WHERE id = ?', [cost, cost, rank, req.user.id]);
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP_UPGRADE', cost, `Upgraded to ${rank} VIP rank`, 'COMPLETED']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP Upgrade Successful', `Congratulations! Your account has been upgraded to ${rank} VIP status. You now earn a daily investment return and enjoy all ${rank} benefits.`, 'UPGRADE', 'SUCCESS']);
-        try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]);
-            if (u) Emails.vipUpgrade(u.email, u.username, rank);
-        } catch (e) {}
+        const uVIP = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
+        if (uVIP) await sendUserEmail(req.user.id, () => Emails.vipUpgrade(uVIP.email, uVIP.username, rank));
         res.json({ msg: `Successfully upgraded to ${rank}!` });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1399,13 +1387,11 @@ app.post('/api/admin/kyc/approve', authenticateAdmin, async (req, res) => {
         if (!sub) return res.status(404).json({ msg: 'Submission not found' });
         await dbRun('UPDATE kyc_submissions SET status = ?, reviewed_at = NOW() WHERE id = ?', ['APPROVED', kyc_id]);
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['APPROVED', sub.user_id]);
-        try {
-            const u = await dbGet('SELECT email, username, phone FROM users WHERE id = ?', [sub.user_id]);
-            if (u) {
-                Emails.kycApproved(u.email, u.username);
-                Telegram.notifyKycApproved(sub, u).catch(() => {});
-            }
-        } catch(e) {}
+        const uKA = await dbGet('SELECT email, username, phone FROM users WHERE id = ?', [sub.user_id]).catch(() => null);
+        if (uKA) {
+            await sendUserEmail(sub.user_id, () => Emails.kycApproved(uKA.email, uKA.username));
+            Telegram.notifyKycApproved(sub, uKA).catch(() => {});
+        }
         res.json({ msg: 'KYC approved' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1418,10 +1404,8 @@ app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
         const rejReason = reason || 'Did not meet requirements';
         await dbRun('UPDATE kyc_submissions SET status = ?, rejection_reason = ?, reviewed_at = NOW() WHERE id = ?', ['REJECTED', rejReason, kyc_id]);
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['REJECTED', sub.user_id]);
-        try {
-            const u = await dbGet('SELECT email, username FROM users WHERE id = ?', [sub.user_id]);
-            if (u) Emails.kycRejected(u.email, u.username, rejReason);
-        } catch(e) {}
+        const uKR = await dbGet('SELECT email, username FROM users WHERE id = ?', [sub.user_id]).catch(() => null);
+        if (uKR) await sendUserEmail(sub.user_id, () => Emails.kycRejected(uKR.email, uKR.username, rejReason));
         res.json({ msg: 'KYC rejected' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1656,6 +1640,20 @@ function isHardBounce(err) {
     const code = err.responseCode || 0;
     return code >= 550 || msg.includes('user unknown') || msg.includes('does not exist') ||
         msg.includes('no such user') || msg.includes('invalid address') || msg.includes('mailbox not found');
+}
+
+// Wrap any user-targeted email send — auto-flags the user on hard bounce
+async function sendUserEmail(userId, emailFn) {
+    try {
+        await emailFn();
+    } catch (err) {
+        if (isHardBounce(err)) {
+            await pool.query('UPDATE users SET email_invalid = 1 WHERE id = $1', [userId]).catch(() => {});
+            console.warn(`[EMAIL] Hard bounce — user #${userId} email flagged as invalid`);
+        } else {
+            console.error(`[EMAIL] Delivery failed for user #${userId}:`, err.message);
+        }
+    }
 }
 
 app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {

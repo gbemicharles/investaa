@@ -1197,14 +1197,21 @@ function renderUsers(users) {
     tbody.innerHTML = '';
     users.forEach(u => {
         const vipColor  = vipColors[u.vip_rank] || '#94a3b8';
-        const isBanned  = u.is_banned === 1 || u.is_banned === true;
-        const isAdmin   = u.is_admin  === 1 || u.is_admin  === true;
+        const isBanned     = u.is_banned    === 1 || u.is_banned    === true;
+        const isAdmin      = u.is_admin     === 1 || u.is_admin     === true;
+        const isEmailBad   = u.email_invalid === 1 || u.email_invalid === true;
         const roleLabel = isAdmin
             ? '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:700;">ADMIN</span>'
             : '<span style="background:rgba(255,255,255,0.05);color:var(--text-muted);padding:2px 8px;border-radius:4px;font-size:0.75rem;">USER</span>';
         const banLabel  = isBanned
             ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;margin-left:5px;">BANNED</span>'
             : '';
+        const emailCell = isEmailBad
+            ? `<td style="padding:11px 12px;">
+                 <span style="color:#f59e0b;">${u.email}</span>
+                 <span title="Hard bounce — email undeliverable" style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:4px;font-size:0.7rem;font-weight:700;margin-left:5px;cursor:default;">⚠ INVALID</span>
+               </td>`
+            : `<td style="padding:11px 12px;color:var(--text-muted);">${u.email}</td>`;
         const row = document.createElement('tr');
         row.id = `user-row-${u.id}`;
         row.style.cssText = `border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.2s;${isBanned?'opacity:0.55;':''}`;
@@ -1213,7 +1220,7 @@ function renderUsers(users) {
         row.innerHTML = `
             <td style="padding:11px 12px;color:var(--text-muted);font-size:0.8rem;">#${u.id}</td>
             <td style="padding:11px 12px;font-weight:600;">${u.username}${banLabel}</td>
-            <td style="padding:11px 12px;color:var(--text-muted);">${u.email}</td>
+            ${emailCell}
             <td style="padding:11px 12px;color:var(--text-muted);white-space:nowrap;">${u.phone||'—'}</td>
             <td style="padding:11px 12px;color:var(--text-muted);">${u.country||'—'}</td>
             <td style="padding:11px 12px;color:var(--accent-primary);font-weight:600;">$${u.balance.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
@@ -1237,6 +1244,9 @@ function renderUsers(users) {
                     ${!isAdmin ? `<button onclick="adminDeleteUser(${u.id},'${u.username}')" title="Delete user"
                         style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(239,68,68,0.15);color:#f87171;">
                         <i class="fas fa-trash-alt"></i> Delete</button>` : ''}
+                    ${isEmailBad ? `<button onclick="adminClearEmailFlag(${u.id})" title="Clear invalid email flag"
+                        style="padding:5px 10px;font-size:0.75rem;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:rgba(245,158,11,0.15);color:#f59e0b;">
+                        <i class="fas fa-envelope-open"></i> Fix Email</button>` : ''}
                 </div>
             </td>`;
         tbody.appendChild(row);
@@ -1273,6 +1283,13 @@ async function adminDeleteUser(userId, username) {
     if (!confirm(`⚠️ Permanently delete "${username}"?\n\nThis erases their account, all transactions, KYC records, and notifications. This CANNOT be undone.`)) return;
     if (!confirm(`Final confirmation: delete "${username}" forever?`)) return;
     const res = await API.deleteUser(userId); alert(res.msg); loadUsers();
+}
+async function adminClearEmailFlag(userId) {
+    const token = localStorage.getItem('token');
+    const r = await fetch(`/api/admin/users/${userId}/clear-email-flag`, { method: 'POST', headers: { 'x-auth-token': token } });
+    const res = await r.json();
+    alert(res.msg);
+    loadUsers();
 }
 async function adminMakeAdmin(userId, username) {
     if (!confirm(`Promote "${username}" to Admin? They will have full access to this admin panel.`)) return;
