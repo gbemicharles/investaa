@@ -1,28 +1,45 @@
 const nodemailer = require('nodemailer');
 
-const FROM_NAME = 'InvestAA';
-const FROM_EMAIL = process.env.GMAIL_USER;
 const APP_NAME = 'InvestAA';
-const SUPPORT_EMAIL = process.env.GMAIL_USER || 'investaa.pro@gmail.com';
-const APP_URL = process.env.APP_URL || 'https://investaa.site';
+const APP_URL  = process.env.APP_URL || 'https://investaa.site';
 
-let transporter = null;
+// Primary: Hostinger custom domain email
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.hostinger.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465', 10);
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
 
-function getTransporter() {
-    if (transporter) return transporter;
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        console.warn('[MAILER] Email disabled — GMAIL_USER and GMAIL_APP_PASSWORD not set.');
-        return null;
-    }
-    transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.GMAIL_USER,
-            pass: process.env.GMAIL_APP_PASSWORD.replace(/\s+/g, ''),
-        },
+// Fallback: Gmail (used automatically if Hostinger is unavailable)
+const GMAIL_USER = process.env.GMAIL_USER || '';
+const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD || '';
+
+const FROM_NAME    = APP_NAME;
+const FROM_EMAIL   = SMTP_USER || GMAIL_USER;
+const SUPPORT_EMAIL = SMTP_USER || GMAIL_USER || 'support@investaa.site';
+
+function makePrimaryTransporter() {
+    if (!SMTP_USER || !SMTP_PASS) return null;
+    return nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_PORT === 465,
+        auth: { user: SMTP_USER, pass: SMTP_PASS },
     });
-    return transporter;
 }
+
+function makeFallbackTransporter() {
+    if (!GMAIL_USER || !GMAIL_PASS) return null;
+    return nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: GMAIL_USER, pass: GMAIL_PASS.replace(/\s+/g, '') },
+    });
+}
+
+// Lazy singletons
+let _primary  = undefined;
+let _fallback = undefined;
+function getPrimary()  { if (_primary  === undefined) _primary  = makePrimaryTransporter();  return _primary;  }
+function getFallback() { if (_fallback === undefined) _fallback = makeFallbackTransporter(); return _fallback; }
 
 function wrap(title, bodyHtml, ctaText, ctaUrl) {
     const cta = ctaText && ctaUrl
@@ -53,20 +70,38 @@ function wrap(title, bodyHtml, ctaText, ctaUrl) {
 }
 
 async function sendMail(to, subject, html, opts = {}) {
-    const t = getTransporter();
-    if (!t || !to) return;
-    try {
-        await t.sendMail({
-            from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-            to,
-            subject,
-            html,
-            text: opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim(),
-            ...(opts.headers ? { headers: opts.headers } : {}),
-        });
-        console.log(`[MAILER] Sent "${subject}" → ${to}`);
-    } catch (err) {
-        console.error(`[MAILER] Failed to send "${subject}" to ${to}:`, err.message);
+    if (!to) return;
+    const msg = {
+        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+        to,
+        subject,
+        html,
+        text: opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim(),
+        ...(opts.headers ? { headers: opts.headers } : {}),
+    };
+    const primary  = getPrimary();
+    const fallback = getFallback();
+    if (!primary && !fallback) {
+        console.warn('[MAILER] No email credentials configured — email skipped.');
+        return;
+    }
+    if (primary) {
+        try {
+            await primary.sendMail(msg);
+            console.log(`[MAILER] Sent via Hostinger: "${subject}" → ${to}`);
+            return;
+        } catch (err) {
+            console.warn(`[MAILER] Hostinger failed (${err.message}) — trying Gmail fallback…`);
+        }
+    }
+    if (fallback) {
+        try {
+            // Rewrite from address to Gmail when falling back
+            await fallback.sendMail({ ...msg, from: `"${FROM_NAME}" <${GMAIL_USER}>` });
+            console.log(`[MAILER] Sent via Gmail fallback: "${subject}" → ${to}`);
+        } catch (err) {
+            console.error(`[MAILER] Both transports failed for "${subject}" to ${to}:`, err.message);
+        }
     }
 }
 
