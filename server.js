@@ -1633,8 +1633,23 @@ app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {
         if (!unique.length) return res.status(400).json({ msg: 'No valid email addresses found. Check formatting.' });
         if (unique.length > 500) return res.status(400).json({ msg: 'Maximum 500 addresses per send. Please split into batches.' });
         const bonus_amount = parseFloat(req.body.bonus_amount) || 0;
-        res.json({ msg: `Outreach queued for ${unique.length} address${unique.length !== 1 ? 'es' : ''}. Emails are sending now.`, sent: unique.length });
-        drip(unique.map(e => ({ email: e })), (u) => Emails.outreachEmail(u.email, subject, body, bonus_amount), `OUTREACH:${subject}`);
+        res.json({ msg: `Outreach queued for ${unique.length} address${unique.length !== 1 ? 'es' : ''}. Sending at a steady pace to maximise deliverability.`, sent: unique.length });
+        // Use 2 s gap for outreach (vs 400 ms for transactional) — reduces burst signals that trigger spam filters
+        (async () => {
+            let sent = 0, failed = 0;
+            for (const email of unique) {
+                try {
+                    await Emails.outreachEmail(email, subject, body, bonus_amount);
+                    sent++;
+                    console.log(`[OUTREACH] ${sent}/${unique.length} → ${email}`);
+                } catch(e) {
+                    failed++;
+                    console.error(`[OUTREACH] Failed → ${email}:`, e.message);
+                }
+                await sleep(2000);
+            }
+            console.log(`[OUTREACH] Complete — sent:${sent} failed:${failed}`);
+        })();
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 

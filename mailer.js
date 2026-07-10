@@ -52,7 +52,7 @@ function wrap(title, bodyHtml, ctaText, ctaUrl) {
 </body></html>`;
 }
 
-async function sendMail(to, subject, html) {
+async function sendMail(to, subject, html, opts = {}) {
     const t = getTransporter();
     if (!t || !to) return;
     try {
@@ -61,6 +61,8 @@ async function sendMail(to, subject, html) {
             to,
             subject,
             html,
+            text: opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim(),
+            ...(opts.headers ? { headers: opts.headers } : {}),
         });
         console.log(`[MAILER] Sent "${subject}" → ${to}`);
     } catch (err) {
@@ -384,7 +386,28 @@ const Emails = {
     </td></tr>
   </table>
 </body></html>`;
-        return sendMail(to, subject, html);
+        const plainText = [
+            subject,
+            '',
+            bodyHtml.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim(),
+            bonusAmount > 0 ? `\n🎁 Welcome Bonus: $${Number(bonusAmount).toLocaleString('en-US', {minimumFractionDigits:2})} — pre-loaded when you register.` : '',
+            '',
+            `Create your free account: ${registerUrl}`,
+            '',
+            '---',
+            `You received this email as part of a promotional outreach from ${APP_NAME}.`,
+            `To opt out, reply with "Unsubscribe" in the subject line.`,
+        ].join('\n');
+
+        return sendMail(to, subject, html, {
+            text: plainText,
+            headers: {
+                'List-Unsubscribe': `<mailto:${SUPPORT_EMAIL}?subject=Unsubscribe>`,
+                'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+                'Precedence': 'bulk',
+                'X-Mailer': `${APP_NAME} Mailer`,
+            },
+        });
     },
 
     reEngagementReminder(to, username, vipRank, daysSince) {
