@@ -170,9 +170,43 @@ async function initDb() {
         await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS body TEXT`);
 
         // Mark any campaigns that were RUNNING or QUEUED when the server last died as INTERRUPTED
-        const interrupted = await pool.query(`UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE status IN ('RUNNING','QUEUED') RETURNING id`);
-        if (interrupted.rowCount > 0) {
-            console.warn(`[CAMPAIGNS] ${interrupted.rowCount} campaign(s) were interrupted by a server restart and marked INTERRUPTED. Use the Resume button in the admin panel to continue them.`);
+        await pool.query(`UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE status IN ('RUNNING','QUEUED')`);
+
+        // Auto-resume any interrupted campaigns that have a stored recipient list
+        const toResume = await pool.query(
+            `SELECT * FROM outreach_campaigns WHERE status='INTERRUPTED' AND recipients IS NOT NULL AND recipients <> '' ORDER BY created_at ASC`
+        );
+        if (toResume.rows.length > 0) {
+            console.log(`[CAMPAIGNS] Auto-resuming ${toResume.rows.length} interrupted campaign(s) after server restart...`);
+            for (const c of toResume.rows) {
+                try {
+                    const allRecipients = JSON.parse(c.recipients);
+                    const alreadySent   = c.sent || 0;
+                    const remaining     = allRecipients.slice(alreadySent);
+                    if (!remaining.length) {
+                        await pool.query("UPDATE outreach_campaigns SET status='COMPLETED' WHERE id=$1", [c.id]);
+                        console.log(`[CAMPAIGNS] Campaign #${c.id} already fully sent — marked COMPLETED.`);
+                        continue;
+                    }
+                    // Re-filter suppressed addresses
+                    const suppRows   = await pool.query('SELECT email FROM outreach_suppressions');
+                    const suppSet    = new Set(suppRows.rows.map(r => r.email.toLowerCase()));
+                    const toSend     = remaining.filter(e => !suppSet.has(e));
+                    const dailyLimit = c.daily_limit || 200;
+                    if (campaignIsRunning) {
+                        await pool.query("UPDATE outreach_campaigns SET status='QUEUED' WHERE id=$1", [c.id]);
+                        pendingCampaignQueue.push({ id: c.id, emails: toSend, subject: c.subject, body: c.body, bonus_amount: parseFloat(c.bonus_amount) || 0, daily_limit: dailyLimit, sent: alreadySent, failed: c.failed || 0 });
+                        console.log(`[CAMPAIGNS] Campaign #${c.id} queued (${toSend.length} remaining, waiting for active campaign to finish).`);
+                    } else {
+                        await pool.query("UPDATE outreach_campaigns SET status='RUNNING' WHERE id=$1", [c.id]);
+                        console.log(`[CAMPAIGNS] Auto-resuming campaign #${c.id} from recipient ${alreadySent + 1} of ${allRecipients.length} (${toSend.length} left to send).`);
+                        runCampaignQueue(c.id, toSend, c.subject, c.body, parseFloat(c.bonus_amount) || 0, dailyLimit, alreadySent, c.failed || 0);
+                    }
+                } catch (resumeErr) {
+                    console.error(`[CAMPAIGNS] Failed to auto-resume campaign #${c.id}:`, resumeErr.message);
+                    await pool.query("UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE id=$1", [c.id]);
+                }
+            }
         }
 
         console.log('PostgreSQL database initialized.');
@@ -1831,7 +1865,7 @@ app.get('/api/admin/email/campaigns', authenticateAdmin, async (req, res) => {
     try {
         const rows = await dbAll(
             `SELECT id, subject, total, sent, failed, suppressed, status, daily_limit, bonus_amount, created_at,
-                    (recipients IS NOT NULL AND recipients <> '') AS has_recipients
+                    CASE WHEN recipients IS NOT NULL AND recipients <> '' THEN 1 ELSE 0 END AS has_recipients
              FROM outreach_campaigns ORDER BY created_at DESC LIMIT 20`,
             []
         );

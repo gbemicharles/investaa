@@ -1541,8 +1541,10 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     async function resumeCampaign(id) {
-        if (!confirm(`Resume Campaign #${id}?\n\nThe campaign will continue from where it left off — recipients already sent to will be skipped automatically.`)) return;
+        if (!confirm(`Resume Campaign #${id}?\n\nThe campaign will continue sending from where it left off. Recipients already sent to will be skipped.`)) return;
         const token = localStorage.getItem('token');
+        const btn = event && event.target;
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
         try {
             const r = await fetch(`/api/admin/email/campaigns/${id}/resume`, {
                 method: 'POST',
@@ -1551,13 +1553,14 @@ window.addEventListener('DOMContentLoaded', () => {
             });
             const res = await r.json();
             if (r.ok) {
-                alert(`✓ ${res.msg}`);
-                loadCampaigns();
+                setTimeout(loadCampaigns, 800);
             } else {
-                alert(`Error: ${res.msg}`);
+                alert(`Could not resume: ${res.msg}`);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> Resume'; }
             }
         } catch(e) {
-            alert('Failed to resume campaign — please try again.');
+            alert('Network error — please try again.');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> Resume'; }
         }
     }
 
