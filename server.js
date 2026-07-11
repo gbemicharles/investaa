@@ -163,6 +163,17 @@ async function initDb() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        // Add recipients column if not already there (safe migration)
+        await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS recipients TEXT`);
+        await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS daily_limit INTEGER DEFAULT 200`);
+        await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS bonus_amount NUMERIC(18,2) DEFAULT 0`);
+        await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS body TEXT`);
+
+        // Mark any campaigns that were RUNNING when the server last died as INTERRUPTED
+        const interrupted = await pool.query(`UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE status='RUNNING' RETURNING id`);
+        if (interrupted.rowCount > 0) {
+            console.warn(`[CAMPAIGNS] ${interrupted.rowCount} campaign(s) were interrupted by a server restart and marked INTERRUPTED. Use the Resume button in the admin panel to continue them.`);
+        }
 
         console.log('PostgreSQL database initialized.');
     } catch (err) {
@@ -1680,10 +1691,10 @@ app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {
         // Shuffle order
         const shuffled = shuffleArray(active);
 
-        // Create campaign record
+        // Create campaign record (store full recipient list + settings for resumability)
         const campRow = await pool.query(
-            'INSERT INTO outreach_campaigns (subject, total, suppressed, status) VALUES ($1, $2, $3, $4) RETURNING id',
-            [subject, shuffled.length, suppressedCount, 'RUNNING']
+            'INSERT INTO outreach_campaigns (subject, total, suppressed, status, recipients, daily_limit, bonus_amount, body) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+            [subject, shuffled.length, suppressedCount, 'RUNNING', JSON.stringify(shuffled), daily_limit, bonus_amount, body]
         );
         const campaignId = campRow.rows[0].id;
 
@@ -1692,42 +1703,84 @@ app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {
             campaign_id: campaignId, total: shuffled.length, suppressed: suppressedCount
         });
 
-        // Smart async queue
-        (async () => {
-            const baseMs = (86400 / daily_limit) * 1000;
-            let sent = 0, failed = 0;
-            for (let i = 0; i < shuffled.length; i++) {
-                const email = shuffled[i];
-                let success = false;
-                for (let attempt = 1; attempt <= 2 && !success; attempt++) {
-                    try {
-                        await Emails.outreachEmail(email, subject, body, bonus_amount);
-                        success = true; sent++;
-                        await pool.query('UPDATE outreach_campaigns SET sent=$1 WHERE id=$2', [sent, campaignId]);
-                        console.log(`[CAMPAIGN #${campaignId}] ${sent}/${shuffled.length} ✓ ${email}`);
-                    } catch (err) {
-                        console.warn(`[CAMPAIGN #${campaignId}] attempt ${attempt} failed for ${email}: ${err.message}`);
-                        if (isHardBounce(err)) {
-                            await pool.query('INSERT INTO outreach_suppressions (email, reason) VALUES ($1,$2) ON CONFLICT (email) DO NOTHING', [email, 'hard_bounce']);
-                            break;
-                        } else if (attempt < 2) {
-                            await sleep(60000); // wait 60s before soft-bounce retry
-                        }
+        runCampaignQueue(campaignId, shuffled, subject, body, bonus_amount, daily_limit, 0, 0);
+    } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+// Shared campaign queue runner (used by both new campaigns and resumes)
+async function runCampaignQueue(campaignId, emailList, subject, body, bonus_amount, daily_limit, startSent, startFailed) {
+    const baseMs = (86400 / daily_limit) * 1000;
+    let sent = startSent, failed = startFailed;
+    try {
+        for (let i = 0; i < emailList.length; i++) {
+            const email = emailList[i];
+            let success = false;
+            for (let attempt = 1; attempt <= 2 && !success; attempt++) {
+                try {
+                    await Emails.outreachEmail(email, subject, body, bonus_amount);
+                    success = true; sent++;
+                    await pool.query('UPDATE outreach_campaigns SET sent=$1 WHERE id=$2', [sent, campaignId]);
+                    console.log(`[CAMPAIGN #${campaignId}] ${sent}/${startSent + emailList.length} ✓ ${email}`);
+                } catch (err) {
+                    console.warn(`[CAMPAIGN #${campaignId}] attempt ${attempt} failed for ${email}: ${err.message}`);
+                    if (isHardBounce(err)) {
+                        await pool.query('INSERT INTO outreach_suppressions (email, reason) VALUES ($1,$2) ON CONFLICT (email) DO NOTHING', [email, 'hard_bounce']);
+                        break;
+                    } else if (attempt < 2) {
+                        await sleep(60000);
                     }
                 }
-                if (!success) {
-                    failed++;
-                    await pool.query('UPDATE outreach_campaigns SET failed=$1 WHERE id=$2', [failed, campaignId]);
-                }
-                if (i < shuffled.length - 1) {
-                    // Random jitter ±30% around base interval
-                    const jitter = (Math.random() * 0.6 - 0.3) * baseMs;
-                    await sleep(Math.max(5000, Math.round(baseMs + jitter)));
-                }
             }
-            await pool.query("UPDATE outreach_campaigns SET status='COMPLETED' WHERE id=$1", [campaignId]);
-            console.log(`[CAMPAIGN #${campaignId}] Done — sent:${sent} failed:${failed} suppressed:${suppressedCount}`);
-        })();
+            if (!success) {
+                failed++;
+                await pool.query('UPDATE outreach_campaigns SET failed=$1 WHERE id=$2', [failed, campaignId]);
+            }
+            if (i < emailList.length - 1) {
+                const jitter = (Math.random() * 0.6 - 0.3) * baseMs;
+                await sleep(Math.max(5000, Math.round(baseMs + jitter)));
+            }
+        }
+        await pool.query("UPDATE outreach_campaigns SET status='COMPLETED' WHERE id=$1", [campaignId]);
+        console.log(`[CAMPAIGN #${campaignId}] Done — sent:${sent} failed:${failed}`);
+    } catch (err) {
+        console.error(`[CAMPAIGN #${campaignId}] Queue error:`, err.message);
+        await pool.query("UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE id=$1", [campaignId]);
+    }
+}
+
+// Resume an interrupted campaign from where it left off
+app.post('/api/admin/email/campaigns/:id/resume', authenticateAdmin, async (req, res) => {
+    try {
+        const campRow = await pool.query('SELECT * FROM outreach_campaigns WHERE id=$1', [req.params.id]);
+        if (!campRow.rows.length) return res.status(404).json({ msg: 'Campaign not found.' });
+        const c = campRow.rows[0];
+        if (c.status === 'RUNNING') return res.status(400).json({ msg: 'Campaign is already running.' });
+        if (c.status === 'COMPLETED') return res.status(400).json({ msg: 'Campaign already completed.' });
+        if (!c.recipients) return res.status(400).json({ msg: 'No recipient list stored — please start a new campaign.' });
+
+        const allRecipients = JSON.parse(c.recipients);
+        const alreadySent   = c.sent || 0;
+        const remaining     = allRecipients.slice(alreadySent); // skip already-sent ones
+
+        if (!remaining.length) {
+            await pool.query("UPDATE outreach_campaigns SET status='COMPLETED' WHERE id=$1", [c.id]);
+            return res.json({ msg: 'All recipients already sent to — campaign marked completed.' });
+        }
+
+        // Re-filter suppressed in case new entries were added since original send
+        const suppressedRows = await dbAll('SELECT email FROM outreach_suppressions', []);
+        const suppressedSet  = new Set(suppressedRows.map(r => r.email.toLowerCase()));
+        const toSend = remaining.filter(e => !suppressedSet.has(e));
+
+        const daily_limit = Math.max(10, Math.min(parseInt(req.body.daily_limit) || c.daily_limit || 200, 500));
+        await pool.query("UPDATE outreach_campaigns SET status='RUNNING', daily_limit=$1 WHERE id=$2", [daily_limit, c.id]);
+
+        res.json({
+            msg: `Campaign #${c.id} resumed — ${toSend.length} remaining recipients queued (${alreadySent} already sent). Sending ~${daily_limit}/day.`,
+            campaign_id: c.id, remaining: toSend.length, already_sent: alreadySent
+        });
+
+        runCampaignQueue(c.id, toSend, c.subject, c.body, parseFloat(c.bonus_amount) || 0, daily_limit, alreadySent, c.failed || 0);
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
