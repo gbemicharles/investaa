@@ -1829,7 +1829,12 @@ app.post('/api/admin/email/campaigns/:id/resume', authenticateAdmin, async (req,
 
 app.get('/api/admin/email/campaigns', authenticateAdmin, async (req, res) => {
     try {
-        const rows = await dbAll('SELECT * FROM outreach_campaigns ORDER BY created_at DESC LIMIT 20', []);
+        const rows = await dbAll(
+            `SELECT id, subject, total, sent, failed, suppressed, status, daily_limit, bonus_amount, created_at,
+                    (recipients IS NOT NULL AND recipients <> '') AS has_recipients
+             FROM outreach_campaigns ORDER BY created_at DESC LIMIT 20`,
+            []
+        );
         res.json({ campaigns: rows });
     } catch(e) { res.status(500).json({ msg: 'Server error' }); }
 });
