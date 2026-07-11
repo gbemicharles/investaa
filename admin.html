@@ -1456,11 +1456,16 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!campaigns || !campaigns.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">No campaigns yet.</p>'; return; }
             el.innerHTML = campaigns.map(c => {
                 const pct = c.total > 0 ? Math.round(((c.sent + c.failed) / c.total) * 100) : 0;
-                const statusColor = c.status === 'COMPLETED' ? '#10b981' : c.status === 'INTERRUPTED' ? '#ef4444' : '#f59e0b';
-                const statusIcon  = c.status === 'COMPLETED' ? 'fa-check-circle' : c.status === 'INTERRUPTED' ? 'fa-exclamation-circle' : 'fa-spinner fa-spin';
-                const barColor    = c.status === 'INTERRUPTED' ? '#ef4444' : '#10b981';
+                const statusColor = c.status === 'COMPLETED' ? '#10b981' : c.status === 'INTERRUPTED' ? '#ef4444' : c.status === 'QUEUED' ? '#6366f1' : '#f59e0b';
+                const statusIcon  = c.status === 'COMPLETED' ? 'fa-check-circle' : c.status === 'INTERRUPTED' ? 'fa-exclamation-circle' : c.status === 'QUEUED' ? 'fa-hourglass-half' : 'fa-spinner fa-spin';
+                const barColor    = c.status === 'INTERRUPTED' ? '#ef4444' : c.status === 'QUEUED' ? '#6366f1' : '#10b981';
                 const resumeBtn   = c.status === 'INTERRUPTED'
                     ? `<button onclick="resumeCampaign(${c.id})" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-play"></i> Resume</button>`
+                    : '';
+                const statusNote  = c.status === 'INTERRUPTED'
+                    ? `<div style="font-size:0.75rem;color:#f87171;margin-bottom:6px;">⚠ Server restarted mid-campaign — click Resume to continue from recipient ${c.sent + 1}.</div>`
+                    : c.status === 'QUEUED'
+                    ? `<div style="font-size:0.75rem;color:#a5b4fc;margin-bottom:6px;">⏳ Waiting in queue — will start automatically once the active campaign finishes.</div>`
                     : '';
                 return `<div style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;">
@@ -1473,7 +1478,7 @@ window.addEventListener('DOMContentLoaded', () => {
                             <span style="color:${statusColor};font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="fas ${statusIcon}"></i> ${c.status}</span>
                         </div>
                     </div>
-                    ${c.status === 'INTERRUPTED' ? `<div style="font-size:0.75rem;color:#f87171;margin-bottom:6px;">⚠ Server restarted mid-campaign — click Resume to continue from recipient ${c.sent + 1}.</div>` : ''}
+                    ${statusNote}
                     <div style="background:rgba(255,255,255,0.06);border-radius:6px;height:6px;margin-bottom:6px;overflow:hidden;">
                         <div style="background:${barColor};height:100%;width:${pct}%;border-radius:6px;transition:width 0.4s;"></div>
                     </div>
