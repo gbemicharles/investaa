@@ -1653,7 +1653,7 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch(e) { console.error('loadSuppression:', e); }
     }
 
-    async function addSuppression() {
+    window.addSuppression = async function addSuppression() {
         const email = document.getElementById('suppress-add-email').value.trim();
         if (!email) return;
         const token = localStorage.getItem('token');
@@ -1662,14 +1662,14 @@ window.addEventListener('DOMContentLoaded', () => {
         alert(res.msg);
         document.getElementById('suppress-add-email').value = '';
         loadSuppression();
-    }
+    };
 
-    async function removeSuppression(email) {
+    window.removeSuppression = async function removeSuppression(email) {
         if (!confirm(`Remove "${email}" from suppression list?`)) return;
         const token = localStorage.getItem('token');
         await fetch('/api/admin/email/suppression/remove', { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':token}, body: JSON.stringify({ email }) });
         loadSuppression();
-    }
+    };
 
     window.resumeCampaign = async function resumeCampaign(id) {
         if (!confirm(`Resume Campaign #${id}?\n\nThe campaign will continue sending from where it left off. Recipients already sent to will be skipped.`)) return;
