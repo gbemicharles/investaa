@@ -1459,20 +1459,25 @@ window.addEventListener('DOMContentLoaded', () => {
                 const failPct  = c.total > 0 ? Math.round((c.failed / c.total) * 100) : 0;
                 const remaining = Math.max(0, c.total - c.sent - c.failed);
                 const canResume = c.status === 'INTERRUPTED' && c.has_recipients;
+                const canStop   = c.status === 'RUNNING';
 
                 const statusColor = { COMPLETED:'#10b981', INTERRUPTED:'#ef4444', QUEUED:'#6366f1', RUNNING:'#f59e0b' }[c.status] || '#f59e0b';
                 const statusIcon  = { COMPLETED:'fa-check-circle', INTERRUPTED:'fa-exclamation-circle', QUEUED:'fa-hourglass-half', RUNNING:'fa-spinner fa-spin' }[c.status] || 'fa-circle';
 
-                const actionBtn = canResume
+                const actionBtn = canStop
+                    ? `<button onclick="stopCampaign(${c.id}, this)" style="background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-stop"></i> Stop</button>`
+                    : canResume
                     ? `<button onclick="resumeCampaign(${c.id})" style="background:linear-gradient(135deg,#f59e0b,#f97316);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-play"></i> Resume</button>`
                     : '';
 
-                const statusNote = c.status === 'INTERRUPTED'
+                const statusNote = c.status === 'RUNNING'
+                    ? `<div style="font-size:0.75rem;color:#fbbf24;background:rgba(245,158,11,0.07);border-left:3px solid #f59e0b;padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:8px;">Sending now — ${Math.max(0, c.total - c.sent - c.failed)} recipients remaining. Hit Stop to pause; the next queued campaign will start automatically.</div>`
+                    : c.status === 'INTERRUPTED'
                     ? (canResume
-                        ? `<div style="font-size:0.75rem;color:#f87171;background:rgba(239,68,68,0.07);border-left:3px solid #ef4444;padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:8px;">Server restart interrupted this campaign at recipient ${c.sent}/${c.total}. Click Resume to continue.</div>`
-                        : `<div style="font-size:0.75rem;color:#94a3b8;background:rgba(255,255,255,0.04);border-left:3px solid #475569;padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:8px;">This campaign was interrupted and cannot be auto-resumed (it predates recipient tracking). Please create a new campaign.</div>`)
+                        ? `<div style="font-size:0.75rem;color:#f87171;background:rgba(239,68,68,0.07);border-left:3px solid #ef4444;padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:8px;">Paused at recipient ${c.sent}/${c.total}. Click Resume to continue, or it will auto-resume on the next server start.</div>`
+                        : `<div style="font-size:0.75rem;color:#94a3b8;background:rgba(255,255,255,0.04);border-left:3px solid #475569;padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:8px;">Interrupted — recipient list not stored (predates tracking). Please start a new campaign.</div>`)
                     : c.status === 'QUEUED'
-                    ? `<div style="font-size:0.75rem;color:#a5b4fc;background:rgba(99,102,241,0.07);border-left:3px solid #6366f1;padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:8px;">In queue — will start automatically when the active campaign finishes.</div>`
+                    ? `<div style="font-size:0.75rem;color:#a5b4fc;background:rgba(99,102,241,0.07);border-left:3px solid #6366f1;padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:8px;">In queue — starts automatically when the active campaign finishes or is stopped.</div>`
                     : '';
 
                 const barSegments = `
@@ -1561,6 +1566,29 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch(e) {
             alert('Network error — please try again.');
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> Resume'; }
+        }
+    }
+
+    async function stopCampaign(id, btn) {
+        if (!confirm(`Stop Campaign #${id}?\n\nSending will pause after the current email finishes. The next queued campaign (if any) will start automatically. You can resume this one later.`)) return;
+        const token = localStorage.getItem('token');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+        try {
+            const r = await fetch(`/api/admin/email/campaigns/${id}/stop`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                body: JSON.stringify({})
+            });
+            const res = await r.json();
+            if (r.ok) {
+                setTimeout(loadCampaigns, 2000);
+            } else {
+                alert(`Could not stop: ${res.msg}`);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-stop"></i> Stop'; }
+            }
+        } catch(e) {
+            alert('Network error — please try again.');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-stop"></i> Stop'; }
         }
     }
 

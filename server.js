@@ -1673,8 +1673,9 @@ app.get('/api/public/activity', async (req, res) => {
 
 // --- Smart Outreach Queue helpers ---
 // ── Campaign queue state ────────────────────────────────────────────────────
-let campaignIsRunning = false;          // true while one campaign is actively sending
-let pendingCampaignQueue = [];          // waiting campaigns: [{ id, emails, subject, body, bonus_amount, daily_limit, sent, failed }]
+let campaignIsRunning     = false;  // true while one campaign is actively sending
+let campaignStopRequested = false;  // set to true by the stop endpoint; cleared when campaign stops
+let pendingCampaignQueue  = [];     // waiting campaigns: [{ id, emails, subject, body, bonus_amount, daily_limit, sent, failed }]
 
 function startNextQueued() {
     if (campaignIsRunning || pendingCampaignQueue.length === 0) return;
@@ -1768,13 +1769,32 @@ app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
+// Interruptible sleep — wakes every second to check the stop flag
+async function sleepInterruptible(ms) {
+    const tick = 1000;
+    let elapsed = 0;
+    while (elapsed < ms) {
+        if (campaignStopRequested) return;
+        await sleep(Math.min(tick, ms - elapsed));
+        elapsed += tick;
+    }
+}
+
 // Shared campaign queue runner (used by both new campaigns and resumes)
 async function runCampaignQueue(campaignId, emailList, subject, body, bonus_amount, daily_limit, startSent, startFailed) {
-    campaignIsRunning = true;
+    campaignIsRunning     = true;
+    campaignStopRequested = false;
     const baseMs = (86400 / daily_limit) * 1000;
     let sent = startSent, failed = startFailed;
+    let stoppedManually = false;
     try {
         for (let i = 0; i < emailList.length; i++) {
+            // Check stop flag before each send
+            if (campaignStopRequested) {
+                stoppedManually = true;
+                console.log(`[CAMPAIGN #${campaignId}] Stop requested — pausing at recipient ${sent + 1}.`);
+                break;
+            }
             const email = emailList[i];
             let success = false;
             for (let attempt = 1; attempt <= 2 && !success; attempt++) {
@@ -1789,7 +1809,7 @@ async function runCampaignQueue(campaignId, emailList, subject, body, bonus_amou
                         await pool.query('INSERT INTO outreach_suppressions (email, reason) VALUES ($1,$2) ON CONFLICT (email) DO NOTHING', [email, 'hard_bounce']);
                         break;
                     } else if (attempt < 2) {
-                        await sleep(60000);
+                        await sleepInterruptible(60000);
                     }
                 }
             }
@@ -1799,17 +1819,23 @@ async function runCampaignQueue(campaignId, emailList, subject, body, bonus_amou
             }
             if (i < emailList.length - 1) {
                 const jitter = (Math.random() * 0.6 - 0.3) * baseMs;
-                await sleep(Math.max(5000, Math.round(baseMs + jitter)));
+                await sleepInterruptible(Math.max(5000, Math.round(baseMs + jitter)));
             }
         }
-        await pool.query("UPDATE outreach_campaigns SET status='COMPLETED' WHERE id=$1", [campaignId]);
-        console.log(`[CAMPAIGN #${campaignId}] Done — sent:${sent} failed:${failed}`);
+        if (stoppedManually) {
+            await pool.query("UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE id=$1", [campaignId]);
+            console.log(`[CAMPAIGN #${campaignId}] Stopped manually — sent:${sent} failed:${failed}. Can be resumed.`);
+        } else {
+            await pool.query("UPDATE outreach_campaigns SET status='COMPLETED' WHERE id=$1", [campaignId]);
+            console.log(`[CAMPAIGN #${campaignId}] Done — sent:${sent} failed:${failed}`);
+        }
     } catch (err) {
         console.error(`[CAMPAIGN #${campaignId}] Queue error:`, err.message);
         await pool.query("UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE id=$1", [campaignId]);
     } finally {
-        campaignIsRunning = false;
-        startNextQueued(); // automatically kick off next queued campaign if any
+        campaignIsRunning     = false;
+        campaignStopRequested = false;
+        startNextQueued(); // auto-start next queued campaign (even after a manual stop)
     }
 }
 
@@ -1858,6 +1884,19 @@ app.post('/api/admin/email/campaigns/:id/resume', authenticateAdmin, async (req,
         });
 
         runCampaignQueue(c.id, toSend, c.subject, c.body, parseFloat(c.bonus_amount) || 0, daily_limit, alreadySent, c.failed || 0);
+    } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+// Stop a running campaign (marks INTERRUPTED, auto-starts next queued)
+app.post('/api/admin/email/campaigns/:id/stop', authenticateAdmin, async (req, res) => {
+    try {
+        const campRow = await pool.query('SELECT id, status FROM outreach_campaigns WHERE id=$1', [req.params.id]);
+        if (!campRow.rows.length) return res.status(404).json({ msg: 'Campaign not found.' });
+        const c = campRow.rows[0];
+        if (c.status !== 'RUNNING') return res.status(400).json({ msg: `Campaign is not currently running (status: ${c.status}).` });
+        if (!campaignIsRunning) return res.status(400).json({ msg: 'No campaign is actively running right now.' });
+        campaignStopRequested = true;
+        res.json({ msg: `Campaign #${c.id} will stop after the current email finishes sending. The next queued campaign (if any) will start automatically.` });
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
