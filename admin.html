@@ -1464,10 +1464,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 const statusColor = { COMPLETED:'#10b981', INTERRUPTED:'#ef4444', QUEUED:'#6366f1', RUNNING:'#f59e0b' }[c.status] || '#f59e0b';
                 const statusIcon  = { COMPLETED:'fa-check-circle', INTERRUPTED:'fa-exclamation-circle', QUEUED:'fa-hourglass-half', RUNNING:'fa-spinner fa-spin' }[c.status] || 'fa-circle';
 
+                const canExtend = c.status === 'COMPLETED';
+
                 const actionBtn = canStop
                     ? `<button onclick="stopCampaign(${c.id}, this)" style="background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-stop"></i> Stop</button>`
                     : canResume
                     ? `<button onclick="resumeCampaign(${c.id})" style="background:linear-gradient(135deg,#f59e0b,#f97316);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-play"></i> Resume</button>`
+                    : canExtend
+                    ? `<button onclick="openExtendModal(${c.id}, ${JSON.stringify(c.subject)}, ${c.daily_limit || 200})" style="background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-plus"></i> Extend</button>`
                     : '';
 
                 const statusNote = c.status === 'RUNNING'
@@ -1566,6 +1570,45 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch(e) {
             alert('Network error — please try again.');
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> Resume'; }
+        }
+    }
+
+    function openExtendModal(id, subject, defaultLimit) {
+        document.getElementById('extend-campaign-id').value    = id;
+        document.getElementById('extend-daily-limit').value    = defaultLimit || 200;
+        document.getElementById('extend-emails').value         = '';
+        document.getElementById('extend-modal-title').textContent = `Extend Campaign #${id}`;
+        document.getElementById('extend-modal-subject').textContent = subject;
+        document.getElementById('extend-modal').style.display = 'flex';
+        document.getElementById('extend-emails').focus();
+    }
+
+    async function submitExtend() {
+        const id          = document.getElementById('extend-campaign-id').value;
+        const emails      = document.getElementById('extend-emails').value.trim();
+        const daily_limit = document.getElementById('extend-daily-limit').value;
+        const btn         = document.getElementById('extend-submit-btn');
+        if (!emails) { alert('Please paste at least one email address.'); return; }
+        const token = localStorage.getItem('token');
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+        try {
+            const r = await fetch(`/api/admin/email/campaigns/${id}/extend`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                body: JSON.stringify({ emails, daily_limit })
+            });
+            const res = await r.json();
+            if (r.ok) {
+                document.getElementById('extend-modal').style.display = 'none';
+                alert(`✓ ${res.msg}`);
+                loadCampaigns();
+            } else {
+                alert(`Error: ${res.msg}`);
+            }
+        } catch(e) {
+            alert('Network error — please try again.');
+        } finally {
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
         }
     }
 
@@ -1690,5 +1733,27 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+<!-- Extend Campaign Modal -->
+<div id="extend-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.08);border-radius:16px;width:100%;max-width:520px;padding:28px;position:relative;">
+        <button onclick="document.getElementById('extend-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#64748b;font-size:1.2rem;cursor:pointer;line-height:1;"><i class="fas fa-times"></i></button>
+        <h3 id="extend-modal-title" style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#f8fafc;"></h3>
+        <p id="extend-modal-subject" style="margin:0 0 20px;font-size:0.8rem;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></p>
+        <input type="hidden" id="extend-campaign-id">
+
+        <label style="display:block;font-size:0.78rem;font-weight:600;color:#94a3b8;margin-bottom:6px;letter-spacing:0.3px;">NEW RECIPIENTS</label>
+        <textarea id="extend-emails" rows="7" placeholder="Paste email addresses here — one per line, or comma/semicolon separated" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#f8fafc;font-size:0.85rem;padding:12px;resize:vertical;font-family:inherit;line-height:1.5;"></textarea>
+        <p style="margin:5px 0 18px;font-size:0.73rem;color:#475569;">Addresses already on the suppression list are skipped automatically.</p>
+
+        <label style="display:block;font-size:0.78rem;font-weight:600;color:#94a3b8;margin-bottom:6px;letter-spacing:0.3px;">DAILY LIMIT</label>
+        <input id="extend-daily-limit" type="number" min="10" max="500" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#f8fafc;font-size:0.9rem;padding:10px 14px;margin-bottom:20px;">
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button onclick="document.getElementById('extend-modal').style.display='none'" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:9px 18px;border-radius:9px;cursor:pointer;font-size:0.85rem;font-weight:600;">Cancel</button>
+            <button id="extend-submit-btn" onclick="submitExtend()" style="background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;color:#fff;padding:9px 22px;border-radius:9px;cursor:pointer;font-size:0.85rem;font-weight:700;"><i class="fas fa-paper-plane"></i> Send</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
