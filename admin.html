@@ -1554,7 +1554,7 @@ window.addEventListener('DOMContentLoaded', () => {
         loadSuppression();
     }
 
-    async function resumeCampaign(id) {
+    window.resumeCampaign = async function resumeCampaign(id) {
         if (!confirm(`Resume Campaign #${id}?\n\nThe campaign will continue sending from where it left off. Recipients already sent to will be skipped.`)) return;
         const token = localStorage.getItem('token');
         const btn = event && event.target;
@@ -1578,7 +1578,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function openExtendModal(id) {
+    window.openExtendModal = function openExtendModal(id) {
         const c = window._campaignMap[id] || {};
         document.getElementById('extend-campaign-id').value    = id;
         document.getElementById('extend-daily-limit').value    = c.daily_limit || 200;
@@ -1589,7 +1589,7 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('extend-emails').focus();
     }
 
-    async function submitExtend() {
+    window.submitExtend = async function submitExtend() {
         const id          = document.getElementById('extend-campaign-id').value;
         const emails      = document.getElementById('extend-emails').value.trim();
         const daily_limit = document.getElementById('extend-daily-limit').value;
@@ -1618,7 +1618,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function stopCampaign(id, btn) {
+    window.stopCampaign = async function stopCampaign(id, btn) {
         if (!confirm(`Stop Campaign #${id}?\n\nSending will pause after the current email finishes. The next queued campaign (if any) will start automatically. You can resume this one later.`)) return;
         const token = localStorage.getItem('token');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
