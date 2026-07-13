@@ -623,18 +623,57 @@
                 </div>
             </div>
 
-            <!-- Email Health Check -->
-            <div class="card glass" style="padding:22px 28px;margin-bottom:24px;border-left:4px solid #3b82f6;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
-                <div>
-                    <h3 style="margin:0 0 4px;color:#3b82f6;font-size:1rem;"><i class="fas fa-stethoscope"></i> Email Health Check</h3>
-                    <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">Sends a test email to your admin address to confirm Gmail is connected and working.</p>
+            <!-- Email Routing & Health -->
+            <div class="card glass" style="padding:24px 28px;margin-bottom:24px;border-left:4px solid #3b82f6;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+                    <div>
+                        <h3 style="margin:0 0 3px;color:#3b82f6;font-size:1rem;"><i class="fas fa-route"></i> Email Routing</h3>
+                        <p style="color:var(--text-muted);font-size:0.83rem;margin:0;">Choose which email provider sends your mail. Setting persists across restarts.</p>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                        <button id="test-email-btn" class="btn primary" style="background:#3b82f6;border:none;padding:10px 20px;border-radius:10px;white-space:nowrap;font-size:0.85rem;">
+                            <i class="fas fa-vial"></i> Send Test Email
+                        </button>
+                        <div id="test-email-result" style="display:none;font-size:0.8rem;text-align:right;max-width:280px;"></div>
+                    </div>
                 </div>
-                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
-                    <button id="test-email-btn" class="btn primary" style="background:#3b82f6;border:none;padding:11px 24px;border-radius:10px;white-space:nowrap;">
-                        <i class="fas fa-vial"></i> Send Test Email
+
+                <!-- Mode selector -->
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">
+                    <button class="mailer-mode-btn" data-mode="auto" onclick="setMailerMode('auto')"
+                        style="padding:12px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;text-align:center;">
+                        <div style="font-size:1.2rem;margin-bottom:4px;">🔄</div>
+                        <div style="font-size:0.8rem;font-weight:700;color:#f8fafc;">Auto</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">Hostinger → Gmail</div>
                     </button>
-                    <div id="test-email-result" style="display:none;font-size:0.82rem;text-align:right;"></div>
+                    <button class="mailer-mode-btn" data-mode="hostinger" onclick="setMailerMode('hostinger')"
+                        style="padding:12px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;text-align:center;">
+                        <div style="font-size:1.2rem;margin-bottom:4px;">🟠</div>
+                        <div style="font-size:0.8rem;font-weight:700;color:#f8fafc;">Hostinger Only</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">No Gmail fallback</div>
+                    </button>
+                    <button class="mailer-mode-btn" data-mode="gmail" onclick="setMailerMode('gmail')"
+                        style="padding:12px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;text-align:center;">
+                        <div style="font-size:1.2rem;margin-bottom:4px;">📧</div>
+                        <div style="font-size:0.8rem;font-weight:700;color:#f8fafc;">Gmail Only</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">Skip Hostinger</div>
+                    </button>
                 </div>
+
+                <!-- Transport status row -->
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <div id="mailer-status-hostinger" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 14px;font-size:0.8rem;">
+                        <span id="mailer-dot-hostinger" style="width:8px;height:8px;border-radius:50%;background:#64748b;flex-shrink:0;"></span>
+                        <span style="color:#94a3b8;">Hostinger: </span>
+                        <span id="mailer-label-hostinger" style="color:#f8fafc;font-weight:600;">—</span>
+                    </div>
+                    <div id="mailer-status-gmail" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 14px;font-size:0.8rem;">
+                        <span id="mailer-dot-gmail" style="width:8px;height:8px;border-radius:50%;background:#64748b;flex-shrink:0;"></span>
+                        <span style="color:#94a3b8;">Gmail: </span>
+                        <span id="mailer-label-gmail" style="color:#f8fafc;font-weight:600;">—</span>
+                    </div>
+                </div>
+                <div id="mailer-mode-result" style="display:none;margin-top:12px;font-size:0.82rem;"></div>
             </div>
 
             <!-- KYC Reminder -->
@@ -1303,6 +1342,52 @@ async function adminRemoveAdmin(userId, username) {
 // ════════════════════════════════════════════
 //  Email Centre
 // ════════════════════════════════════════════
+async function loadMailerStatus() {
+    try {
+        const token = localStorage.getItem('token');
+        const r = await fetch('/api/admin/email/mailer-status', { headers: { 'x-auth-token': token } });
+        const data = await r.json();
+        if (!data.ok) return;
+
+        // Update transport status dots
+        const setDot = (id, ok) => {
+            document.getElementById(`mailer-dot-${id}`).style.background = ok ? '#22c55e' : '#ef4444';
+            document.getElementById(`mailer-label-${id}`).textContent = ok ? 'Configured' : 'Not configured';
+        };
+        setDot('hostinger', data.hostinger);
+        setDot('gmail', data.gmail);
+
+        // Highlight active mode button
+        document.querySelectorAll('.mailer-mode-btn').forEach(btn => {
+            const active = btn.dataset.mode === data.mode;
+            btn.style.borderColor   = active ? '#3b82f6' : 'rgba(255,255,255,0.08)';
+            btn.style.background    = active ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)';
+        });
+    } catch(e) { /* silent */ }
+}
+
+window.setMailerMode = async function setMailerMode(mode) {
+    const token = localStorage.getItem('token');
+    const result = document.getElementById('mailer-mode-result');
+    try {
+        const r = await fetch('/api/admin/email/mailer-mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            body: JSON.stringify({ mode })
+        });
+        const data = await r.json();
+        result.style.display  = 'block';
+        result.style.color    = data.ok ? '#22c55e' : '#ef4444';
+        result.textContent    = data.msg;
+        if (data.ok) loadMailerStatus();
+        setTimeout(() => { result.style.display = 'none'; }, 4000);
+    } catch(e) {
+        result.style.display = 'block';
+        result.style.color   = '#ef4444';
+        result.textContent   = 'Request failed: ' + e.message;
+    }
+};
+
 document.getElementById('test-email-btn').addEventListener('click', async function() {
     const btn = this;
     const result = document.getElementById('test-email-result');
@@ -1719,9 +1804,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Auto-load campaign history when Email Centre tab is opened
+    // Auto-load campaign history + mailer status when Email Centre tab is opened
     document.querySelectorAll('[data-page="email"]').forEach(el => el.addEventListener('click', () => {
-        setTimeout(() => { loadCampaigns(); loadSuppression(); }, 100);
+        setTimeout(() => { loadCampaigns(); loadSuppression(); loadMailerStatus(); }, 100);
     }));
 
     // Broadcast button

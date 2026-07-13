@@ -41,6 +41,23 @@ let _fallback = undefined;
 function getPrimary()  { if (_primary  === undefined) _primary  = makePrimaryTransporter();  return _primary;  }
 function getFallback() { if (_fallback === undefined) _fallback = makeFallbackTransporter(); return _fallback; }
 
+// Mailer mode: 'auto' (Hostinger → Gmail fallback) | 'hostinger' | 'gmail'
+let _mailerMode = 'auto';
+function setMailerMode(mode) {
+    if (['auto','hostinger','gmail'].includes(mode)) {
+        _mailerMode = mode;
+        console.log(`[MAILER] Mode set to "${mode}"`);
+    }
+}
+function getMailerMode() { return _mailerMode; }
+function getMailerStatus() {
+    return {
+        mode: _mailerMode,
+        hostinger: !!(SMTP_USER && SMTP_PASS),
+        gmail:     !!(GMAIL_USER && GMAIL_PASS),
+    };
+}
+
 // Invisible padding to stop email clients pulling body text into the inbox preview after the preheader
 const PREHEADER_PAD = ('&nbsp;&#8203;').repeat(90);
 
@@ -129,10 +146,11 @@ async function sendMail(to, subject, html, opts = {}) {
         text: opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim(),
         ...(opts.headers ? { headers: opts.headers } : {}),
     };
-    const primary  = getPrimary();
-    const fallback = getFallback();
+    const mode     = _mailerMode;
+    const primary  = (mode === 'gmail')      ? null : getPrimary();
+    const fallback = (mode === 'hostinger')  ? null : getFallback();
     if (!primary && !fallback) {
-        console.warn('[MAILER] No email credentials configured — email skipped.');
+        console.warn(`[MAILER] No transport available in mode "${mode}" — email skipped.`);
         return;
     }
     if (primary) {
@@ -141,15 +159,19 @@ async function sendMail(to, subject, html, opts = {}) {
             console.log(`[MAILER] Sent via Hostinger: "${subject}" → ${to}`);
             return;
         } catch (err) {
+            if (mode === 'hostinger') {
+                console.error(`[MAILER] Hostinger failed (mode=hostinger, no fallback): ${err.message}`);
+                throw err;
+            }
             console.warn(`[MAILER] Hostinger failed (${err.message}) — trying Gmail fallback…`);
         }
     }
     if (fallback) {
         try {
             await fallback.sendMail({ ...msg, from: `"${FROM_NAME}" <${GMAIL_USER}>` });
-            console.log(`[MAILER] Sent via Gmail fallback: "${subject}" → ${to}`);
+            console.log(`[MAILER] Sent via Gmail: "${subject}" → ${to}`);
         } catch (err) {
-            console.error(`[MAILER] Both transports failed for "${subject}" to ${to}:`, err.message);
+            console.error(`[MAILER] Gmail failed for "${subject}" to ${to}: ${err.message}`);
             throw err;
         }
     }
@@ -706,5 +728,9 @@ const Emails = {
             ));
     },
 };
+
+Emails.setMailerMode  = setMailerMode;
+Emails.getMailerMode  = getMailerMode;
+Emails.getMailerStatus = getMailerStatus;
 
 module.exports = Emails;

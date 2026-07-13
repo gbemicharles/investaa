@@ -169,6 +169,19 @@ async function initDb() {
         await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS bonus_amount NUMERIC(18,2) DEFAULT 0`);
         await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS body TEXT`);
 
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        `);
+
+        // Load persisted mailer mode
+        const mailerModeSetting = await pool.query(`SELECT value FROM app_settings WHERE key='mailer_mode'`);
+        if (mailerModeSetting.rows.length > 0) {
+            Emails.setMailerMode(mailerModeSetting.rows[0].value);
+        }
+
         // Mark any campaigns that were RUNNING or QUEUED when the server last died as INTERRUPTED
         await pool.query(`UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE status IN ('RUNNING','QUEUED')`);
 
@@ -1456,15 +1469,40 @@ app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
 });
 
 // --- Email Centre ---
+app.get('/api/admin/email/mailer-status', authenticateAdmin, (req, res) => {
+    res.json({ ok: true, ...Emails.getMailerStatus() });
+});
+
+app.post('/api/admin/email/mailer-mode', authenticateAdmin, async (req, res) => {
+    const { mode } = req.body;
+    if (!['auto','hostinger','gmail'].includes(mode)) {
+        return res.status(400).json({ ok: false, msg: 'Invalid mode. Use: auto, hostinger, or gmail.' });
+    }
+    Emails.setMailerMode(mode);
+    try {
+        await pool.query(
+            `INSERT INTO app_settings (key, value) VALUES ('mailer_mode', $1)
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+            [mode]
+        );
+    } catch (e) {
+        console.error('[MAILER-MODE]', e.message);
+    }
+    res.json({ ok: true, mode, msg: `Mailer mode set to "${mode}".` });
+});
+
 app.post('/api/admin/email/test', authenticateAdmin, async (req, res) => {
     try {
-        const admin = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]);
-        if (!admin || !admin.email) return res.status(400).json({ ok: false, msg: 'No email on your admin account.' });
-        if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-            return res.status(500).json({ ok: false, msg: 'GMAIL_USER or GMAIL_APP_PASSWORD secret is missing from environment.' });
-        }
-        await Emails.securityAlert(admin.email, admin.username, 'Test email fired from the Admin Email Centre — if you received this, email is working correctly.');
-        res.json({ ok: true, msg: `Test email sent to ${admin.email}. Check your inbox (and spam folder).` });
+        const admin = await pool.query('SELECT email, username FROM users WHERE id = $1', [req.user.id]);
+        const a = admin.rows[0];
+        if (!a || !a.email) return res.status(400).json({ ok: false, msg: 'No email on your admin account.' });
+        const status = Emails.getMailerStatus();
+        const mode   = status.mode;
+        if (mode === 'hostinger' && !status.hostinger) return res.status(500).json({ ok: false, msg: 'Hostinger credentials (SMTP_USER/SMTP_PASS) are not configured.' });
+        if (mode === 'gmail'     && !status.gmail)     return res.status(500).json({ ok: false, msg: 'Gmail credentials (GMAIL_USER/GMAIL_APP_PASSWORD) are not configured.' });
+        if (mode === 'auto' && !status.hostinger && !status.gmail) return res.status(500).json({ ok: false, msg: 'No email credentials configured in environment.' });
+        await Emails.securityAlert(a.email, a.username, 'Test email fired from the Admin Email Centre — if you received this, email is working correctly.');
+        res.json({ ok: true, msg: `Test email sent to ${a.email} via ${mode === 'auto' ? 'auto (Hostinger → Gmail)' : mode}. Check your inbox.` });
     } catch (e) {
         console.error('[EMAIL-TEST]', e);
         res.status(500).json({ ok: false, msg: e.message });
