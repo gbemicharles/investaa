@@ -1887,6 +1887,51 @@ app.post('/api/admin/email/campaigns/:id/resume', authenticateAdmin, async (req,
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
+// Extend a completed campaign — reuse same subject/body/bonus, send to new recipients
+app.post('/api/admin/email/campaigns/:id/extend', authenticateAdmin, async (req, res) => {
+    try {
+        const campRow = await pool.query('SELECT * FROM outreach_campaigns WHERE id=$1', [req.params.id]);
+        if (!campRow.rows.length) return res.status(404).json({ msg: 'Campaign not found.' });
+        const orig = campRow.rows[0];
+
+        const { emails, daily_limit: rawLimit } = req.body;
+        if (!emails) return res.status(400).json({ msg: 'No emails provided.' });
+        const rawList = typeof emails === 'string' ? emails : emails.join('\n');
+        const parsed  = rawList.split(/[\n,;]+/).map(e => e.trim().toLowerCase())
+            .filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+        const unique = [...new Set(parsed)];
+        if (!unique.length) return res.status(400).json({ msg: 'No valid email addresses found.' });
+        if (unique.length > 500) return res.status(400).json({ msg: 'Maximum 500 addresses per send. Split into batches.' });
+
+        const daily_limit = Math.max(10, Math.min(parseInt(rawLimit) || orig.daily_limit || 200, 500));
+
+        // Filter suppressed
+        const suppRows  = await pool.query('SELECT email FROM outreach_suppressions');
+        const suppSet   = new Set(suppRows.rows.map(r => r.email.toLowerCase()));
+        const active    = unique.filter(e => !suppSet.has(e));
+        const suppCount = unique.length - active.length;
+        if (!active.length) return res.status(400).json({ msg: 'All addresses are on the suppression list.' });
+
+        const shuffled = shuffleArray(active);
+        const willQueue = campaignIsRunning;
+        const newStatus = willQueue ? 'QUEUED' : 'RUNNING';
+
+        const newCamp = await pool.query(
+            'INSERT INTO outreach_campaigns (subject, total, suppressed, status, recipients, daily_limit, bonus_amount, body) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+            [orig.subject, shuffled.length, suppCount, newStatus, JSON.stringify(shuffled), daily_limit, orig.bonus_amount, orig.body]
+        );
+        const newId = newCamp.rows[0].id;
+
+        if (willQueue) {
+            pendingCampaignQueue.push({ id: newId, emails: shuffled, subject: orig.subject, body: orig.body, bonus_amount: parseFloat(orig.bonus_amount) || 0, daily_limit, sent: 0, failed: 0 });
+            return res.json({ msg: `Campaign #${newId} queued — ${shuffled.length} new recipients${suppCount ? `, ${suppCount} suppressed` : ''}. Starts when the active campaign finishes.`, campaign_id: newId, queued: true });
+        }
+
+        res.json({ msg: `Campaign #${newId} started — ${shuffled.length} new recipients${suppCount ? `, ${suppCount} suppressed` : ''}. Sending ~${daily_limit}/day.`, campaign_id: newId });
+        runCampaignQueue(newId, shuffled, orig.subject, orig.body, parseFloat(orig.bonus_amount) || 0, daily_limit, 0, 0);
+    } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
 // Stop a running campaign (marks INTERRUPTED, auto-starts next queued)
 app.post('/api/admin/email/campaigns/:id/stop', authenticateAdmin, async (req, res) => {
     try {
