@@ -1961,6 +1961,34 @@ app.get('/api/admin/email/campaigns', authenticateAdmin, async (req, res) => {
     } catch(e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
+// Get remaining (unsent) recipients for a campaign
+app.get('/api/admin/email/campaigns/:id/recipients', authenticateAdmin, async (req, res) => {
+    try {
+        const campRow = await pool.query('SELECT sent, recipients, status, total FROM outreach_campaigns WHERE id=$1', [req.params.id]);
+        if (!campRow.rows.length) return res.status(404).json({ msg: 'Campaign not found.' });
+        const c = campRow.rows[0];
+        if (!c.recipients) return res.status(400).json({ msg: 'No recipient list stored for this campaign.' });
+        const all      = JSON.parse(c.recipients);
+        const alreadySent = c.sent || 0;
+        const remaining   = all.slice(alreadySent);
+        res.json({ total: all.length, sent: alreadySent, remaining: remaining.length, emails: remaining });
+    } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
+// Delete a campaign record (only COMPLETED or INTERRUPTED — cannot delete active ones)
+app.delete('/api/admin/email/campaigns/:id', authenticateAdmin, async (req, res) => {
+    try {
+        const campRow = await pool.query('SELECT id, status FROM outreach_campaigns WHERE id=$1', [req.params.id]);
+        if (!campRow.rows.length) return res.status(404).json({ msg: 'Campaign not found.' });
+        const c = campRow.rows[0];
+        if (!['COMPLETED', 'INTERRUPTED'].includes(c.status)) {
+            return res.status(400).json({ msg: `Cannot delete a ${c.status} campaign — stop it first.` });
+        }
+        await pool.query('DELETE FROM outreach_campaigns WHERE id=$1', [c.id]);
+        res.json({ msg: `Campaign #${c.id} deleted.` });
+    } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
+});
+
 app.get('/api/admin/email/suppression', authenticateAdmin, async (req, res) => {
     try {
         const list = await dbAll('SELECT * FROM outreach_suppressions ORDER BY created_at DESC', []);

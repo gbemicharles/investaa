@@ -1469,15 +1469,23 @@ window.addEventListener('DOMContentLoaded', () => {
                 const statusColor = { COMPLETED:'#10b981', INTERRUPTED:'#ef4444', QUEUED:'#6366f1', RUNNING:'#f59e0b' }[c.status] || '#f59e0b';
                 const statusIcon  = { COMPLETED:'fa-check-circle', INTERRUPTED:'fa-exclamation-circle', QUEUED:'fa-hourglass-half', RUNNING:'fa-spinner fa-spin' }[c.status] || 'fa-circle';
 
-                const canExtend = c.status === 'COMPLETED';
+                const canExtend     = c.status === 'COMPLETED';
+                const canViewEmails = c.has_recipients && ['RUNNING','INTERRUPTED','QUEUED'].includes(c.status);
+                const canDelete     = ['COMPLETED','INTERRUPTED'].includes(c.status);
 
-                const actionBtn = canStop
+                const primaryBtn = canStop
                     ? `<button onclick="stopCampaign(${c.id}, this)" style="background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-stop"></i> Stop</button>`
                     : canResume
                     ? `<button onclick="resumeCampaign(${c.id})" style="background:linear-gradient(135deg,#f59e0b,#f97316);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-play"></i> Resume</button>`
                     : canExtend
                     ? `<button onclick="openExtendModal(${c.id})" style="background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-plus"></i> Extend</button>`
                     : '';
+
+                const actionBtn = [
+                    canViewEmails ? `<button onclick="viewCampaignEmails(${c.id})" title="View unsent emails" style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);color:#a5b4fc;padding:5px 11px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-envelope-open-text"></i> Emails</button>` : '',
+                    primaryBtn,
+                    canDelete ? `<button onclick="deleteCampaign(${c.id}, this)" title="Delete campaign" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#f87171;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:0.75rem;"><i class="fas fa-trash-alt"></i></button>` : ''
+                ].filter(Boolean).join('');
 
                 const statusNote = c.status === 'RUNNING'
                     ? `<div style="font-size:0.75rem;color:#fbbf24;background:rgba(245,158,11,0.07);border-left:3px solid #f59e0b;padding:6px 10px;border-radius:0 6px 6px 0;margin-bottom:8px;">Sending now — ${Math.max(0, c.total - c.sent - c.failed)} recipients remaining. Hit Stop to pause; the next queued campaign will start automatically.</div>`
@@ -1618,6 +1626,52 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    window.viewCampaignEmails = async function viewCampaignEmails(id) {
+        const token = localStorage.getItem('token');
+        const modal = document.getElementById('emails-modal');
+        const area  = document.getElementById('emails-modal-body');
+        const title = document.getElementById('emails-modal-title');
+        title.textContent = `Campaign #${id} — Unsent Emails`;
+        area.value = 'Loading…';
+        modal.style.display = 'flex';
+        try {
+            const r   = await fetch(`/api/admin/email/campaigns/${id}/recipients`, { headers: { 'x-auth-token': token } });
+            const res = await r.json();
+            if (!r.ok) { area.value = `Error: ${res.msg}`; return; }
+            document.getElementById('emails-modal-count').textContent = `${res.remaining} unsent of ${res.total} total`;
+            area.value = res.emails.join('\n');
+        } catch(e) { area.value = 'Network error — please try again.'; }
+    };
+
+    window.copyEmailsToClipboard = async function copyEmailsToClipboard() {
+        const area = document.getElementById('emails-modal-body');
+        try {
+            await navigator.clipboard.writeText(area.value);
+            const btn = document.getElementById('copy-emails-btn');
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> Copy All'; }, 2000);
+        } catch(e) { area.select(); document.execCommand('copy'); }
+    };
+
+    window.deleteCampaign = async function deleteCampaign(id, btn) {
+        if (!confirm(`Delete Campaign #${id}?\n\nThis permanently removes it from the history. This cannot be undone.`)) return;
+        const token = localStorage.getItem('token');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+        try {
+            const r   = await fetch(`/api/admin/email/campaigns/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
+            const res = await r.json();
+            if (r.ok) {
+                loadCampaigns();
+            } else {
+                alert(`Could not delete: ${res.msg}`);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash-alt"></i>'; }
+            }
+        } catch(e) {
+            alert('Network error — please try again.');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash-alt"></i>'; }
+        }
+    };
+
     window.stopCampaign = async function stopCampaign(id, btn) {
         if (!confirm(`Stop Campaign #${id}?\n\nSending will pause after the current email finishes. The next queued campaign (if any) will start automatically. You can resume this one later.`)) return;
         const token = localStorage.getItem('token');
@@ -1739,6 +1793,20 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+<!-- View Emails Modal -->
+<div id="emails-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.08);border-radius:16px;width:100%;max-width:540px;padding:28px;position:relative;">
+        <button onclick="document.getElementById('emails-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#64748b;font-size:1.2rem;cursor:pointer;line-height:1;"><i class="fas fa-times"></i></button>
+        <h3 id="emails-modal-title" style="margin:0 0 2px;font-size:1rem;font-weight:700;color:#f8fafc;"></h3>
+        <p id="emails-modal-count" style="margin:0 0 14px;font-size:0.78rem;color:#64748b;"></p>
+        <textarea id="emails-modal-body" rows="12" readonly style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#e2e8f0;font-size:0.82rem;padding:12px;resize:vertical;font-family:monospace;line-height:1.6;"></textarea>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+            <button onclick="document.getElementById('emails-modal').style.display='none'" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:9px 18px;border-radius:9px;cursor:pointer;font-size:0.85rem;font-weight:600;">Close</button>
+            <button id="copy-emails-btn" onclick="copyEmailsToClipboard()" style="background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;color:#fff;padding:9px 22px;border-radius:9px;cursor:pointer;font-size:0.85rem;font-weight:700;"><i class="fas fa-copy"></i> Copy All</button>
+        </div>
+    </div>
+</div>
+
 <!-- Extend Campaign Modal -->
 <div id="extend-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:16px;">
     <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.08);border-radius:16px;width:100%;max-width:520px;padding:28px;position:relative;">
