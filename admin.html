@@ -1447,6 +1447,8 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    window._campaignMap = {};
+
     async function loadCampaigns() {
         const token = localStorage.getItem('token');
         try {
@@ -1454,6 +1456,9 @@ window.addEventListener('DOMContentLoaded', () => {
             const { campaigns } = await r.json();
             const el = document.getElementById('campaign-list');
             if (!campaigns || !campaigns.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">No campaigns yet.</p>'; return; }
+            // Store campaign data for onclick handlers (avoids HTML attribute escaping issues)
+            window._campaignMap = {};
+            campaigns.forEach(c => { window._campaignMap[c.id] = c; });
             el.innerHTML = campaigns.map(c => {
                 const sentPct  = c.total > 0 ? Math.round((c.sent  / c.total) * 100) : 0;
                 const failPct  = c.total > 0 ? Math.round((c.failed / c.total) * 100) : 0;
@@ -1471,7 +1476,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     : canResume
                     ? `<button onclick="resumeCampaign(${c.id})" style="background:linear-gradient(135deg,#f59e0b,#f97316);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-play"></i> Resume</button>`
                     : canExtend
-                    ? `<button onclick="openExtendModal(${c.id}, ${JSON.stringify(c.subject)}, ${c.daily_limit || 200})" style="background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-plus"></i> Extend</button>`
+                    ? `<button onclick="openExtendModal(${c.id})" style="background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:700;white-space:nowrap;"><i class="fas fa-plus"></i> Extend</button>`
                     : '';
 
                 const statusNote = c.status === 'RUNNING'
@@ -1573,12 +1578,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function openExtendModal(id, subject, defaultLimit) {
+    function openExtendModal(id) {
+        const c = window._campaignMap[id] || {};
         document.getElementById('extend-campaign-id').value    = id;
-        document.getElementById('extend-daily-limit').value    = defaultLimit || 200;
+        document.getElementById('extend-daily-limit').value    = c.daily_limit || 200;
         document.getElementById('extend-emails').value         = '';
         document.getElementById('extend-modal-title').textContent = `Extend Campaign #${id}`;
-        document.getElementById('extend-modal-subject').textContent = subject;
+        document.getElementById('extend-modal-subject').textContent = c.subject || '';
         document.getElementById('extend-modal').style.display = 'flex';
         document.getElementById('extend-emails').focus();
     }

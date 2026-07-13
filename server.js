@@ -1939,9 +1939,13 @@ app.post('/api/admin/email/campaigns/:id/stop', authenticateAdmin, async (req, r
         if (!campRow.rows.length) return res.status(404).json({ msg: 'Campaign not found.' });
         const c = campRow.rows[0];
         if (c.status !== 'RUNNING') return res.status(400).json({ msg: `Campaign is not currently running (status: ${c.status}).` });
-        if (!campaignIsRunning) return res.status(400).json({ msg: 'No campaign is actively running right now.' });
+        // Set the stop flag regardless of in-memory state — loop will honour it; if loop already exited, mark interrupted directly
         campaignStopRequested = true;
-        res.json({ msg: `Campaign #${c.id} will stop after the current email finishes sending. The next queued campaign (if any) will start automatically.` });
+        if (!campaignIsRunning) {
+            await pool.query("UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE id=$1 AND status='RUNNING'", [c.id]);
+            startNextQueued();
+        }
+        res.json({ msg: `Campaign #${c.id} stopping — sending will pause after the current email. The next queued campaign (if any) will start automatically.` });
     } catch(e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
 
