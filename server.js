@@ -182,6 +182,18 @@ async function initDb() {
             Emails.setMailerMode(mailerModeSetting.rows[0].value);
         }
 
+        // Register suppression checker — blocks ALL emails (transactional + campaigns) for suppressed addresses
+        Emails.setSuppressionChecker(async (email) => {
+            const e = email.toLowerCase().trim();
+            const r = await pool.query(
+                `SELECT 1 FROM outreach_suppressions WHERE email=$1
+                 UNION ALL
+                 SELECT 1 FROM users WHERE LOWER(email)=$1 AND email_invalid=1
+                 LIMIT 1`, [e]
+            );
+            return r.rows.length > 0;
+        });
+
         // Mark any campaigns that were RUNNING or QUEUED when the server last died as INTERRUPTED
         await pool.query(`UPDATE outreach_campaigns SET status='INTERRUPTED' WHERE status IN ('RUNNING','QUEUED')`);
 
@@ -2038,17 +2050,22 @@ app.post('/api/admin/email/suppression/add', authenticateAdmin, async (req, res)
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ msg: 'Email required.' });
-        await pool.query('INSERT INTO outreach_suppressions (email, reason) VALUES ($1,$2) ON CONFLICT (email) DO NOTHING',
-            [email.toLowerCase().trim(), 'manual']);
-        res.json({ msg: 'Added to suppression list.' });
+        const e = email.toLowerCase().trim();
+        await pool.query('INSERT INTO outreach_suppressions (email, reason) VALUES ($1,$2) ON CONFLICT (email) DO NOTHING', [e, 'manual']);
+        // Also flag the user account so transactional emails are blocked too
+        await pool.query('UPDATE users SET email_invalid=1 WHERE LOWER(email)=$1', [e]);
+        res.json({ msg: 'Added to suppression list. All emails (including transactional) are now blocked for this address.' });
     } catch(e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
 app.post('/api/admin/email/suppression/remove', authenticateAdmin, async (req, res) => {
     try {
         const { email } = req.body;
-        await pool.query('DELETE FROM outreach_suppressions WHERE email=$1', [email.toLowerCase().trim()]);
-        res.json({ msg: 'Removed from suppression list.' });
+        const e = email.toLowerCase().trim();
+        await pool.query('DELETE FROM outreach_suppressions WHERE email=$1', [e]);
+        // Clear the email_invalid flag so transactional emails resume
+        await pool.query('UPDATE users SET email_invalid=0 WHERE LOWER(email)=$1', [e]);
+        res.json({ msg: 'Removed from suppression list. Transactional emails will resume for this address.' });
     } catch(e) { res.status(500).json({ msg: 'Server error' }); }
 });
 

@@ -41,6 +41,11 @@ let _fallback = undefined;
 function getPrimary()  { if (_primary  === undefined) _primary  = makePrimaryTransporter();  return _primary;  }
 function getFallback() { if (_fallback === undefined) _fallback = makeFallbackTransporter(); return _fallback; }
 
+// Suppression checker — registered by server.js at startup
+// Signature: async (email: string) => boolean  (true = suppressed, skip send)
+let _suppressionChecker = null;
+function setSuppressionChecker(fn) { _suppressionChecker = fn; }
+
 // Mailer mode: 'auto' (Hostinger → Gmail fallback) | 'hostinger' | 'gmail'
 let _mailerMode = 'auto';
 function setMailerMode(mode) {
@@ -146,6 +151,19 @@ async function sendMail(to, subject, html, opts = {}) {
         text: opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim(),
         ...(opts.headers ? { headers: opts.headers } : {}),
     };
+    // Check suppression list before sending
+    if (_suppressionChecker) {
+        try {
+            const suppressed = await _suppressionChecker(to);
+            if (suppressed) {
+                console.log(`[MAILER] Skipped (suppressed): "${subject}" → ${to}`);
+                return;
+            }
+        } catch (e) {
+            console.warn(`[MAILER] Suppression check failed for ${to}: ${e.message}`);
+        }
+    }
+
     const mode     = _mailerMode;
     const primary  = (mode === 'gmail')      ? null : getPrimary();
     const fallback = (mode === 'hostinger')  ? null : getFallback();
@@ -729,8 +747,9 @@ const Emails = {
     },
 };
 
-Emails.setMailerMode  = setMailerMode;
-Emails.getMailerMode  = getMailerMode;
-Emails.getMailerStatus = getMailerStatus;
+Emails.setMailerMode       = setMailerMode;
+Emails.getMailerMode       = getMailerMode;
+Emails.getMailerStatus     = getMailerStatus;
+Emails.setSuppressionChecker = setSuppressionChecker;
 
 module.exports = Emails;
