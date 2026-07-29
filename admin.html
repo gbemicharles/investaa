@@ -570,6 +570,9 @@
                     <button id="btn-penalty-apply" onclick="applyPenalty(this)" style="padding:9px 20px;font-size:0.85rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:rgba(239,68,68,0.15);color:#f87171;">
                         <i class="fas fa-bolt"></i> Apply 1% Penalty
                     </button>
+                    <span id="penalty-cooldown-badge" style="display:none;padding:5px 12px;border-radius:6px;font-size:0.8rem;font-weight:700;background:rgba(100,116,139,0.15);color:#94a3b8;">
+                        <i class="fas fa-clock"></i> <span id="penalty-cooldown-timer">—</span>
+                    </span>
                     <span id="penalty-result" style="font-size:0.82rem;color:var(--text-muted);"></span>
                 </div>
 
@@ -889,7 +892,7 @@ function showPage(pageId, btn) {
     if (pageId === 'deposits')    loadPending();
     if (pageId === 'withdrawals') loadWithdrawals();
     if (pageId === 'kyc')        { loadKyc(); loadVerifiedKyc(); }
-    if (pageId === 'users')       loadUsers();
+    if (pageId === 'users')       { loadUsers(); checkPenaltyCooldown(); }
 }
 
 function refreshAll() {
@@ -1484,6 +1487,7 @@ async function applyPenalty(btn) {
             result.textContent = `✓ Penalty applied to ${res.applied} users instantly. Sending ${res.emailTotal} emails in background batches of 10…`;
             loadUsers();
             loadInactiveUsers();
+            checkPenaltyCooldown();
             startEmailProgressPolling(token, '📧 Sending penalty emails in batches…');
         } else {
             result.style.color = '#f87171';
@@ -1497,6 +1501,57 @@ async function applyPenalty(btn) {
         applyBtn.disabled = false; applyBtn.innerHTML = '<i class="fas fa-bolt"></i> Apply 1% Penalty';
         warnBtn.disabled  = false;
     }
+}
+
+// ── Penalty Cooldown ────────────────────────────────────────
+let _penaltyCooldownInterval = null;
+
+function formatCooldownTime(ms) {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s until next penalty`;
+}
+
+async function checkPenaltyCooldown() {
+    const token    = localStorage.getItem('token');
+    const badge    = document.getElementById('penalty-cooldown-badge');
+    const timer    = document.getElementById('penalty-cooldown-timer');
+    const applyBtn = document.getElementById('btn-penalty-apply');
+    if (!badge || !applyBtn) return;
+
+    try {
+        const r   = await fetch('/api/admin/users/penalty-cooldown', { headers: { 'x-auth-token': token } });
+        const res = await r.json();
+
+        if (_penaltyCooldownInterval) { clearInterval(_penaltyCooldownInterval); _penaltyCooldownInterval = null; }
+
+        if (res.onCooldown) {
+            let remaining = res.remainingMs;
+            applyBtn.disabled = true;
+            applyBtn.title    = 'Cooldown active — wait 24 hours between penalty runs.';
+            badge.style.display = 'inline-flex';
+            timer.textContent   = formatCooldownTime(remaining);
+
+            _penaltyCooldownInterval = setInterval(() => {
+                remaining -= 1000;
+                if (remaining <= 0) {
+                    clearInterval(_penaltyCooldownInterval);
+                    _penaltyCooldownInterval = null;
+                    badge.style.display = 'none';
+                    applyBtn.disabled   = false;
+                    applyBtn.title      = '';
+                    timer.textContent   = '';
+                } else {
+                    timer.textContent = formatCooldownTime(remaining);
+                }
+            }, 1000);
+        } else {
+            badge.style.display = 'none';
+            applyBtn.disabled   = false;
+            applyBtn.title      = '';
+        }
+    } catch(_) {}
 }
 
 async function adminToggleBan(userId, currentlyBanned) {

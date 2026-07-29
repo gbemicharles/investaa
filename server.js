@@ -2182,9 +2182,39 @@ app.post('/api/admin/users/penalty-warn', authenticateAdmin, async (req, res) =>
     }
 });
 
+const PENALTY_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// GET: cooldown status for the penalty apply button
+app.get('/api/admin/users/penalty-cooldown', authenticateAdmin, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT value FROM app_settings WHERE key='penalty_last_applied' LIMIT 1`);
+        if (!r.rows.length) return res.json({ onCooldown: false, lastApplied: null, remainingMs: 0 });
+        const lastApplied = new Date(r.rows[0].value).getTime();
+        const elapsed     = Date.now() - lastApplied;
+        const remaining   = Math.max(0, PENALTY_COOLDOWN_MS - elapsed);
+        res.json({ onCooldown: remaining > 0, lastApplied: r.rows[0].value, remainingMs: remaining });
+    } catch(e) {
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 // POST: apply 1% penalty instantly to DB, then send emails in background batches
 app.post('/api/admin/users/penalty-apply', authenticateAdmin, async (req, res) => {
     if (emailJob.active) return res.status(409).json({ msg: 'An email job is already running. Check progress above.' });
+
+    // 24-hour cooldown check
+    try {
+        const r = await pool.query(`SELECT value FROM app_settings WHERE key='penalty_last_applied' LIMIT 1`);
+        if (r.rows.length) {
+            const elapsed = Date.now() - new Date(r.rows[0].value).getTime();
+            if (elapsed < PENALTY_COOLDOWN_MS) {
+                const remaining = PENALTY_COOLDOWN_MS - elapsed;
+                const hrs  = Math.floor(remaining / 3600000);
+                const mins = Math.floor((remaining % 3600000) / 60000);
+                return res.status(429).json({ msg: `Cooldown active — next penalty available in ${hrs}h ${mins}m.`, onCooldown: true, remainingMs: remaining });
+            }
+        }
+    } catch(e) { /* non-fatal — proceed */ }
     try {
         const result = await pool.query(`
             SELECT u.id, u.username, u.email, u.balance,
@@ -2225,9 +2255,16 @@ app.post('/api/admin/users/penalty-apply', authenticateAdmin, async (req, res) =
             }
         }
 
+        // Stamp the cooldown timestamp
+        await pool.query(
+            `INSERT INTO app_settings (key, value) VALUES ('penalty_last_applied', $1)
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+            [new Date().toISOString()]
+        );
+
         emailJob.type = 'apply';
         // Respond immediately with DB result
-        res.json({ ok: true, applied, dbFailed, total: users.length, emailTotal: emailQueue.length });
+        res.json({ ok: true, applied, dbFailed, total: users.length, emailTotal: emailQueue.length, lastApplied: new Date().toISOString() });
 
         // Background batch emails (no await)
         runEmailBatch(emailQueue, u => Emails.penaltyApplied(u.email, u.username, u.penalty, u.newBalance, u.daysInactive), 'PENALTY-APPLY').catch(console.error);
