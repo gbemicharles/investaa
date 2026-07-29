@@ -2104,8 +2104,51 @@ app.get('/api/admin/users/inactive', authenticateAdmin, async (req, res) => {
     }
 });
 
-// POST: send warning emails to all inactive users
+// In-memory email job tracker (survives across requests, resets on restart)
+const emailJob = { active: false, type: '', total: 0, sent: 0, failed: 0, done: false, startedAt: null };
+
+const BATCH_SIZE  = 10;   // emails per batch
+const BATCH_PAUSE = 30000; // ms between batches (30 s)
+
+async function runEmailBatch(users, emailFn, label) {
+    emailJob.active    = true;
+    emailJob.done      = false;
+    emailJob.total     = users.length;
+    emailJob.sent      = 0;
+    emailJob.failed    = 0;
+    emailJob.startedAt = Date.now();
+
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        const batch = users.slice(i, i + BATCH_SIZE);
+        for (const u of batch) {
+            try {
+                await emailFn(u);
+                emailJob.sent++;
+            } catch(e) {
+                console.error(`[${label}] Failed → ${u.email}:`, e.message);
+                emailJob.failed++;
+            }
+            await new Promise(r => setTimeout(r, 1500)); // 1.5 s between individual emails
+        }
+        // Pause between batches (skip after last batch)
+        if (i + BATCH_SIZE < users.length) {
+            console.log(`[${label}] Batch done — waiting ${BATCH_PAUSE / 1000}s before next batch…`);
+            await new Promise(r => setTimeout(r, BATCH_PAUSE));
+        }
+    }
+    emailJob.done   = true;
+    emailJob.active = false;
+    console.log(`[${label}] Email job complete — sent:${emailJob.sent} failed:${emailJob.failed}`);
+}
+
+// GET: live email job progress
+app.get('/api/admin/users/penalty-email-status', authenticateAdmin, (req, res) => {
+    res.json({ ...emailJob });
+});
+
+// POST: send warning emails to all inactive users (background batches)
 app.post('/api/admin/users/penalty-warn', authenticateAdmin, async (req, res) => {
+    if (emailJob.active) return res.status(409).json({ msg: 'An email job is already running. Check progress above.' });
     try {
         const result = await pool.query(`
             SELECT u.id, u.username, u.email,
@@ -2120,30 +2163,28 @@ app.post('/api/admin/users/penalty-warn', authenticateAdmin, async (req, res) =>
             HAVING MAX(d.created_at) IS NULL
                 OR MAX(d.created_at) < NOW() - INTERVAL '${PENALTY_DAYS} days'
         `);
-        const users = result.rows;
-        let sent = 0, failed = 0;
-        for (const u of users) {
-            const daysInactive = u.last_deposit_at
+        const users = result.rows.map(u => ({
+            ...u,
+            daysInactive: u.last_deposit_at
                 ? Math.floor((Date.now() - new Date(u.last_deposit_at).getTime()) / 86400000)
-                : PENALTY_DAYS;
-            try {
-                await Emails.penaltyWarning(u.email, u.username, daysInactive);
-                sent++;
-            } catch(e) {
-                console.error(`[PENALTY-WARN] Failed → ${u.email}:`, e.message);
-                failed++;
-            }
-            await new Promise(r => setTimeout(r, 300));
-        }
-        res.json({ ok: true, sent, failed, total: users.length });
+                : PENALTY_DAYS,
+        }));
+
+        emailJob.type = 'warn';
+        // Respond immediately — emails fire in background
+        res.json({ ok: true, total: users.length, msg: `Warning emails queued for ${users.length} users.` });
+
+        // Background batch send (no await)
+        runEmailBatch(users, u => Emails.penaltyWarning(u.email, u.username, u.daysInactive), 'PENALTY-WARN').catch(console.error);
     } catch(e) {
         console.error('[PENALTY-WARN] error:', e);
         res.status(500).json({ msg: 'Server error' });
     }
 });
 
-// POST: apply 1% penalty to all inactive users + send penalty emails
+// POST: apply 1% penalty instantly to DB, then send emails in background batches
 app.post('/api/admin/users/penalty-apply', authenticateAdmin, async (req, res) => {
+    if (emailJob.active) return res.status(409).json({ msg: 'An email job is already running. Check progress above.' });
     try {
         const result = await pool.query(`
             SELECT u.id, u.username, u.email, u.balance,
@@ -2159,7 +2200,10 @@ app.post('/api/admin/users/penalty-apply', authenticateAdmin, async (req, res) =
                 OR MAX(d.created_at) < NOW() - INTERVAL '${PENALTY_DAYS} days'
         `);
         const users = result.rows;
-        let applied = 0, failed = 0;
+
+        // Apply all DB penalties immediately
+        let applied = 0, dbFailed = 0;
+        const emailQueue = [];
         for (const u of users) {
             const penalty    = parseFloat((parseFloat(u.balance) * PENALTY_RATE).toFixed(2));
             const newBalance = parseFloat((parseFloat(u.balance) - penalty).toFixed(2));
@@ -2167,23 +2211,26 @@ app.post('/api/admin/users/penalty-apply', authenticateAdmin, async (req, res) =
                 ? Math.floor((Date.now() - new Date(u.last_deposit_at).getTime()) / 86400000)
                 : PENALTY_DAYS;
             try {
-                await pool.query(
-                    'UPDATE users SET balance = $1 WHERE id = $2',
-                    [newBalance, u.id]
-                );
+                await pool.query('UPDATE users SET balance = $1 WHERE id = $2', [newBalance, u.id]);
                 await pool.query(
                     `INSERT INTO transactions (user_id, type, amount, details, status)
                      VALUES ($1, 'PENALTY', $2, $3, 'COMPLETED')`,
                     [u.id, -penalty, `1% inactivity fee — no deposit in ${daysInactive} days`]
                 );
-                try { await Emails.penaltyApplied(u.email, u.username, penalty, newBalance, daysInactive); } catch(_) {}
+                emailQueue.push({ ...u, penalty, newBalance, daysInactive });
                 applied++;
             } catch(e) {
-                console.error(`[PENALTY-APPLY] Failed → ${u.email}:`, e.message);
-                failed++;
+                console.error(`[PENALTY-APPLY] DB failed → ${u.email}:`, e.message);
+                dbFailed++;
             }
         }
-        res.json({ ok: true, applied, failed, total: users.length });
+
+        emailJob.type = 'apply';
+        // Respond immediately with DB result
+        res.json({ ok: true, applied, dbFailed, total: users.length, emailTotal: emailQueue.length });
+
+        // Background batch emails (no await)
+        runEmailBatch(emailQueue, u => Emails.penaltyApplied(u.email, u.username, u.penalty, u.newBalance, u.daysInactive), 'PENALTY-APPLY').catch(console.error);
     } catch(e) {
         console.error('[PENALTY-APPLY] error:', e);
         res.status(500).json({ msg: 'Server error' });

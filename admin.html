@@ -563,14 +563,26 @@
                     <p id="inactive-count" style="margin:8px 0 0;font-size:0.8rem;color:var(--text-muted);"></p>
                 </div>
 
-                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-                    <button onclick="sendPenaltyWarning(this)" style="padding:9px 20px;font-size:0.85rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:rgba(245,158,11,0.15);color:#f59e0b;">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+                    <button id="btn-penalty-warn" onclick="sendPenaltyWarning(this)" style="padding:9px 20px;font-size:0.85rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:rgba(245,158,11,0.15);color:#f59e0b;">
                         <i class="fas fa-envelope-open-text"></i> Send Warning Emails
                     </button>
-                    <button onclick="applyPenalty(this)" style="padding:9px 20px;font-size:0.85rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:rgba(239,68,68,0.15);color:#f87171;">
+                    <button id="btn-penalty-apply" onclick="applyPenalty(this)" style="padding:9px 20px;font-size:0.85rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:rgba(239,68,68,0.15);color:#f87171;">
                         <i class="fas fa-bolt"></i> Apply 1% Penalty
                     </button>
                     <span id="penalty-result" style="font-size:0.82rem;color:var(--text-muted);"></span>
+                </div>
+
+                <!-- Email batch progress -->
+                <div id="penalty-email-progress" style="display:none;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span id="penalty-progress-label" style="font-size:0.82rem;font-weight:600;color:#f8fafc;"></span>
+                        <span id="penalty-progress-count" style="font-size:0.78rem;color:var(--text-muted);"></span>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.06);border-radius:6px;height:8px;overflow:hidden;">
+                        <div id="penalty-progress-bar" style="height:100%;border-radius:6px;background:linear-gradient(90deg,#f59e0b,#ef4444);transition:width 0.5s ease;width:0%;"></div>
+                    </div>
+                    <p id="penalty-progress-sub" style="margin:6px 0 0;font-size:0.77rem;color:var(--text-muted);">Emails are sent in batches of 10 with a 30-second pause between batches to avoid spam filters.</p>
                 </div>
             </div>
             <div class="card glass" style="padding:24px;">
@@ -1385,56 +1397,106 @@ async function loadInactiveUsers() {
     }
 }
 
+let _penaltyPollInterval = null;
+
+function startEmailProgressPolling(token, labelText) {
+    const wrap  = document.getElementById('penalty-email-progress');
+    const bar   = document.getElementById('penalty-progress-bar');
+    const label = document.getElementById('penalty-progress-label');
+    const count = document.getElementById('penalty-progress-count');
+    const warnBtn  = document.getElementById('btn-penalty-warn');
+    const applyBtn = document.getElementById('btn-penalty-apply');
+
+    wrap.style.display = 'block';
+    label.textContent  = labelText;
+    bar.style.width    = '0%';
+    count.textContent  = 'Starting…';
+
+    if (_penaltyPollInterval) clearInterval(_penaltyPollInterval);
+
+    _penaltyPollInterval = setInterval(async () => {
+        try {
+            const r   = await fetch('/api/admin/users/penalty-email-status', { headers: { 'x-auth-token': token } });
+            const job = await r.json();
+
+            const pct = job.total > 0 ? Math.round((job.sent + job.failed) / job.total * 100) : 0;
+            bar.style.width   = pct + '%';
+            count.textContent = `${job.sent + job.failed} / ${job.total} emails (${job.sent} sent, ${job.failed} failed)`;
+
+            if (job.done) {
+                clearInterval(_penaltyPollInterval);
+                _penaltyPollInterval = null;
+                bar.style.width      = '100%';
+                bar.style.background = job.failed === 0 ? '#22c55e' : 'linear-gradient(90deg,#f59e0b,#ef4444)';
+                label.textContent    = `✓ Done — ${job.sent} emails sent, ${job.failed} failed`;
+                count.textContent    = '';
+                if (warnBtn)  { warnBtn.disabled  = false; warnBtn.innerHTML  = '<i class="fas fa-envelope-open-text"></i> Send Warning Emails'; }
+                if (applyBtn) { applyBtn.disabled = false; applyBtn.innerHTML = '<i class="fas fa-bolt"></i> Apply 1% Penalty'; }
+            }
+        } catch(_) {}
+    }, 2000);
+}
+
 async function sendPenaltyWarning(btn) {
     if (!confirm('Send inactivity warning emails to all users with no deposit in 14+ days?\n\nThis will NOT deduct any balances — it is a warning only.')) return;
     const token  = localStorage.getItem('token');
     const result = document.getElementById('penalty-result');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+    const warnBtn  = document.getElementById('btn-penalty-warn');
+    const applyBtn = document.getElementById('btn-penalty-apply');
+    warnBtn.disabled  = true; warnBtn.innerHTML  = '<i class="fas fa-spinner fa-spin"></i> Queuing…';
+    applyBtn.disabled = true;
     result.textContent = '';
     try {
         const r   = await fetch('/api/admin/users/penalty-warn', { method: 'POST', headers: { 'x-auth-token': token } });
         const res = await r.json();
         if (res.ok) {
             result.style.color = '#22c55e';
-            result.textContent = `✓ Warning emails sent: ${res.sent} succeeded, ${res.failed} failed (${res.total} total).`;
+            result.textContent = `✓ ${res.total} users queued — emails sending in background batches of 10.`;
+            startEmailProgressPolling(token, '📧 Sending warning emails in batches…');
         } else {
             result.style.color = '#f87171';
             result.textContent = res.msg || 'Failed.';
+            warnBtn.disabled  = false; warnBtn.innerHTML  = '<i class="fas fa-envelope-open-text"></i> Send Warning Emails';
+            applyBtn.disabled = false;
         }
     } catch(e) {
         result.style.color = '#f87171';
         result.textContent = 'Network error.';
+        warnBtn.disabled  = false; warnBtn.innerHTML  = '<i class="fas fa-envelope-open-text"></i> Send Warning Emails';
+        applyBtn.disabled = false;
     }
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-envelope-open-text"></i> Send Warning Emails';
 }
 
 async function applyPenalty(btn) {
-    if (!confirm('Apply a 1% inactivity penalty to ALL users with no deposit in 14+ days?\n\nThis will deduct 1% from their balance and send them an email. This action cannot be undone.')) return;
+    if (!confirm('Apply a 1% inactivity penalty to ALL users with no deposit in 14+ days?\n\nBalances will be deducted immediately. Emails will be sent in background batches. This cannot be undone.')) return;
     const token  = localStorage.getItem('token');
     const result = document.getElementById('penalty-result');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying…';
+    const warnBtn  = document.getElementById('btn-penalty-warn');
+    const applyBtn = document.getElementById('btn-penalty-apply');
+    applyBtn.disabled = true; applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying…';
+    warnBtn.disabled  = true;
     result.textContent = '';
     try {
         const r   = await fetch('/api/admin/users/penalty-apply', { method: 'POST', headers: { 'x-auth-token': token } });
         const res = await r.json();
         if (res.ok) {
             result.style.color = '#22c55e';
-            result.textContent = `✓ Penalty applied: ${res.applied} users penalised, ${res.failed} failed (${res.total} total). Balances updated.`;
+            result.textContent = `✓ Penalty applied to ${res.applied} users instantly. Sending ${res.emailTotal} emails in background batches of 10…`;
             loadUsers();
             loadInactiveUsers();
+            startEmailProgressPolling(token, '📧 Sending penalty emails in batches…');
         } else {
             result.style.color = '#f87171';
             result.textContent = res.msg || 'Failed.';
+            applyBtn.disabled = false; applyBtn.innerHTML = '<i class="fas fa-bolt"></i> Apply 1% Penalty';
+            warnBtn.disabled  = false;
         }
     } catch(e) {
         result.style.color = '#f87171';
         result.textContent = 'Network error.';
+        applyBtn.disabled = false; applyBtn.innerHTML = '<i class="fas fa-bolt"></i> Apply 1% Penalty';
+        warnBtn.disabled  = false;
     }
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-bolt"></i> Apply 1% Penalty';
 }
 
 async function adminToggleBan(userId, currentlyBanned) {
