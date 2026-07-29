@@ -2069,6 +2069,127 @@ app.post('/api/admin/email/suppression/remove', authenticateAdmin, async (req, r
     } catch(e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
+// --- Inactivity Penalty ---
+const PENALTY_DAYS = 14;
+const PENALTY_RATE = 0.01; // 1%
+
+// GET: preview which users are inactive (no approved deposit in 14 days, balance > 0)
+app.get('/api/admin/users/inactive', authenticateAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT u.id, u.username, u.email, u.balance,
+                   MAX(d.created_at) AS last_deposit_at
+            FROM users u
+            LEFT JOIN deposits d ON d.user_id = u.id AND d.status = 'APPROVED'
+            WHERE u.is_admin = 0
+              AND (u.is_banned IS NULL OR u.is_banned = 0)
+              AND (u.email_invalid IS NULL OR u.email_invalid = 0)
+              AND u.balance > 0
+            GROUP BY u.id, u.username, u.email, u.balance
+            HAVING MAX(d.created_at) IS NULL
+                OR MAX(d.created_at) < NOW() - INTERVAL '${PENALTY_DAYS} days'
+            ORDER BY u.balance DESC
+        `);
+        const users = result.rows.map(u => ({
+            ...u,
+            days_inactive: u.last_deposit_at
+                ? Math.floor((Date.now() - new Date(u.last_deposit_at).getTime()) / 86400000)
+                : null,
+            penalty_amount: parseFloat((parseFloat(u.balance) * PENALTY_RATE).toFixed(2)),
+        }));
+        res.json({ users, count: users.length });
+    } catch(e) {
+        console.error('[PENALTY] inactive list error:', e);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// POST: send warning emails to all inactive users
+app.post('/api/admin/users/penalty-warn', authenticateAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT u.id, u.username, u.email,
+                   MAX(d.created_at) AS last_deposit_at
+            FROM users u
+            LEFT JOIN deposits d ON d.user_id = u.id AND d.status = 'APPROVED'
+            WHERE u.is_admin = 0
+              AND (u.is_banned IS NULL OR u.is_banned = 0)
+              AND (u.email_invalid IS NULL OR u.email_invalid = 0)
+              AND u.balance > 0
+            GROUP BY u.id, u.username, u.email, u.balance
+            HAVING MAX(d.created_at) IS NULL
+                OR MAX(d.created_at) < NOW() - INTERVAL '${PENALTY_DAYS} days'
+        `);
+        const users = result.rows;
+        let sent = 0, failed = 0;
+        for (const u of users) {
+            const daysInactive = u.last_deposit_at
+                ? Math.floor((Date.now() - new Date(u.last_deposit_at).getTime()) / 86400000)
+                : PENALTY_DAYS;
+            try {
+                await Emails.penaltyWarning(u.email, u.username, daysInactive);
+                sent++;
+            } catch(e) {
+                console.error(`[PENALTY-WARN] Failed → ${u.email}:`, e.message);
+                failed++;
+            }
+            await new Promise(r => setTimeout(r, 300));
+        }
+        res.json({ ok: true, sent, failed, total: users.length });
+    } catch(e) {
+        console.error('[PENALTY-WARN] error:', e);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// POST: apply 1% penalty to all inactive users + send penalty emails
+app.post('/api/admin/users/penalty-apply', authenticateAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT u.id, u.username, u.email, u.balance,
+                   MAX(d.created_at) AS last_deposit_at
+            FROM users u
+            LEFT JOIN deposits d ON d.user_id = u.id AND d.status = 'APPROVED'
+            WHERE u.is_admin = 0
+              AND (u.is_banned IS NULL OR u.is_banned = 0)
+              AND (u.email_invalid IS NULL OR u.email_invalid = 0)
+              AND u.balance > 0
+            GROUP BY u.id, u.username, u.email, u.balance
+            HAVING MAX(d.created_at) IS NULL
+                OR MAX(d.created_at) < NOW() - INTERVAL '${PENALTY_DAYS} days'
+        `);
+        const users = result.rows;
+        let applied = 0, failed = 0;
+        for (const u of users) {
+            const penalty    = parseFloat((parseFloat(u.balance) * PENALTY_RATE).toFixed(2));
+            const newBalance = parseFloat((parseFloat(u.balance) - penalty).toFixed(2));
+            const daysInactive = u.last_deposit_at
+                ? Math.floor((Date.now() - new Date(u.last_deposit_at).getTime()) / 86400000)
+                : PENALTY_DAYS;
+            try {
+                await pool.query(
+                    'UPDATE users SET balance = $1 WHERE id = $2',
+                    [newBalance, u.id]
+                );
+                await pool.query(
+                    `INSERT INTO transactions (user_id, type, amount, details, status)
+                     VALUES ($1, 'PENALTY', $2, $3, 'COMPLETED')`,
+                    [u.id, -penalty, `1% inactivity fee — no deposit in ${daysInactive} days`]
+                );
+                try { await Emails.penaltyApplied(u.email, u.username, penalty, newBalance, daysInactive); } catch(_) {}
+                applied++;
+            } catch(e) {
+                console.error(`[PENALTY-APPLY] Failed → ${u.email}:`, e.message);
+                failed++;
+            }
+        }
+        res.json({ ok: true, applied, failed, total: users.length });
+    } catch(e) {
+        console.error('[PENALTY-APPLY] error:', e);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 app.get('*path', (req, res) => {
     res.status(404).send('Not Found');
 });

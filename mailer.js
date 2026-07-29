@@ -720,6 +720,48 @@ const Emails = {
         });
     },
 
+    penaltyWarning(to, username, daysInactive) {
+        return sendMail(to, `⚠️ Action required: Inactivity penalty notice — ${APP_NAME}`,
+            wrap(
+                `Your account has been inactive for ${daysInactive} days. A 1% inactivity penalty will be applied soon.`,
+                `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Dear ${username},</p>
+                 <p>We've noticed your <strong>${APP_NAME}</strong> account has had <strong style="color:#f8fafc;">no new deposit in the last ${daysInactive} days</strong>.</p>
+                 ${highlight(`<strong>Inactivity Notice:</strong> To keep your account in good standing, a <strong>1% inactivity fee</strong> will be deducted from your balance in the coming days if no deposit activity is recorded.`, '#f59e0b')}
+                 <p>To avoid the penalty, simply make a deposit before the deadline:</p>
+                 <ul style="padding-left:20px;margin:10px 0;color:#cbd5e1;line-height:2;">
+                   <li>Log in to your <strong>${APP_NAME}</strong> account</li>
+                   <li>Navigate to the <strong>Deposit</strong> page</li>
+                   <li>Make any deposit to reset your activity status</li>
+                 </ul>
+                 <p style="font-size:13px;color:#64748b;">Questions? Reach us at <a href="mailto:${SUPPORT_EMAIL}" style="color:#3b82f6;text-decoration:none;">${SUPPORT_EMAIL}</a> and we'll be happy to help.</p>`,
+                'Make a Deposit Now', `${APP_URL}/deposit.html`
+            ));
+    },
+
+    penaltyApplied(to, username, penaltyAmount, newBalance, daysInactive) {
+        const fmt = n => parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return sendMail(to, `🔔 Inactivity fee applied to your ${APP_NAME} account`,
+            wrap(
+                `A 1% inactivity fee of $${fmt(penaltyAmount)} has been deducted from your balance.`,
+                `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Dear ${username},</p>
+                 <p>Because no deposit was recorded on your <strong>${APP_NAME}</strong> account for the past <strong style="color:#f8fafc;">${daysInactive} days</strong>, an inactivity fee has been applied.</p>
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:14px;">
+                   <tr><td style="padding:26px;text-align:center;">
+                     <div style="font-size:12px;color:#fca5a5;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Inactivity Fee Deducted</div>
+                     <div style="font-size:46px;font-weight:900;color:#ef4444;letter-spacing:-2px;line-height:1;">-$${fmt(penaltyAmount)}</div>
+                     <div style="font-size:13px;color:#64748b;margin-top:8px;">1% of your previous balance</div>
+                   </td></tr>
+                 </table>
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+                   ${statRow('Fee Applied', `-$${fmt(penaltyAmount)}`, '#ef4444')}
+                   ${statRow('Updated Balance', `$${fmt(newBalance)}`, '#22c55e')}
+                 </table>
+                 ${highlight(`To prevent future fees, make sure to deposit regularly. Your account activity resets with every approved deposit.`, '#3b82f6')}
+                 <p style="font-size:13px;color:#64748b;">Need help? Contact us at <a href="mailto:${SUPPORT_EMAIL}" style="color:#3b82f6;text-decoration:none;">${SUPPORT_EMAIL}</a>.</p>`,
+                'Deposit Now', `${APP_URL}/deposit.html`
+            ));
+    },
+
     reEngagementReminder(to, username, vipRank, daysSince) {
         const isVip    = vipRank && vipRank !== 'REGULAR';
         const nextTiers = { REGULAR: 'Bronze', BRONZE: 'Silver', SILVER: 'Gold', GOLD: 'Platinum', PLATINUM: 'Diamond', DIAMOND: null };

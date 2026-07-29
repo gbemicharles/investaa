@@ -531,6 +531,48 @@
                 </div>
                 <button class="btn secondary" onclick="loadUsers()" style="padding:10px 20px;"><i class="fas fa-sync-alt"></i> Refresh</button>
             </div>
+
+            <!-- Inactivity Penalty Card -->
+            <div class="card glass" style="padding:24px 28px;margin-bottom:24px;border-left:4px solid #f59e0b;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                    <div>
+                        <h3 style="margin:0 0 4px;font-size:1rem;font-weight:700;color:#f8fafc;"><i class="fas fa-exclamation-triangle" style="color:#f59e0b;margin-right:8px;"></i>Inactivity Penalty</h3>
+                        <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">Targets users with no approved deposit in 14+ days and a balance &gt; $0. Deducts 1% of their balance.</p>
+                    </div>
+                    <button onclick="loadInactiveUsers()" style="padding:7px 16px;font-size:0.8rem;border-radius:8px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);color:#f59e0b;cursor:pointer;font-weight:600;">
+                        <i class="fas fa-search"></i> Preview Inactive Users
+                    </button>
+                </div>
+
+                <!-- Inactive users preview table -->
+                <div id="inactive-preview" style="display:none;margin-bottom:16px;">
+                    <div style="overflow-x:auto;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+                        <table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
+                            <thead>
+                                <tr style="background:rgba(245,158,11,0.08);">
+                                    <th style="padding:9px 12px;text-align:left;color:#f59e0b;font-weight:700;">Username</th>
+                                    <th style="padding:9px 12px;text-align:left;color:#f59e0b;font-weight:700;">Email</th>
+                                    <th style="padding:9px 12px;text-align:right;color:#f59e0b;font-weight:700;">Balance</th>
+                                    <th style="padding:9px 12px;text-align:right;color:#f59e0b;font-weight:700;">Days Inactive</th>
+                                    <th style="padding:9px 12px;text-align:right;color:#f59e0b;font-weight:700;">Penalty (1%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inactive-tbody"></tbody>
+                        </table>
+                    </div>
+                    <p id="inactive-count" style="margin:8px 0 0;font-size:0.8rem;color:var(--text-muted);"></p>
+                </div>
+
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                    <button onclick="sendPenaltyWarning(this)" style="padding:9px 20px;font-size:0.85rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:rgba(245,158,11,0.15);color:#f59e0b;">
+                        <i class="fas fa-envelope-open-text"></i> Send Warning Emails
+                    </button>
+                    <button onclick="applyPenalty(this)" style="padding:9px 20px;font-size:0.85rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:rgba(239,68,68,0.15);color:#f87171;">
+                        <i class="fas fa-bolt"></i> Apply 1% Penalty
+                    </button>
+                    <span id="penalty-result" style="font-size:0.82rem;color:var(--text-muted);"></span>
+                </div>
+            </div>
             <div class="card glass" style="padding:24px;">
                 <div style="position:relative;margin-bottom:20px;">
                     <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:0.85rem;pointer-events:none;"></i>
@@ -1311,6 +1353,88 @@ function filterUsers(query) {
     const q = query.trim().toLowerCase();
     if (!q) { renderUsers(_allUsers); return; }
     renderUsers(_allUsers.filter(u => u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
+}
+
+// ── Inactivity Penalty ──────────────────────────────────────
+async function loadInactiveUsers() {
+    const token   = localStorage.getItem('token');
+    const preview = document.getElementById('inactive-preview');
+    const tbody   = document.getElementById('inactive-tbody');
+    const count   = document.getElementById('inactive-count');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Loading…</td></tr>';
+    preview.style.display = 'block';
+    try {
+        const r   = await fetch('/api/admin/users/inactive', { headers: { 'x-auth-token': token } });
+        const res = await r.json();
+        if (!res.users || !res.users.length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#22c55e;">✓ No inactive users found.</td></tr>';
+            count.textContent = '';
+            return;
+        }
+        tbody.innerHTML = res.users.map(u => `
+            <tr style="border-top:1px solid rgba(255,255,255,0.04);">
+                <td style="padding:8px 12px;font-weight:600;">${u.username}</td>
+                <td style="padding:8px 12px;color:var(--text-muted);font-size:0.8rem;">${u.email}</td>
+                <td style="padding:8px 12px;text-align:right;color:#22c55e;font-weight:600;">$${parseFloat(u.balance).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                <td style="padding:8px 12px;text-align:right;color:#f59e0b;">${u.days_inactive !== null ? u.days_inactive + 'd' : '14+ d'}</td>
+                <td style="padding:8px 12px;text-align:right;color:#f87171;font-weight:700;">-$${parseFloat(u.penalty_amount).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+            </tr>`).join('');
+        count.textContent = `${res.count} inactive user${res.count !== 1 ? 's' : ''} found.`;
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#ff4d4d;">Failed to load.</td></tr>';
+    }
+}
+
+async function sendPenaltyWarning(btn) {
+    if (!confirm('Send inactivity warning emails to all users with no deposit in 14+ days?\n\nThis will NOT deduct any balances — it is a warning only.')) return;
+    const token  = localStorage.getItem('token');
+    const result = document.getElementById('penalty-result');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+    result.textContent = '';
+    try {
+        const r   = await fetch('/api/admin/users/penalty-warn', { method: 'POST', headers: { 'x-auth-token': token } });
+        const res = await r.json();
+        if (res.ok) {
+            result.style.color = '#22c55e';
+            result.textContent = `✓ Warning emails sent: ${res.sent} succeeded, ${res.failed} failed (${res.total} total).`;
+        } else {
+            result.style.color = '#f87171';
+            result.textContent = res.msg || 'Failed.';
+        }
+    } catch(e) {
+        result.style.color = '#f87171';
+        result.textContent = 'Network error.';
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-envelope-open-text"></i> Send Warning Emails';
+}
+
+async function applyPenalty(btn) {
+    if (!confirm('Apply a 1% inactivity penalty to ALL users with no deposit in 14+ days?\n\nThis will deduct 1% from their balance and send them an email. This action cannot be undone.')) return;
+    const token  = localStorage.getItem('token');
+    const result = document.getElementById('penalty-result');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying…';
+    result.textContent = '';
+    try {
+        const r   = await fetch('/api/admin/users/penalty-apply', { method: 'POST', headers: { 'x-auth-token': token } });
+        const res = await r.json();
+        if (res.ok) {
+            result.style.color = '#22c55e';
+            result.textContent = `✓ Penalty applied: ${res.applied} users penalised, ${res.failed} failed (${res.total} total). Balances updated.`;
+            loadUsers();
+            loadInactiveUsers();
+        } else {
+            result.style.color = '#f87171';
+            result.textContent = res.msg || 'Failed.';
+        }
+    } catch(e) {
+        result.style.color = '#f87171';
+        result.textContent = 'Network error.';
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt"></i> Apply 1% Penalty';
 }
 
 async function adminToggleBan(userId, currentlyBanned) {
