@@ -109,4 +109,119 @@ async function notifyKycApproved(sub, user) {
     }
 }
 
-module.exports = { sendTelegram, notifyKycApproved };
+async function notifyDepositSubmitted(user, amount, network, txid) {
+    try {
+        await sendTelegram([
+            `💰 <b>NEW DEPOSIT</b>`,
+            ``,
+            `👤 <b>User:</b> ${user.username}`,
+            `📧 <b>Email:</b> ${user.email}`,
+            ``,
+            `💵 <b>Amount:</b> $${parseFloat(amount).toFixed(2)} USDT`,
+            `🌐 <b>Network:</b> ${network}`,
+            txid ? `🔗 <b>TxID:</b> <code>${txid}</code>` : null,
+            ``,
+            `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
+            `⏳ <i>Awaiting admin review</i>`,
+        ].filter(l => l !== null).join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyDepositSubmitted error:', e.message); }
+}
+
+async function notifyDepositApproved(user, amount) {
+    try {
+        await sendTelegram([
+            `✅ <b>DEPOSIT APPROVED</b>`,
+            ``,
+            `👤 <b>User:</b> ${user.username}`,
+            `📧 <b>Email:</b> ${user.email}`,
+            `💵 <b>Amount:</b> $${parseFloat(amount).toFixed(2)} USDT`,
+            `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
+        ].join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyDepositApproved error:', e.message); }
+}
+
+async function notifyDepositRejected(user, amount) {
+    try {
+        await sendTelegram([
+            `❌ <b>DEPOSIT REJECTED</b>`,
+            ``,
+            `👤 <b>User:</b> ${user.username}`,
+            `📧 <b>Email:</b> ${user.email}`,
+            `💵 <b>Amount:</b> $${parseFloat(amount).toFixed(2)} USDT`,
+            `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
+        ].join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyDepositRejected error:', e.message); }
+}
+
+async function notifyWithdrawalRequested(user, amount, details) {
+    try {
+        await sendTelegram([
+            `🏧 <b>WITHDRAWAL REQUEST</b>`,
+            ``,
+            `👤 <b>User:</b> ${user.username}`,
+            `📧 <b>Email:</b> ${user.email}`,
+            ``,
+            `💵 <b>Amount:</b> $${parseFloat(amount).toFixed(2)} USDT`,
+            details ? `📋 <b>Details:</b> ${details}` : null,
+            ``,
+            `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
+            `⏳ <i>Awaiting admin review</i>`,
+        ].filter(l => l !== null).join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyWithdrawalRequested error:', e.message); }
+}
+
+async function notifyWithdrawalApproved(user, amount) {
+    try {
+        await sendTelegram([
+            `✅ <b>WITHDRAWAL APPROVED</b>`,
+            ``,
+            `👤 <b>User:</b> ${user.username}`,
+            `📧 <b>Email:</b> ${user.email}`,
+            `💵 <b>Amount:</b> $${parseFloat(amount).toFixed(2)} USDT`,
+            `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
+        ].join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyWithdrawalApproved error:', e.message); }
+}
+
+async function notifyWithdrawalRejected(user, amount) {
+    try {
+        await sendTelegram([
+            `❌ <b>WITHDRAWAL REJECTED</b>`,
+            ``,
+            `👤 <b>User:</b> ${user.username}`,
+            `📧 <b>Email:</b> ${user.email}`,
+            `💵 <b>Refunded:</b> $${parseFloat(amount).toFixed(2)} USDT`,
+            `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
+        ].join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyWithdrawalRejected error:', e.message); }
+}
+
+async function notifyKycSubmitted(user, country, idType) {
+    try {
+        await sendTelegram([
+            `🪪 <b>NEW KYC SUBMISSION</b>`,
+            ``,
+            `👤 <b>User:</b> ${user.username}`,
+            `📧 <b>Email:</b> ${user.email}`,
+            user.phone ? `📞 <b>Phone:</b> ${user.phone}` : null,
+            ``,
+            `🌍 <b>Country:</b> ${country}`,
+            `🪪 <b>ID Type:</b> ${idType}`,
+            ``,
+            `📅 <b>Submitted:</b> ${new Date().toLocaleString()}`,
+            `⏳ <i>Awaiting admin review</i>`,
+        ].filter(l => l !== null).join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyKycSubmitted error:', e.message); }
+}
+
+module.exports = {
+    sendTelegram,
+    notifyKycApproved,
+    notifyDepositSubmitted,
+    notifyDepositApproved,
+    notifyDepositRejected,
+    notifyWithdrawalRequested,
+    notifyWithdrawalApproved,
+    notifyWithdrawalRejected,
+    notifyKycSubmitted,
+};

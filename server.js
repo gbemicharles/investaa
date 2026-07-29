@@ -944,7 +944,10 @@ app.post('/api/admin/deposits/approve', authenticateAdmin, async (req, res) => {
                 [deposit.user_id, '🎁 Welcome Bonus Activated!', `Your $${bonusToMerge.toFixed(2)} welcome bonus has been merged into your active balance and is now earning daily returns!`, 'SYSTEM', 'SUCCESS']);
         }
         const uDep = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]).catch(() => null);
-        if (uDep) await sendUserEmail(deposit.user_id, () => Emails.depositApproved(uDep.email, uDep.username, amount));
+        if (uDep) {
+            await sendUserEmail(deposit.user_id, () => Emails.depositApproved(uDep.email, uDep.username, amount));
+            Telegram.notifyDepositApproved(uDep, amount).catch(() => {});
+        }
         res.json({ msg: 'Deposit approved' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -957,7 +960,10 @@ app.post('/api/admin/deposits/reject', authenticateAdmin, async (req, res) => {
         await dbRun('UPDATE deposits SET status = ? WHERE id = ?', ['REJECTED', deposit_id]);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [deposit.user_id, 'Deposit Rejected', 'Your deposit attempt was rejected.', 'DEPOSIT', 'FAILED']);
         const uDepR = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]).catch(() => null);
-        if (uDepR) await sendUserEmail(deposit.user_id, () => Emails.depositRejected(uDepR.email, uDepR.username));
+        if (uDepR) {
+            await sendUserEmail(deposit.user_id, () => Emails.depositRejected(uDepR.email, uDepR.username));
+            Telegram.notifyDepositRejected(uDepR, deposit.amount).catch(() => {});
+        }
         res.json({ msg: 'Deposit rejected' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -977,7 +983,10 @@ app.post('/api/admin/approve-withdrawal/:id', authenticateAdmin, async (req, res
         await dbRun('UPDATE transactions SET status = ? WHERE user_id = ? AND type = ? AND amount = ? AND status = ?', ['COMPLETED', w.user_id, 'WITHDRAW', w.amount, 'PENDING']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Approved', `Your withdrawal of $${parseFloat(w.amount).toFixed(2)} was processed.`, 'WITHDRAWAL', 'SUCCESS']);
         const uWA = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
-        if (uWA) await sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWA.email, uWA.username, w.amount));
+        if (uWA) {
+            await sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWA.email, uWA.username, w.amount));
+            Telegram.notifyWithdrawalApproved(uWA, w.amount).catch(() => {});
+        }
         res.json({ msg: 'Withdrawal approved' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -991,7 +1000,10 @@ app.post('/api/admin/reject-withdrawal/:id', authenticateAdmin, async (req, res)
         await dbRun('UPDATE transactions SET status = ? WHERE user_id = ? AND type = ? AND amount = ? AND status = ?', ['REJECTED', w.user_id, 'WITHDRAW', w.amount, 'PENDING']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Rejected', `Your withdrawal was rejected and refunded.`, 'WITHDRAWAL', 'FAILED']);
         const uWR = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
-        if (uWR) await sendUserEmail(w.user_id, () => Emails.withdrawalRejected(uWR.email, uWR.username, w.amount));
+        if (uWR) {
+            await sendUserEmail(w.user_id, () => Emails.withdrawalRejected(uWR.email, uWR.username, w.amount));
+            Telegram.notifyWithdrawalRejected(uWR, w.amount).catch(() => {});
+        }
         res.json({ msg: 'Withdrawal rejected' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1169,7 +1181,10 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
         await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', null, screenshotData, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit of $${usdtAmt.toFixed(2)} USDT via ${network} has been received and is currently under review. Our team will verify your transaction and credit your account within 10–30 minutes. You will be notified once it is approved.`, 'DEPOSIT', 'PENDING']);
         const uDS = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
-        if (uDS) await sendUserEmail(req.user.id, () => Emails.depositSubmitted(uDS.email, uDS.username, usdtAmt, network));
+        if (uDS) {
+            await sendUserEmail(req.user.id, () => Emails.depositSubmitted(uDS.email, uDS.username, usdtAmt, network));
+            Telegram.notifyDepositSubmitted(uDS, usdtAmt, network, txid).catch(() => {});
+        }
         res.json({ msg: 'Deposit submitted for review', amount: usdtAmt });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1283,7 +1298,10 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
         );
 
         const uWS = await dbGet('SELECT email, username FROM users WHERE id = ?', [user.id]).catch(() => null);
-        if (uWS) await sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt));
+        if (uWS) {
+            await sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt));
+            Telegram.notifyWithdrawalRequested(uWS, amt, details).catch(() => {});
+        }
         res.json({ msg: 'Withdrawal submitted' });
 
     } catch (e) {
@@ -1417,6 +1435,8 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
             [req.user.id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name || null, extra_field_value || null, extra_document || null]
         );
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['PENDING', req.user.id]);
+        const uKS = await dbGet('SELECT username, email, phone FROM users WHERE id = ?', [req.user.id]).catch(() => null);
+        if (uKS) Telegram.notifyKycSubmitted(uKS, country, id_type).catch(() => {});
         res.json({ msg: 'KYC submitted successfully. Our team will review it within 24–48 hours.' });
     } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
@@ -2085,6 +2105,7 @@ app.get('/api/admin/users/inactive', authenticateAdmin, async (req, res) => {
               AND (u.is_banned IS NULL OR u.is_banned = 0)
               AND (u.email_invalid IS NULL OR u.email_invalid = 0)
               AND u.balance > 0
+              AND u.vip_rank != 'REGULAR'
             GROUP BY u.id, u.username, u.email, u.balance
             HAVING MAX(d.created_at) IS NULL
                 OR MAX(d.created_at) < NOW() - INTERVAL '${PENALTY_DAYS} days'
@@ -2159,6 +2180,7 @@ app.post('/api/admin/users/penalty-warn', authenticateAdmin, async (req, res) =>
               AND (u.is_banned IS NULL OR u.is_banned = 0)
               AND (u.email_invalid IS NULL OR u.email_invalid = 0)
               AND u.balance > 0
+              AND u.vip_rank != 'REGULAR'
             GROUP BY u.id, u.username, u.email, u.balance
             HAVING MAX(d.created_at) IS NULL
                 OR MAX(d.created_at) < NOW() - INTERVAL '${PENALTY_DAYS} days'
@@ -2225,6 +2247,7 @@ app.post('/api/admin/users/penalty-apply', authenticateAdmin, async (req, res) =
               AND (u.is_banned IS NULL OR u.is_banned = 0)
               AND (u.email_invalid IS NULL OR u.email_invalid = 0)
               AND u.balance > 0
+              AND u.vip_rank != 'REGULAR'
             GROUP BY u.id, u.username, u.email, u.balance
             HAVING MAX(d.created_at) IS NULL
                 OR MAX(d.created_at) < NOW() - INTERVAL '${PENALTY_DAYS} days'
