@@ -352,7 +352,7 @@
                             } else {
                                 transactions.forEach(tx => {
                                     const date = new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                                    const isNegative = tx.type.includes('OUT') || tx.type === 'WITHDRAW' || tx.type === 'VIP_UPGRADE' || tx.type === 'FEE';
+                                    const isNegative = tx.type.includes('OUT') || tx.type === 'WITHDRAW' || tx.type === 'VIP_UPGRADE' || tx.type === 'FEE' || tx.type === 'PENALTY';
                                     const amountClass = isNegative ? 'negative' : 'positive';
                                     const prefix = isNegative ? '-' : '+';
                                     
@@ -365,7 +365,7 @@
                                     if (tx.type === 'EARNING') { iconClass = 'deposit'; icon = 'fa-chart-line'; }
                                     if (tx.type === 'BONUS') { iconClass = 'deposit'; icon = 'fa-gift'; }
 
-                                    const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Fee', EARNING: 'Daily Investment Return', BONUS: '🎁 Welcome Bonus' };
+                                    const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Fee', EARNING: 'Daily Investment Return', BONUS: '🎁 Welcome Bonus', PENALTY: 'Inactivity Fee' };
                                     const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
                                     const item = document.createElement('div');
                                     item.className = 'transaction';

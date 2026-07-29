@@ -626,7 +626,8 @@
                                 tx.type.includes('OUT') ||
                                 tx.type === 'WITHDRAW' ||
                                 tx.type === 'VIP_UPGRADE' ||
-                                tx.type === 'FEE';
+                                tx.type === 'FEE' ||
+                                tx.type === 'PENALTY';
 
                             const amountClass = isNegative ? 'negative' : 'positive';
                             const prefix = isNegative ? '-' : '+';
@@ -652,7 +653,7 @@
                                 icon = 'fa-gift'; iconClass = 'deposit';
                             }
 
-                            const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Processing Fee', EARNING: 'Daily Investment Return', BONUS: '🎁 Welcome Bonus' };
+                            const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Processing Fee', EARNING: 'Daily Investment Return', BONUS: '🎁 Welcome Bonus', PENALTY: 'Inactivity Fee' };
                             const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
 
                             const item = document.createElement('div');
