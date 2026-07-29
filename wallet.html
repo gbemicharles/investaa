@@ -677,7 +677,7 @@
                                     </div>
                                     <div style="display:flex;align-items:center;gap:10px;">
                                         <div class="amount ${amountClass}">
-                                            ${prefix}$${parseFloat(tx.amount).toLocaleString('en-US',{minimumFractionDigits:2})}
+                                            ${prefix}$${Math.abs(parseFloat(tx.amount)).toLocaleString('en-US',{minimumFractionDigits:2})}
                                         </div>
                                         <i class="fas fa-chevron-right" style="color:#475569;font-size:0.7rem;flex-shrink:0;"></i>
                                     </div>

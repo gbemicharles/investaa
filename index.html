@@ -364,6 +364,7 @@
                                     if (tx.type === 'FEE') { iconClass = 'withdraw'; icon = 'fa-receipt'; }
                                     if (tx.type === 'EARNING') { iconClass = 'deposit'; icon = 'fa-chart-line'; }
                                     if (tx.type === 'BONUS') { iconClass = 'deposit'; icon = 'fa-gift'; }
+                                    if (tx.type === 'PENALTY') { iconClass = 'withdraw'; icon = 'fa-exclamation-triangle'; }
 
                                     const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Fee', EARNING: 'Daily Investment Return', BONUS: '🎁 Welcome Bonus', PENALTY: 'Inactivity Fee' };
                                     const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
@@ -381,7 +382,7 @@
                                             <p class="date">${date}</p>
                                         </div>
                                         <div style="display:flex;align-items:center;gap:10px;">
-                                            <div class="amount ${amountClass}">${prefix}$${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                            <div class="amount ${amountClass}">${prefix}$${Math.abs(parseFloat(tx.amount)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                                             <i class="fas fa-chevron-right" style="color:#475569;font-size:0.7rem;flex-shrink:0;"></i>
                                         </div>
                                     `;

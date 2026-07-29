@@ -120,6 +120,7 @@
             EARNING:      { label: 'Daily Return',       icon: 'fa-chart-line',     iconBg: 'rgba(245,158,11,0.15)', iconColor: '#f59e0b' },
             VIP_UPGRADE:  { label: 'VIP Upgrade',        icon: 'fa-gem',            iconBg: 'rgba(59,130,246,0.15)', iconColor: '#60a5fa' },
             FEE:          { label: 'Processing Fee',     icon: 'fa-receipt',        iconBg: 'rgba(239,68,68,0.1)',   iconColor: '#f87171' },
+            PENALTY:      { label: 'Inactivity Fee',     icon: 'fa-exclamation-triangle', iconBg: 'rgba(239,68,68,0.12)', iconColor: '#ef4444' },
         };
         return map[type] || { label: type.replace(/_/g, ' '), icon: 'fa-circle', iconBg: 'rgba(148,163,184,0.1)', iconColor: '#94a3b8' };
     }
@@ -162,10 +163,10 @@
     function renderModal(tx) {
         const cfg = typeConfig(tx.type);
         const { date, time } = formatDate(tx.created_at);
-        const isNeg = ['WITHDRAW', 'TRANSFER_OUT', 'VIP_UPGRADE', 'FEE'].includes(tx.type);
+        const isNeg = ['WITHDRAW', 'TRANSFER_OUT', 'VIP_UPGRADE', 'FEE', 'PENALTY'].includes(tx.type);
         const amountColor = isNeg ? '#ef4444' : '#10b981';
         const amountPrefix = isNeg ? '-' : '+';
-        const amountFmt = parseFloat(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const amountFmt = Math.abs(parseFloat(tx.amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         // Header
         document.getElementById('txModalIcon').style.cssText += `;background:${cfg.iconBg};color:${cfg.iconColor};width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;`;
@@ -260,6 +261,12 @@
         } else if (tx.type === 'FEE') {
             html += sectionTitle('Fee Details');
             html += row('Description', tx.details || 'Processing fee');
+
+        } else if (tx.type === 'PENALTY') {
+            html += sectionTitle('Inactivity Fee');
+            html += row('Reason', tx.details || '1% inactivity fee');
+            html += row('Fee Rate', '1% of balance');
+            html += row('Deducted', `<span style="color:#ef4444;font-weight:700;">-$${amountFmt} USDT</span>`);
 
         } else {
             if (tx.details) {
