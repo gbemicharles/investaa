@@ -44,11 +44,31 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
     console.log('[TELEGRAM-BOT] Starting Long Polling interactive bot listener...');
 
     async function processUpdate(update) {
+        // Handle plain text commands (/start, /ping) for connectivity testing
+        if (update.message && update.message.text) {
+            const txt = update.message.text.trim();
+            const fromChatId = update.message.chat.id;
+            if (txt === '/start' || txt === '/ping') {
+                await apiCall('sendMessage', { chat_id: fromChatId, text: '✅ InvestAA bot is alive and polling.' });
+            }
+            return;
+        }
+
         if (!update.callback_query) return;
-        
+
+        // Wrap everything — including message extraction — in one top-level try-catch
+        // so a missing/null `message` field never silently drops a callback.
         const cq = update.callback_query;
         const queryId = cq.id;
+
+        try {
         const message = cq.message;
+        if (!message) {
+            console.warn('[TELEGRAM-BOT] callback_query has no message field — skipping.');
+            await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: '⚠️ No message context.' });
+            return;
+        }
+
         const data = cq.data || '';
         const chatId = message.chat.id;
         const messageId = message.message_id;
@@ -57,11 +77,11 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
         // Security: only process callbacks from the designated admin chat
         if (ADMIN_CHAT_ID && chatId !== ADMIN_CHAT_ID) {
             await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: '⛔ Unauthorized.' });
-            console.warn(`[TELEGRAM-BOT] Rejected callback from unauthorized chat ${chatId}`);
+            console.warn(`[TELEGRAM-BOT] Rejected callback from chat ${chatId} (expected ${ADMIN_CHAT_ID})`);
             return;
         }
 
-        console.log(`[TELEGRAM-BOT] Callback Query received: "${data}"`);
+        console.log(`[TELEGRAM-BOT] Callback Query received: "${data}" from chat ${chatId}`);
 
         // Parse query command and ID
         const parts = data.split(':');
@@ -241,11 +261,20 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
             });
 
         } catch (err) {
+            // Inner catch: DB / business logic errors
             console.error('[TELEGRAM-BOT] Processing Error:', err.message);
             await apiCall('answerCallbackQuery', {
                 callback_query_id: queryId,
                 text: '❌ Processing error occurred.'
             });
+        }
+
+        } catch (outerErr) {
+            // Outer catch: guard against null message fields or unexpected parse errors
+            console.error('[TELEGRAM-BOT] Unhandled update error:', outerErr.message, '| queryId:', queryId);
+            try {
+                await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: '❌ Internal error.' });
+            } catch (_) { /* best-effort */ }
         }
     }
 
@@ -254,10 +283,16 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
             const updatesRes = await apiCall('getUpdates', { offset, timeout: 30 });
             if (updatesRes && updatesRes.ok) {
                 const updates = updatesRes.result || [];
+                if (updates.length > 0) {
+                    console.log(`[TELEGRAM-BOT] Received ${updates.length} update(s)`);
+                }
                 for (const update of updates) {
                     offset = update.update_id + 1;
                     await processUpdate(update);
                 }
+            } else if (updatesRes && !updatesRes.ok) {
+                // Log API-level failures (e.g. 409 Conflict = two polling instances)
+                console.error(`[TELEGRAM-BOT] getUpdates error: ${updatesRes.description || updatesRes.error} (code: ${updatesRes.error_code})`);
             }
         } catch (err) {
             console.error('[TELEGRAM-BOT] Polling exception:', err.message);
