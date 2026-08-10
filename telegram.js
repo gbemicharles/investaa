@@ -28,6 +28,12 @@ function sendTelegram(text, replyMarkup = null) {
         req.on('error', (e) => { console.error('[TELEGRAM] Send error:', e.message); resolve(); });
         req.write(body);
         req.end();
+    }).then(raw => {
+        try {
+            const parsed = JSON.parse(raw);
+            if (!parsed.ok) console.error('[TELEGRAM] API error:', parsed.description, '| chat_id:', CHAT_ID);
+        } catch (_) {}
+        return raw;
     });
 }
 
