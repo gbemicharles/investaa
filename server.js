@@ -522,6 +522,18 @@ app.get('/sitemap.xml', (req, res) => {
     );
 });
 
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
+// Root route: serve login page directly (200) for unauthenticated visitors and
+// deployment health-check probes; redirect authenticated users to the dashboard.
+app.get('/', (req, res) => {
+    const token = req.cookies?.auth_token;
+    if (token) {
+        return res.redirect('/index.html');
+    }
+    res.sendFile(path.join(__dirname, 'login.html'));
+});
+
 app.use(htmlAuthGuard);
 const staticCacheOptions = {
     maxAge: 86400000, // 1 day in milliseconds
