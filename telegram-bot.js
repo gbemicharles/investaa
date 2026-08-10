@@ -44,10 +44,6 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
     console.log('[TELEGRAM-BOT] Starting Long Polling interactive bot listener...');
 
     async function processUpdate(update) {
-        // Temporary: log chat ID from any incoming message to help set TELEGRAM_CHAT_ID
-        if (update.message) {
-            console.log(`[TELEGRAM-BOT] Message from chat_id: ${update.message.chat.id} | type: ${update.message.chat.type} | user: @${update.message.from?.username || update.message.from?.first_name}`);
-        }
         if (!update.callback_query) return;
         
         const cq = update.callback_query;
