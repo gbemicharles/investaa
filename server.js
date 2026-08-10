@@ -382,7 +382,13 @@ async function startSchedulers() {
 
 initDb().then(() => {
     startSchedulers();
-    TelegramBot.startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails);
+    // Only run the bot polling loop in production (dev sets BOT_POLLING_ENABLED=false
+    // to avoid competing with the production instance for the same bot token updates).
+    if (process.env.BOT_POLLING_ENABLED !== 'false') {
+        TelegramBot.startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails);
+    } else {
+        console.log('[TELEGRAM-BOT] Polling disabled in this environment (BOT_POLLING_ENABLED=false).');
+    }
 });
 
 const dbGet = async (sql, params) => {
