@@ -1243,10 +1243,11 @@ app.get('/api/transactions/:id', authenticate, async (req, res) => {
 // --- Actions ---
 // Verification helper function for automated on-chain deposit validation
 async function verifyCryptoDeposit(network, txid, expectedAmountUsdt) {
-    if (!txid || txid === 'N/A' || String(txid).trim().length < 10) {
+    const cleanTxid = String(txid || '').trim();
+    // Reject missing, placeholder, or obviously fake TxIDs
+    if (!cleanTxid || /^n\/a/i.test(cleanTxid) || cleanTxid.length < 10) {
         return { verified: false, message: 'Invalid TxID format' };
     }
-    const cleanTxid = String(txid).trim();
 
     // Check if this TxID has already been approved
     const duplicate = await dbGet("SELECT id FROM deposits WHERE LOWER(txid) = LOWER(?) AND status = 'APPROVED'", [cleanTxid]);
@@ -1394,7 +1395,7 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
         let finalCreditedAmount = usdtAmt;
         let autoVerifyMsg = '';
 
-        if (txid && txid !== 'N/A' && String(txid).trim().length >= 10) {
+        if (txid && !/^n\/a/i.test(String(txid).trim()) && String(txid).trim().length >= 10) {
             const verifyResult = await verifyCryptoDeposit(network, txid, usdtAmt);
             if (verifyResult.verified) {
                 isAutoApproved = true;

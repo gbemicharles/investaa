@@ -31,6 +31,8 @@ function apiCall(method, params = {}) {
     });
 }
 
+const ADMIN_CHAT_ID = process.env.TELEGRAM_CHAT_ID ? parseInt(process.env.TELEGRAM_CHAT_ID, 10) : null;
+
 let offset = 0;
 
 function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
@@ -51,6 +53,13 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
         const chatId = message.chat.id;
         const messageId = message.message_id;
         const originalText = message.text || '';
+
+        // Security: only process callbacks from the designated admin chat
+        if (ADMIN_CHAT_ID && chatId !== ADMIN_CHAT_ID) {
+            await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: '⛔ Unauthorized.' });
+            console.warn(`[TELEGRAM-BOT] Rejected callback from unauthorized chat ${chatId}`);
+            return;
+        }
 
         console.log(`[TELEGRAM-BOT] Callback Query received: "${data}"`);
 
