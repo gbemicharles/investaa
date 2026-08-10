@@ -407,6 +407,9 @@
             <button class="admin-nav-btn" data-page="email" onclick="showPage('email',this)">
                 <i class="fas fa-envelope-open-text"></i> Email Centre
             </button>
+            <button class="admin-nav-btn" data-page="reports" onclick="showPage('reports',this)">
+                <i class="fas fa-file-invoice-dollar"></i> Financial Reports
+            </button>
         </nav>
 
         <div class="admin-sidebar-footer">
@@ -873,6 +876,32 @@
             </div>
         </section>
 
+        <!-- ── REPORTS ── -->
+        <section class="admin-page" id="page-reports">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-file-invoice-dollar" style="font-size:1.5rem;"></i> Financial Reports & Exports</h1>
+                    <p>Export users, transaction records, and KYC submissions as CSV files.</p>
+                </div>
+            </div>
+            <div class="card glass" style="padding:32px; border-left:4px solid var(--accent-primary);">
+                <h3 style="margin:0 0 10px; color:var(--text-main); font-size:1.15rem;"><i class="fas fa-download"></i> Available Exports</h3>
+                <p style="color:var(--text-muted); font-size:0.88rem; margin:0 0 24px;">Click the buttons below to compile and download spreadsheets of the system's ledger databases.</p>
+                
+                <div style="display:flex; flex-wrap:wrap; gap:16px;">
+                    <button class="btn primary" onclick="exportData('users')" style="padding:13px 24px; font-weight:700; border-radius:12px; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-users"></i> Export Registered Users (.csv)
+                    </button>
+                    <button class="btn primary" onclick="exportData('transactions')" style="padding:13px 24px; font-weight:700; border-radius:12px; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-money-check-dollar"></i> Export Transactions (.csv)
+                    </button>
+                    <button class="btn primary" onclick="exportData('kyc')" style="padding:13px 24px; font-weight:700; border-radius:12px; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-id-card"></i> Export KYC Submissions (.csv)
+                    </button>
+                </div>
+            </div>
+        </section>
+
     </main>
 </div><!-- end admin-shell -->
 
@@ -893,6 +922,34 @@ function showPage(pageId, btn) {
     if (pageId === 'withdrawals') loadWithdrawals();
     if (pageId === 'kyc')        { loadKyc(); loadVerifiedKyc(); }
     if (pageId === 'users')       { loadUsers(); checkPenaltyCooldown(); }
+}
+
+function exportData(type) {
+    const token = localStorage.getItem('token');
+    if (!token) return alert('You must be logged in as admin.');
+    
+    fetch(`/api/admin/reports/${type}/export`, {
+        headers: {
+            'x-auth-token': token
+        }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Failed to generate export file.');
+        return res.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${type}_report_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+        alert(err.message || 'Export failed.');
+    });
 }
 
 function refreshAll() {

@@ -3,13 +3,17 @@ const https = require('https');
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID   = process.env.TELEGRAM_CHAT_ID;
 
-function sendTelegram(text) {
+function sendTelegram(text, replyMarkup = null) {
     return new Promise((resolve, reject) => {
         if (!BOT_TOKEN || !CHAT_ID) {
             console.warn('[TELEGRAM] Bot token or chat ID not configured — skipping.');
             return resolve();
         }
-        const body = JSON.stringify({ chat_id: CHAT_ID, text, parse_mode: 'HTML' });
+        const bodyObj = { chat_id: CHAT_ID, text, parse_mode: 'HTML' };
+        if (replyMarkup) {
+            bodyObj.reply_markup = replyMarkup;
+        }
+        const body = JSON.stringify(bodyObj);
         const options = {
             hostname: 'api.telegram.org',
             path: `/bot${BOT_TOKEN}/sendMessage`,
@@ -109,9 +113,9 @@ async function notifyKycApproved(sub, user) {
     }
 }
 
-async function notifyDepositSubmitted(user, amount, network, txid) {
+async function notifyDepositSubmitted(user, amount, network, txid, depositId) {
     try {
-        await sendTelegram([
+        const text = [
             `💰 <b>NEW DEPOSIT</b>`,
             ``,
             `👤 <b>User:</b> ${user.username}`,
@@ -123,7 +127,18 @@ async function notifyDepositSubmitted(user, amount, network, txid) {
             ``,
             `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
             `⏳ <i>Awaiting admin review</i>`,
-        ].filter(l => l !== null).join('\n'));
+        ].filter(l => l !== null).join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: 'Approve ✅', callback_data: `dep_approve:${depositId}` },
+                    { text: 'Reject ❌', callback_data: `dep_reject:${depositId}` }
+                ]
+            ]
+        };
+
+        await sendTelegram(text, replyMarkup);
     } catch(e) { console.error('[TELEGRAM] notifyDepositSubmitted error:', e.message); }
 }
 
@@ -153,9 +168,9 @@ async function notifyDepositRejected(user, amount) {
     } catch(e) { console.error('[TELEGRAM] notifyDepositRejected error:', e.message); }
 }
 
-async function notifyWithdrawalRequested(user, amount, details) {
+async function notifyWithdrawalRequested(user, amount, details, withdrawalId) {
     try {
-        await sendTelegram([
+        const text = [
             `🏧 <b>WITHDRAWAL REQUEST</b>`,
             ``,
             `👤 <b>User:</b> ${user.username}`,
@@ -166,7 +181,18 @@ async function notifyWithdrawalRequested(user, amount, details) {
             ``,
             `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
             `⏳ <i>Awaiting admin review</i>`,
-        ].filter(l => l !== null).join('\n'));
+        ].filter(l => l !== null).join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: 'Approve ✅', callback_data: `with_approve:${withdrawalId}` },
+                    { text: 'Reject ❌', callback_data: `with_reject:${withdrawalId}` }
+                ]
+            ]
+        };
+
+        await sendTelegram(text, replyMarkup);
     } catch(e) { console.error('[TELEGRAM] notifyWithdrawalRequested error:', e.message); }
 }
 
@@ -196,9 +222,9 @@ async function notifyWithdrawalRejected(user, amount) {
     } catch(e) { console.error('[TELEGRAM] notifyWithdrawalRejected error:', e.message); }
 }
 
-async function notifyKycSubmitted(user, country, idType) {
+async function notifyKycSubmitted(user, country, idType, kycId) {
     try {
-        await sendTelegram([
+        const text = [
             `🪪 <b>NEW KYC SUBMISSION</b>`,
             ``,
             `👤 <b>User:</b> ${user.username}`,
@@ -210,7 +236,18 @@ async function notifyKycSubmitted(user, country, idType) {
             ``,
             `📅 <b>Submitted:</b> ${new Date().toLocaleString()}`,
             `⏳ <i>Awaiting admin review</i>`,
-        ].filter(l => l !== null).join('\n'));
+        ].filter(l => l !== null).join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: 'Approve ✅', callback_data: `kyc_approve:${kycId}` },
+                    { text: 'Reject ❌', callback_data: `kyc_reject:${kycId}` }
+                ]
+            ]
+        };
+
+        await sendTelegram(text, replyMarkup);
     } catch(e) { console.error('[TELEGRAM] notifyKycSubmitted error:', e.message); }
 }
 

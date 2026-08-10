@@ -468,7 +468,14 @@
             
             console.log('[DEPOSIT] Selected Network:', selectedNetwork, 'Type:', netType);
 
-            // Show/Hide Manual submission form
+            // Show traditional file screenshot input
+            const screenshotInput = document.getElementById('screenshot-input');
+            if (screenshotInput) {
+                const formGroup = screenshotInput.closest('.form-group');
+                if (formGroup) formGroup.style.display = 'block';
+            }
+
+            // Show manual submission form if address is present
             if (card.dataset.address) {
                 isManual = true;
                 manualContainer.style.display = 'block';
@@ -476,6 +483,7 @@
                 manualAddress.innerText = addr;
                 const qrSize = netType === 'lightning' ? 260 : 150;
                 qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(addr)}`;
+                qrCode.style.display = 'block';
                 if (netType === 'lightning') {
                     txidDescription.innerText = `Scan the QR with a BOLT12-compatible Lightning wallet (Phoenix, Zeus, etc.). After paying, submit the payment hash or preimage below.`;
                     txidInput.placeholder = 'Paste Lightning payment hash / preimage here...';
@@ -578,7 +586,10 @@
                     }
 
                     const res = await API.submitDeposit(formData);
-                    if (res.msg && res.msg.includes('submitted')) {
+                    if (res.autoApproved) {
+                        alert(`✅ Instant Deposit Success!\n\nYour transaction via ${selectedNetwork} was successfully verified on-chain. $${res.amount.toFixed(2)} USDT has been credited to your balance instantly!`);
+                        window.location.href = 'index.html';
+                    } else if (res.msg && (res.msg.includes('submitted') || res.msg.includes('review') || res.msg.includes('verified'))) {
                         const creditedAmount = res.amount ? res.amount.toFixed(2) : amount.toFixed(2);
                         alert(`✅ Deposit of $${creditedAmount} USDT submitted successfully!\n\nYour transaction via ${selectedNetwork} is now under review. Our team will verify it and credit your account within 10–30 minutes. You'll receive a notification once it's approved.`);
                         window.location.href = 'index.html';

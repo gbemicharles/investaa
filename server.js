@@ -10,6 +10,7 @@ const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const Emails   = require('./mailer');
 const Telegram = require('./telegram');
+const TelegramBot = require('./telegram-bot');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -381,6 +382,7 @@ async function startSchedulers() {
 
 initDb().then(() => {
     startSchedulers();
+    TelegramBot.startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails);
 });
 
 const dbGet = async (sql, params) => {
@@ -521,6 +523,17 @@ app.get('/sitemap.xml', (req, res) => {
 });
 
 app.use(htmlAuthGuard);
+const staticCacheOptions = {
+    maxAge: 86400000, // 1 day in milliseconds
+    setHeaders(res, filePath) {
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+};
+
+app.use('/css', express.static(path.join(__dirname, 'css'), staticCacheOptions));
+app.use('/js', express.static(path.join(__dirname, 'js'), staticCacheOptions));
+app.use('/assets', express.static(path.join(__dirname, 'assets'), staticCacheOptions));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), staticCacheOptions));
 
 app.use(express.static(path.join(__dirname, '.'), {
     setHeaders(res, filePath) {
@@ -528,12 +541,9 @@ app.use(express.static(path.join(__dirname, '.'), {
         if (PROTECTED_HTML_PAGES.has(filename)) {
             res.setHeader('X-Robots-Tag', 'noindex, nofollow');
         }
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     }
 })); // Changed to '.' for Replit root static serving
-app.use('/css', express.static(path.join(__dirname, 'css')));
-app.use('/js', express.static(path.join(__dirname, 'js')));
-app.use('/assets', express.static(path.join(__dirname, 'assets')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 function formatUser(user) {
     if (!user) return null;
@@ -911,6 +921,56 @@ app.post('/api/user/email/confirm-change', authenticate, async (req, res) => {
 });
 
 // --- Admin Actions ---
+// --- Admin Financial Exports & Reports ---
+app.get('/api/admin/reports/users/export', authenticateAdmin, async (req, res) => {
+    try {
+        const users = await dbAll('SELECT id, username, email, phone, country, balance, deposit_balance, bonus_balance, vip_rank, kyc_status, created_at FROM users ORDER BY id ASC');
+        let csv = 'ID,Username,Email,Phone,Country,Balance,Deposit Balance,Bonus Balance,VIP Rank,KYC Status,Created At\n';
+        for (const u of users) {
+            csv += `${u.id},"${u.username || ''}","${u.email || ''}","${u.phone || ''}","${u.country || ''}",${u.balance || 0},${u.deposit_balance || 0},${u.bonus_balance || 0},"${u.vip_rank || ''}","${u.kyc_status || ''}","${u.created_at || ''}"\n`;
+        }
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=users_report.csv');
+        res.status(200).send(csv);
+    } catch (e) {
+        console.error('[REPORT-USERS] error:', e);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+app.get('/api/admin/reports/transactions/export', authenticateAdmin, async (req, res) => {
+    try {
+        const txs = await dbAll('SELECT t.id, u.username, u.email, t.type, t.amount, t.details, t.status, t.created_at FROM transactions t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC');
+        let csv = 'TxID,Username,Email,Type,Amount,Details,Status,Created At\n';
+        for (const t of txs) {
+            csv += `${t.id},"${t.username || ''}","${t.email || ''}","${t.type || ''}",${t.amount || 0},"${(t.details || '').replace(/"/g, '""')}",format_status,"${t.created_at || ''}"\n`
+               .replace('format_status', `"${t.status || ''}"`);
+        }
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=transactions_report.csv');
+        res.status(200).send(csv);
+    } catch (e) {
+        console.error('[REPORT-TXS] error:', e);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+app.get('/api/admin/reports/kyc/export', authenticateAdmin, async (req, res) => {
+    try {
+        const kyc = await dbAll('SELECT k.id, u.username, u.email, k.country, k.id_type, k.id_number, k.status, k.submitted_at FROM kyc_submissions k JOIN users u ON k.user_id = u.id ORDER BY k.submitted_at DESC');
+        let csv = 'KYC_ID,Username,Email,Country,ID_Type,ID_Number,Status,Submitted At\n';
+        for (const k of kyc) {
+            csv += `${k.id},"${k.username || ''}","${k.email || ''}","${k.country || ''}","${k.id_type || ''}","${k.id_number || ''}","${k.status || ''}","${k.submitted_at || ''}"\n`;
+        }
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=kyc_report.csv');
+        res.status(200).send(csv);
+    } catch (e) {
+        console.error('[REPORT-KYC] error:', e);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 app.get('/api/admin/deposits/pending', authenticateAdmin, async (req, res) => {
     try {
         const deposits = await dbAll(`SELECT d.*, u.username, u.email FROM deposits d JOIN users u ON d.user_id = u.id WHERE d.status = 'PENDING' ORDER BY d.created_at DESC`);
@@ -1169,6 +1229,144 @@ app.get('/api/transactions/:id', authenticate, async (req, res) => {
 });
 
 // --- Actions ---
+// Verification helper function for automated on-chain deposit validation
+async function verifyCryptoDeposit(network, txid, expectedAmountUsdt) {
+    if (!txid || txid === 'N/A' || String(txid).trim().length < 10) {
+        return { verified: false, message: 'Invalid TxID format' };
+    }
+    const cleanTxid = String(txid).trim();
+
+    // Check if this TxID has already been approved
+    const duplicate = await dbGet("SELECT id FROM deposits WHERE LOWER(txid) = LOWER(?) AND status = 'APPROVED'", [cleanTxid]);
+    if (duplicate) {
+        return { verified: false, message: 'Transaction hash has already been used and credited.' };
+    }
+
+    const net = String(network).toLowerCase();
+    
+    // 1. USDT (TRC-20) Verification
+    if (net.includes('trc-20') || net.includes('usdt')) {
+        try {
+            const url = `https://apilist.tronscanapi.com/api/transaction-info?hash=${cleanTxid}`;
+            const res = await fetch(url);
+            if (!res.ok) return { verified: false, message: `Explorer API responded with status ${res.status}` };
+            const data = await res.json();
+            
+            if (data.contractRet !== 'SUCCESS' || !data.confirmed) {
+                return { verified: false, message: 'Transaction is not successful or not confirmed on-chain' };
+            }
+            
+            // Look for a TRC-20 transfer
+            const transfers = data.trc20TransferInfo || [];
+            const matchingTransfer = transfers.find(t => 
+                t.to_address === 'TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo' && 
+                t.symbol.toUpperCase() === 'USDT'
+            );
+            
+            if (!matchingTransfer) {
+                return { verified: false, message: 'No matching USDT transfer found to our deposit address' };
+            }
+            
+            const actualAmount = parseFloat(matchingTransfer.amount_str) / 1000000; // 6 decimals for USDT
+            if (actualAmount <= 0) {
+                return { verified: false, message: 'Invalid transaction transfer amount' };
+            }
+            
+            return { verified: true, finalAmountUsdt: actualAmount, message: `USDT TRC-20 transaction verified. Credited $${actualAmount.toFixed(2)} USDT.` };
+        } catch (err) {
+            console.error('[AUTO-VERIFY] USDT TRC20 Error:', err.message);
+            return { verified: false, message: 'Failed to verify transaction due to network/explorer error' };
+        }
+    }
+    
+    // 2. Bitcoin Verification
+    if (net.includes('bitcoin') || net.includes('lightning')) {
+        if (net.includes('lightning')) {
+            return { verified: false, message: 'Lightning network payments must be verified manually.' };
+        }
+        try {
+            const url = `https://blockstream.info/api/tx/${cleanTxid}`;
+            const res = await fetch(url);
+            if (!res.ok) return { verified: false, message: `Blockstream API responded with status ${res.status}` };
+            const data = await res.json();
+            
+            if (!data.status || !data.status.confirmed) {
+                return { verified: false, message: 'Bitcoin transaction is not confirmed' };
+            }
+            
+            // Find output sending to our address
+            const matchingOutput = (data.vout || []).find(o => 
+                o.scriptpubkey_address === 'bc1qn0xn6576hzhf7reqee3dqglvcm0305xn9l5eja'
+            );
+            
+            if (!matchingOutput) {
+                return { verified: false, message: 'No output sending to the designated BTC address' };
+            }
+            
+            const btcAmt = matchingOutput.value / 100000000; // satoshis to BTC
+            
+            // Get current BTC price in USD
+            let btcPrice = 65000; // Fallback
+            try {
+                const priceRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+                if (priceRes.ok) {
+                    const priceData = await priceRes.json();
+                    if (priceData.bitcoin) btcPrice = priceData.bitcoin.usd;
+                }
+            } catch (pErr) {
+                console.error('[AUTO-VERIFY] BTC Price Fetch Error:', pErr.message);
+            }
+            
+            const creditedUsd = btcAmt * btcPrice;
+            return { verified: true, finalAmountUsdt: creditedUsd, message: `BTC transaction verified. Credited $${creditedUsd.toFixed(2)} USD (${btcAmt.toFixed(8)} BTC at $${btcPrice.toLocaleString()}/BTC).` };
+        } catch (err) {
+            console.error('[AUTO-VERIFY] BTC Error:', err.message);
+            return { verified: false, message: 'Failed to verify transaction due to explorer error' };
+        }
+    }
+
+    // 3. ETH (ERC-20) Verification
+    if (net.includes('eth') || net.includes('ethereum') || net.includes('erc-20')) {
+        try {
+            const url = `https://eth.blockscout.com/api/v2/transactions/${cleanTxid}`;
+            const res = await fetch(url);
+            if (!res.ok) return { verified: false, message: `Blockscout API responded with status ${res.status}` };
+            const data = await res.json();
+            
+            if (data.status !== 'ok') {
+                return { verified: false, message: 'Ethereum transaction failed on-chain' };
+            }
+            
+            const isToOurAddress = data.to && data.to.hash.toLowerCase() === '0xB596C691f35b55ee095879Ecf52da180017464D7'.toLowerCase();
+            if (!isToOurAddress) {
+                return { verified: false, message: 'Ethereum transaction does not match our designated deposit address' };
+            }
+            
+            const ethAmt = parseFloat(data.value) / 1e18; // in wei
+            
+            // Get current ETH price
+            let ethPrice = 3500; // Fallback
+            try {
+                const priceRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+                if (priceRes.ok) {
+                    const priceData = await priceRes.json();
+                    if (priceData.ethereum) ethPrice = priceData.ethereum.usd;
+                }
+            } catch (pErr) {
+                console.error('[AUTO-VERIFY] ETH Price Fetch Error:', pErr.message);
+            }
+            
+            const creditedUsd = ethAmt * ethPrice;
+            return { verified: true, finalAmountUsdt: creditedUsd, message: `ETH transaction verified. Credited $${creditedUsd.toFixed(2)} USD (${ethAmt.toFixed(6)} ETH at $${ethPrice.toLocaleString()}/ETH).` };
+        } catch (err) {
+            console.error('[AUTO-VERIFY] ETH Error:', err.message);
+            return { verified: false, message: 'Failed to verify transaction due to explorer error' };
+        }
+    }
+
+    return { verified: false, message: `Automated on-chain verification not supported for ${network}.` };
+}
+
 app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'), async (req, res) => {
     try {
         const { amount, network, txid, usdt_amount, crypto_amount, exchange_rate } = req.body;
@@ -1178,16 +1376,78 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
             const mime = req.file.mimetype || 'image/png';
             screenshotData = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
         }
-        await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', null, screenshotData, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
+
+        // Try on-chain auto-verification if TxID is provided and is not mock/empty
+        let isAutoApproved = false;
+        let finalCreditedAmount = usdtAmt;
+        let autoVerifyMsg = '';
+
+        if (txid && txid !== 'N/A' && String(txid).trim().length >= 10) {
+            const verifyResult = await verifyCryptoDeposit(network, txid, usdtAmt);
+            if (verifyResult.verified) {
+                isAutoApproved = true;
+                finalCreditedAmount = verifyResult.finalAmountUsdt;
+                autoVerifyMsg = verifyResult.message;
+            } else {
+                console.log(`[AUTO-VERIFY] Verification failed for TxID ${txid}: ${verifyResult.message}`);
+            }
+        }
+
+        if (isAutoApproved) {
+            // Auto approve the deposit immediately!
+            // 1. Insert deposit as APPROVED
+            await dbRunReturning(
+                'INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [req.user.id, finalCreditedAmount, network, txid, null, screenshotData, finalCreditedAmount, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1), 'APPROVED']
+            );
+
+            // 2. Load user and welcome bonus to merge, then credit user balances
+            const userForBonus = await dbGet('SELECT bonus_balance FROM users WHERE id = ?', [req.user.id]);
+            const bonusToMerge = parseFloat(userForBonus?.bonus_balance || 0);
+            const totalBalanceCredit = finalCreditedAmount + bonusToMerge;
+
+            await dbRun(
+                'UPDATE users SET balance = balance + ?, deposit_balance = deposit_balance + ?, bonus_balance = 0 WHERE id = ?',
+                [totalBalanceCredit, finalCreditedAmount, req.user.id]
+            );
+
+            // 3. Record transactions
+            await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'DEPOSIT', finalCreditedAmount, `Via ${network} (Auto-Approved)`, 'COMPLETED']);
+            await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, '💰 Deposit Auto-Approved', `Your deposit of $${finalCreditedAmount.toFixed(2)} USDT via ${network} was verified on-chain and credited automatically! ${autoVerifyMsg}`, 'DEPOSIT', 'SUCCESS']);
+
+            if (bonusToMerge > 0) {
+                await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)',
+                    [req.user.id, 'BONUS', bonusToMerge, 'Welcome bonus activated — now earning daily returns', 'COMPLETED']);
+                await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
+                    [req.user.id, '🎁 Welcome Bonus Activated!', `Your $${bonusToMerge.toFixed(2)} welcome bonus has been merged into your active balance and is now earning daily returns!`, 'SYSTEM', 'SUCCESS']);
+            }
+
+            // 4. Send email & telegram
+            const uDS = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
+            if (uDS) {
+                await sendUserEmail(req.user.id, () => Emails.depositApproved(uDS.email, uDS.username, finalCreditedAmount));
+                Telegram.sendTelegram(`🤖 <b>AUTO-DEPOSIT APPROVED</b>\n\n👤 <b>User:</b> ${uDS.username}\n📧 <b>Email:</b> ${uDS.email}\n💵 <b>Amount:</b> $${finalCreditedAmount.toFixed(2)} USDT\n🌐 <b>Network:</b> ${network}\n🔗 <b>TxID:</b> <code>${txid}</code>\n✔️ <i>Auto-verified on-chain</i>`).catch(() => {});
+            }
+
+            return res.json({ msg: 'Deposit verified and credited automatically', amount: finalCreditedAmount, autoApproved: true });
+        }
+
+        // If not auto-approved, fall back to standard PENDING manual review flow
+        const depResult = await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', null, screenshotData, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
+        const depositId = depResult.lastID;
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit of $${usdtAmt.toFixed(2)} USDT via ${network} has been received and is currently under review. Our team will verify your transaction and credit your account within 10–30 minutes. You will be notified once it is approved.`, 'DEPOSIT', 'PENDING']);
         const uDS = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
         if (uDS) {
             await sendUserEmail(req.user.id, () => Emails.depositSubmitted(uDS.email, uDS.username, usdtAmt, network));
-            Telegram.notifyDepositSubmitted(uDS, usdtAmt, network, txid).catch(() => {});
+            Telegram.notifyDepositSubmitted(uDS, usdtAmt, network, txid, depositId).catch(() => {});
         }
-        res.json({ msg: 'Deposit submitted for review', amount: usdtAmt });
-    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+        res.json({ msg: 'Deposit submitted for review', amount: usdtAmt, autoApproved: false });
+    } catch (e) { 
+        console.error('[DEPOSIT-SUBMIT] error:', e);
+        res.status(500).json({ msg: 'Server error' }); 
+    }
 });
+
 
 app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
     try {
@@ -1285,7 +1545,8 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
         await dbRun('UPDATE users SET balance = balance - ? WHERE id = ?', [totalDeducted, user.id]);
 
         // ✅ Save withdrawal
-        await dbRun('INSERT INTO withdrawals (user_id, amount, details) VALUES (?, ?, ?)', [user.id, amt, details || '']);
+        const wResult = await dbRunReturning('INSERT INTO withdrawals (user_id, amount, details) VALUES (?, ?, ?)', [user.id, amt, details || '']);
+        const withdrawalId = wResult.lastID;
 
         await dbRun(
             'INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)',
@@ -1300,7 +1561,7 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
         const uWS = await dbGet('SELECT email, username FROM users WHERE id = ?', [user.id]).catch(() => null);
         if (uWS) {
             await sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt));
-            Telegram.notifyWithdrawalRequested(uWS, amt, details).catch(() => {});
+            Telegram.notifyWithdrawalRequested(uWS, amt, details, withdrawalId).catch(() => {});
         }
         res.json({ msg: 'Withdrawal submitted' });
 
@@ -1430,13 +1691,14 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
         if (extra_doc_required === 'true' && !extra_document)
             return res.status(400).json({ msg: `A photo of your ${extra_field_name} document is required.` });
 
-        await dbRun(
+        const kResult = await dbRunReturning(
             `INSERT INTO kyc_submissions (user_id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name, extra_field_value, extra_document) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [req.user.id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name || null, extra_field_value || null, extra_document || null]
         );
+        const kycId = kResult.lastID;
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['PENDING', req.user.id]);
         const uKS = await dbGet('SELECT username, email, phone FROM users WHERE id = ?', [req.user.id]).catch(() => null);
-        if (uKS) Telegram.notifyKycSubmitted(uKS, country, id_type).catch(() => {});
+        if (uKS) Telegram.notifyKycSubmitted(uKS, country, id_type, kycId).catch(() => {});
         res.json({ msg: 'KYC submitted successfully. Our team will review it within 24–48 hours.' });
     } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
