@@ -1,3 +1,7 @@
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+    dns.setDefaultResultOrder('ipv4first');
+}
 const nodemailer = require('nodemailer');
 
 const APP_NAME = 'InvestAA';
