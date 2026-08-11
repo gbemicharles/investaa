@@ -40,6 +40,10 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
         console.warn('[TELEGRAM-BOT] Token not configured — skipping interactive polling.');
         return;
     }
+    if (process.env.BOT_POLLING_ENABLED === 'false' || process.env.TELEGRAM_POLLING_ENABLED === 'false') {
+        console.log('[TELEGRAM-BOT] Polling explicitly disabled via environment configuration.');
+        return;
+    }
 
     console.log('[TELEGRAM-BOT] Starting Long Polling interactive bot listener...');
 
