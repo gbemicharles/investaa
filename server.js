@@ -1023,7 +1023,7 @@ app.post('/api/admin/deposits/approve', authenticateAdmin, async (req, res) => {
         }
         const uDep = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]).catch(() => null);
         if (uDep) {
-            await sendUserEmail(deposit.user_id, () => Emails.depositApproved(uDep.email, uDep.username, amount));
+            sendUserEmail(deposit.user_id, () => Emails.depositApproved(uDep.email, uDep.username, amount)).catch(() => {});
             Telegram.notifyDepositApproved(uDep, amount).catch(() => {});
         }
         res.json({ msg: 'Deposit approved' });
@@ -1039,7 +1039,7 @@ app.post('/api/admin/deposits/reject', authenticateAdmin, async (req, res) => {
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [deposit.user_id, 'Deposit Rejected', 'Your deposit attempt was rejected.', 'DEPOSIT', 'FAILED']);
         const uDepR = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]).catch(() => null);
         if (uDepR) {
-            await sendUserEmail(deposit.user_id, () => Emails.depositRejected(uDepR.email, uDepR.username));
+            sendUserEmail(deposit.user_id, () => Emails.depositRejected(uDepR.email, uDepR.username)).catch(() => {});
             Telegram.notifyDepositRejected(uDepR, deposit.amount).catch(() => {});
         }
         res.json({ msg: 'Deposit rejected' });
@@ -1062,7 +1062,7 @@ app.post('/api/admin/approve-withdrawal/:id', authenticateAdmin, async (req, res
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Approved', `Your withdrawal of $${parseFloat(w.amount).toFixed(2)} was processed.`, 'WITHDRAWAL', 'SUCCESS']);
         const uWA = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
         if (uWA) {
-            await sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWA.email, uWA.username, w.amount));
+            sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWA.email, uWA.username, w.amount)).catch(() => {});
             Telegram.notifyWithdrawalApproved(uWA, w.amount).catch(() => {});
         }
         res.json({ msg: 'Withdrawal approved' });
@@ -1079,7 +1079,7 @@ app.post('/api/admin/reject-withdrawal/:id', authenticateAdmin, async (req, res)
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Rejected', `Your withdrawal was rejected and refunded.`, 'WITHDRAWAL', 'FAILED']);
         const uWR = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
         if (uWR) {
-            await sendUserEmail(w.user_id, () => Emails.withdrawalRejected(uWR.email, uWR.username, w.amount));
+            sendUserEmail(w.user_id, () => Emails.withdrawalRejected(uWR.email, uWR.username, w.amount)).catch(() => {});
             Telegram.notifyWithdrawalRejected(uWR, w.amount).catch(() => {});
         }
         res.json({ msg: 'Withdrawal rejected' });
@@ -1158,7 +1158,7 @@ app.post('/api/admin/fund-user', authenticateAdmin, async (req, res) => {
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [user.id, 'DEPOSIT', parseFloat(amount), 'Admin credit', 'COMPLETED']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [user.id, 'Account Funded', `Your account has been credited with $${amount}.`, 'SYSTEM', 'SUCCESS']);
         const uAF = await dbGet('SELECT email FROM users WHERE id = ?', [user.id]).catch(() => null);
-        if (uAF) await sendUserEmail(user.id, () => Emails.accountFunded(uAF.email, user.username, amount));
+        if (uAF) sendUserEmail(user.id, () => Emails.accountFunded(uAF.email, user.username, amount)).catch(() => {});
         res.json({ msg: `Successfully funded ${user.username} with $${amount}` });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1183,7 +1183,7 @@ app.post('/api/admin/reset-user-password', authenticateAdmin, async (req, res) =
             [user.id, 'Password Reset by Admin', 'Your account password was reset by support. Please sign in with the new password and change it from your wallet if needed.', 'SYSTEM', 'WARNING']
         );
         const uPR = await dbGet('SELECT email FROM users WHERE id = ?', [user.id]).catch(() => null);
-        if (uPR) await sendUserEmail(user.id, () => Emails.passwordResetByAdmin(uPR.email, user.username));
+        if (uPR) sendUserEmail(user.id, () => Emails.passwordResetByAdmin(uPR.email, user.username)).catch(() => {});
         res.json({ msg: `Password reset successfully for ${user.username}` });
     } catch (e) {
         console.error('Admin reset password failed:', e.message);
@@ -1444,7 +1444,7 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
             // 4. Send email & telegram
             const uDS = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
             if (uDS) {
-                await sendUserEmail(req.user.id, () => Emails.depositApproved(uDS.email, uDS.username, finalCreditedAmount));
+                sendUserEmail(req.user.id, () => Emails.depositApproved(uDS.email, uDS.username, finalCreditedAmount)).catch(() => {});
                 Telegram.sendTelegram(`🤖 <b>AUTO-DEPOSIT APPROVED</b>\n\n👤 <b>User:</b> ${uDS.username}\n📧 <b>Email:</b> ${uDS.email}\n💵 <b>Amount:</b> $${finalCreditedAmount.toFixed(2)} USDT\n🌐 <b>Network:</b> ${network}\n🔗 <b>TxID:</b> <code>${txid}</code>\n✔️ <i>Auto-verified on-chain</i>`).catch(() => {});
             }
 
@@ -1457,7 +1457,7 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit of $${usdtAmt.toFixed(2)} USDT via ${network} has been received and is currently under review. Our team will verify your transaction and credit your account within 10–30 minutes. You will be notified once it is approved.`, 'DEPOSIT', 'PENDING']);
         const uDS = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
         if (uDS) {
-            await sendUserEmail(req.user.id, () => Emails.depositSubmitted(uDS.email, uDS.username, usdtAmt, network));
+            sendUserEmail(req.user.id, () => Emails.depositSubmitted(uDS.email, uDS.username, usdtAmt, network)).catch(() => {});
             Telegram.notifyDepositSubmitted(uDS, usdtAmt, network, txid, depositId).catch(() => {});
         }
         res.json({ msg: 'Deposit submitted for review', amount: usdtAmt, autoApproved: false });
@@ -1579,7 +1579,7 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
 
         const uWS = await dbGet('SELECT email, username FROM users WHERE id = ?', [user.id]).catch(() => null);
         if (uWS) {
-            await sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt));
+            sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt)).catch(() => {});
             Telegram.notifyWithdrawalRequested(uWS, amt, details, withdrawalId).catch(() => {});
         }
         res.json({ msg: 'Withdrawal submitted' });
@@ -1631,7 +1631,7 @@ app.post('/api/user/upgrade', authenticate, async (req, res) => {
         await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP_UPGRADE', cost, `Upgraded to ${rank} VIP rank`, 'COMPLETED']);
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP Upgrade Successful', `Congratulations! Your account has been upgraded to ${rank} VIP status. You now earn a daily investment return and enjoy all ${rank} benefits.`, 'UPGRADE', 'SUCCESS']);
         const uVIP = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
-        if (uVIP) await sendUserEmail(req.user.id, () => Emails.vipUpgrade(uVIP.email, uVIP.username, rank));
+        if (uVIP) sendUserEmail(req.user.id, () => Emails.vipUpgrade(uVIP.email, uVIP.username, rank)).catch(() => {});
         res.json({ msg: `Successfully upgraded to ${rank}!` });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1760,7 +1760,7 @@ app.post('/api/admin/kyc/approve', authenticateAdmin, async (req, res) => {
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['APPROVED', sub.user_id]);
         const uKA = await dbGet('SELECT email, username, phone FROM users WHERE id = ?', [sub.user_id]).catch(() => null);
         if (uKA) {
-            await sendUserEmail(sub.user_id, () => Emails.kycApproved(uKA.email, uKA.username));
+            sendUserEmail(sub.user_id, () => Emails.kycApproved(uKA.email, uKA.username)).catch(() => {});
             Telegram.notifyKycApproved(sub, uKA).catch(() => {});
         }
         res.json({ msg: 'KYC approved' });
@@ -1776,7 +1776,7 @@ app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
         await dbRun('UPDATE kyc_submissions SET status = ?, rejection_reason = ?, reviewed_at = NOW() WHERE id = ?', ['REJECTED', rejReason, kyc_id]);
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['REJECTED', sub.user_id]);
         const uKR = await dbGet('SELECT email, username FROM users WHERE id = ?', [sub.user_id]).catch(() => null);
-        if (uKR) await sendUserEmail(sub.user_id, () => Emails.kycRejected(uKR.email, uKR.username, rejReason));
+        if (uKR) sendUserEmail(sub.user_id, () => Emails.kycRejected(uKR.email, uKR.username, rejReason)).catch(() => {});
         res.json({ msg: 'KYC rejected' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
