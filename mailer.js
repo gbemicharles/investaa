@@ -24,6 +24,9 @@ function makePrimaryTransporter() {
         port: SMTP_PORT,
         secure: SMTP_PORT === 465,
         auth: { user: SMTP_USER, pass: SMTP_PASS },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000
     });
 }
 
@@ -32,6 +35,9 @@ function makeFallbackTransporter() {
     return nodemailer.createTransport({
         service: 'gmail',
         auth: { user: GMAIL_USER, pass: GMAIL_PASS.replace(/\s+/g, '') },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000
     });
 }
 
