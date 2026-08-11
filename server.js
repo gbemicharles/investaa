@@ -1863,6 +1863,7 @@ app.get('/api/debug-tg-error', async (req, res) => {
             stack: err.stack
         });
     }
+});
 
 // --- Email Centre ---
 app.get('/api/admin/email/mailer-status', authenticateAdmin, (req, res) => {
