@@ -1,4 +1,5 @@
 const https = require('https');
+const PDFDocument = require('pdfkit');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID   = process.env.TELEGRAM_CHAT_ID;
@@ -351,10 +352,11 @@ async function sendTelegramDocumentBuffer(chatId, filename, buffer, caption = nu
         if (!BOT_TOKEN || !chatId) return resolve(null);
 
         const boundary = '----TGBoundary' + Date.now();
+        const mimeType = filename.endsWith('.pdf') ? 'application/pdf' : 'text/plain';
         const captionPart =
             `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n` +
             (caption ? `--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n` : '') +
-            `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${filename}"\r\nContent-Type: text/plain\r\n\r\n`;
+            `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`;
 
         const closing = `\r\n--${boundary}--\r\n`;
         const body = Buffer.concat([
@@ -439,48 +441,163 @@ async function notifyKycSubmittedWithFiles(user, country, idType, kycId, files) 
     }
 }
 
+function downloadTelegramFile(fileId) {
+    return new Promise((resolve) => {
+        if (!BOT_TOKEN || !fileId) return resolve(null);
+
+        const path = `/bot${BOT_TOKEN}/getFile?file_id=${fileId}`;
+        https.get(`https://api.telegram.org${path}`, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.ok && parsed.result.file_path) {
+                        const filePath = parsed.result.file_path;
+                        const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+                        
+                        https.get(fileUrl, (fileRes) => {
+                            const chunks = [];
+                            fileRes.on('data', chunk => chunks.push(chunk));
+                            fileRes.on('end', () => {
+                                resolve(Buffer.concat(chunks));
+                            });
+                            fileRes.on('error', (err) => {
+                                console.error('[TELEGRAM] downloadTelegramFile buffer read error:', err.message);
+                                resolve(null);
+                            });
+                        }).on('error', (err) => {
+                            console.error('[TELEGRAM] downloadTelegramFile download trigger error:', err.message);
+                            resolve(null);
+                        });
+                    } else {
+                        resolve(null);
+                    }
+                } catch (e) {
+                    resolve(null);
+                }
+            });
+        }).on('error', (err) => {
+            console.error('[TELEGRAM] downloadTelegramFile getFile error:', err.message);
+            resolve(null);
+        });
+    });
+}
+
+function generateKycPdf(sub, user, imageBuffers) {
+    return new Promise((resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40 });
+            const chunks = [];
+
+            doc.on('data', chunk => chunks.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(chunks)));
+            doc.on('error', err => reject(err));
+
+            // 1. Draw Title Card
+            doc.fillColor('#1e293b').fontSize(22).font('Helvetica-Bold').text('INVESTAA - KYC VERIFICATION REPORT', { align: 'center' });
+            doc.moveDown(1);
+
+            doc.moveTo(40, doc.y).lineTo(570, doc.y).strokeColor('#cbd5e1').lineWidth(1).stroke();
+            doc.moveDown(1.5);
+
+            // 2. Add text fields
+            doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text('User Information:');
+            doc.fillColor('#334155').font('Helvetica').fontSize(10);
+            doc.text(`Username:      ${user.username}`);
+            doc.text(`Email:         ${user.email}`);
+            doc.text(`Phone:         ${user.phone || 'N/A'}`);
+            doc.moveDown(1.2);
+
+            doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(13).text('Verification Details:');
+            doc.fillColor('#334155').font('Helvetica').fontSize(10);
+            doc.text(`Submission ID: ${sub.id}`);
+            doc.text(`Country:       ${sub.country}`);
+            doc.text(`ID Type:       ${sub.id_type}`);
+            doc.text(`ID Number:     ${sub.id_number}`);
+            if (sub.extra_field_name && sub.extra_field_value) {
+                doc.text(`${sub.extra_field_name}: ${sub.extra_field_value}`);
+            }
+            doc.text(`Submitted At:  ${sub.submitted_at || new Date().toLocaleString()}`);
+            doc.text(`Approved At:   ${new Date().toLocaleString()}`);
+            doc.moveDown(2);
+
+            // Stamp/Notice on page 1
+            doc.fillColor('#22c55e').fontSize(14).font('Helvetica-Bold').text('VERIFIED & APPROVED ✅', { align: 'center' });
+
+            // 3. Append Document Pages
+            for (const img of imageBuffers) {
+                if (img.buffer) {
+                    try {
+                        doc.addPage();
+                        doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text(img.label, { align: 'center' });
+                        doc.moveDown(0.5);
+
+                        doc.image(img.buffer, {
+                            fit: [500, 600],
+                            align: 'center',
+                            valign: 'center'
+                        });
+                    } catch (imgErr) {
+                        doc.fillColor('#ef4444').fontSize(10).font('Helvetica').text(`Error embedding document image: ${imgErr.message}`, { align: 'center' });
+                    }
+                }
+            }
+
+            doc.end();
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
 async function archiveKyc(archiveChatId, sub, user, detailsText) {
     try {
         if (!BOT_TOKEN || !archiveChatId) return;
 
-        const detailsBuffer = Buffer.from(detailsText, 'utf8');
-        const filename = `kyc_approved_${sub.id}_${user.username}.txt`;
-        await sendTelegramDocumentBuffer(archiveChatId, filename, detailsBuffer, `🗄️ Approved KYC Record - User: ${user.username}`);
+        console.log(`[KYC-ARCHIVE] Starting PDF compilation for user: ${user.username}...`);
 
-        const media = [];
+        // 1. Download files from Telegram into memory
+        const imageBuffers = [];
         if (sub.id_document && !sub.id_document.startsWith('data:') && sub.id_document !== 'Sent to Telegram') {
-            media.push({ type: 'photo', media: sub.id_document, caption: `ID Front - ${user.username}` });
+            const buf = await downloadTelegramFile(sub.id_document);
+            if (buf) imageBuffers.push({ label: 'ID Document — Front', buffer: buf });
         }
         if (sub.id_document_back && !sub.id_document_back.startsWith('data:') && sub.id_document_back !== 'Sent to Telegram') {
-            media.push({ type: 'photo', media: sub.id_document_back, caption: `ID Back - ${user.username}` });
+            const buf = await downloadTelegramFile(sub.id_document_back);
+            if (buf) imageBuffers.push({ label: 'ID Document — Back', buffer: buf });
         }
         if (sub.selfie && !sub.selfie.startsWith('data:') && sub.selfie !== 'Sent to Telegram') {
-            media.push({ type: 'photo', media: sub.selfie, caption: `Selfie - ${user.username}` });
+            const buf = await downloadTelegramFile(sub.selfie);
+            if (buf) imageBuffers.push({ label: 'Selfie holding ID', buffer: buf });
         }
         if (sub.extra_document && !sub.extra_document.startsWith('data:') && sub.extra_document !== 'Sent to Telegram') {
+            const buf = await downloadTelegramFile(sub.extra_document);
             const label = sub.extra_field_name || 'Supporting Document';
-            media.push({ type: 'photo', media: sub.extra_document, caption: `${label} - ${user.username}` });
+            if (buf) imageBuffers.push({ label: label + ' Document', buffer: buf });
         }
 
-        if (media.length > 0) {
-            const body = JSON.stringify({ chat_id: archiveChatId, media });
-            const options = {
-                hostname: 'api.telegram.org',
-                path: `/bot${BOT_TOKEN}/sendMediaGroup`,
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
-            };
-            await new Promise((resolve) => {
-                const req = https.request(options, (res) => {
-                    let d = '';
-                    res.on('data', chunk => d += chunk);
-                    res.on('end', () => resolve(d));
-                });
-                req.on('error', () => resolve());
-                req.write(body);
-                req.end();
-            });
+        console.log(`[KYC-ARCHIVE] Downloaded ${imageBuffers.length} images from Telegram.`);
+
+        // 2. Generate PDF Report
+        const pdfBuffer = await generateKycPdf(sub, user, imageBuffers).catch((err) => {
+            console.error('[KYC-ARCHIVE] PDF Generation Error:', err.message);
+            return null;
+        });
+
+        if (!pdfBuffer) {
+            console.warn('[KYC-ARCHIVE] PDF generation failed, falling back to text file...');
+            const detailsBuffer = Buffer.from(detailsText, 'utf8');
+            const filename = `kyc_approved_${sub.id}_${user.username}.txt`;
+            await sendTelegramDocumentBuffer(archiveChatId, filename, detailsBuffer, `🗄️ Approved KYC Record - User: ${user.username}`);
+            return;
         }
+
+        // 3. Send consolidated PDF to Archive Chat
+        console.log('[KYC-ARCHIVE] Sending consolidated PDF report to archive group...');
+        const filename = `kyc_approved_${sub.id}_${user.username}.pdf`;
+        await sendTelegramDocumentBuffer(archiveChatId, filename, pdfBuffer, `🗄️ Approved KYC Report (PDF) - User: ${user.username}`);
+        console.log('[KYC-ARCHIVE] PDF archived successfully.');
     } catch (e) {
         console.error('[TELEGRAM] archiveKyc error:', e.message);
     }
