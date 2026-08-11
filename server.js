@@ -1796,6 +1796,29 @@ app.post('/api/admin/kyc/approve', authenticateAdmin, async (req, res) => {
         if (uKA) {
             sendUserEmail(sub.user_id, () => Emails.kycApproved(uKA.email, uKA.username)).catch(() => {});
             Telegram.notifyKycApproved(sub, uKA).catch(() => {});
+
+            const archiveId = process.env.TELEGRAM_ARCHIVE_CHAT_ID;
+            if (archiveId) {
+                const detailsText = [
+                    `=======================================`,
+                    `INVESTAA - APPROVED KYC RECORD (via Web)`,
+                    `=======================================`,
+                    `Submission ID: ${sub.id}`,
+                    `User ID:       ${sub.user_id}`,
+                    `Username:      ${uKA.username}`,
+                    `Email:         ${uKA.email}`,
+                    `Phone:         ${uKA.phone || 'N/A'}`,
+                    `Country:       ${sub.country}`,
+                    `ID Type:       ${sub.id_type}`,
+                    `ID Number:     ${sub.id_number}`,
+                    `Submitted At:  ${sub.submitted_at || 'N/A'}`,
+                    `Approved At:   ${new Date().toLocaleString()}`,
+                    `=======================================`
+                ].join('\n');
+                Telegram.archiveKyc(archiveId, sub, uKA, detailsText).catch((err) => {
+                    console.error('[KYC-ARCHIVE] Failed to archive KYC via Web:', err.message);
+                });
+            }
         }
         res.json({ msg: 'KYC approved' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
@@ -1814,6 +1837,32 @@ app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
         res.json({ msg: 'KYC rejected' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
+
+app.get('/api/debug-tg-error', async (req, res) => {
+    try {
+        const dummyBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+        const files = [
+            { name: 'photo_0', filename: 'test1.png', mimeType: 'image/png', buffer: dummyBuffer },
+            { name: 'photo_1', filename: 'test2.png', mimeType: 'image/png', buffer: dummyBuffer }
+        ];
+        
+        const mockUser = { username: 'debug_test', email: 'debug@test.com', phone: '+12345' };
+        const result = await Telegram.notifyKycSubmittedWithFiles(mockUser, 'United States', 'Passport', 9999, files);
+        
+        res.json({
+            success: true,
+            bot_token_present: !!process.env.TELEGRAM_BOT_TOKEN,
+            chat_id: process.env.TELEGRAM_CHAT_ID,
+            archive_chat_id: process.env.TELEGRAM_ARCHIVE_CHAT_ID,
+            result: result
+        });
+    } catch (err) {
+        res.json({
+            success: false,
+            error: err.message,
+            stack: err.stack
+        });
+    }
 
 // --- Email Centre ---
 app.get('/api/admin/email/mailer-status', authenticateAdmin, (req, res) => {
