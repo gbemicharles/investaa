@@ -1838,32 +1838,6 @@ app.post('/api/admin/kyc/reject', authenticateAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
 
-app.get('/api/debug-tg-error', async (req, res) => {
-    try {
-        const dummyBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
-        const files = [
-            { name: 'photo_0', filename: 'test1.png', mimeType: 'image/png', buffer: dummyBuffer },
-            { name: 'photo_1', filename: 'test2.png', mimeType: 'image/png', buffer: dummyBuffer }
-        ];
-        
-        const mockUser = { username: 'debug_test', email: 'debug@test.com', phone: '+12345' };
-        const result = await Telegram.notifyKycSubmittedWithFiles(mockUser, 'United States', 'Passport', 9999, files);
-        
-        res.json({
-            success: true,
-            bot_token_present: !!process.env.TELEGRAM_BOT_TOKEN,
-            chat_id: process.env.TELEGRAM_CHAT_ID,
-            archive_chat_id: process.env.TELEGRAM_ARCHIVE_CHAT_ID,
-            result: result
-        });
-    } catch (err) {
-        res.json({
-            success: false,
-            error: err.message,
-            stack: err.stack
-        });
-    }
-});
 
 // --- Email Centre ---
 app.get('/api/admin/email/mailer-status', authenticateAdmin, (req, res) => {
