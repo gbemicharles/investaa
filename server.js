@@ -1582,6 +1582,11 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
             [user.id, 'FEE', FEE, 'Withdrawal processing fee', 'COMPLETED']
         );
 
+        await dbRun(
+            'INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
+            [user.id, 'Withdrawal Submitted', `Your withdrawal request of $${amt.toFixed(2)} USDT has been received and is currently under review.`, 'WITHDRAW', 'PENDING']
+        );
+
         const uWS = await dbGet('SELECT email, username FROM users WHERE id = ?', [user.id]).catch(() => null);
         if (uWS) {
             sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt)).catch(() => {});

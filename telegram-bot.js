@@ -168,6 +168,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                     popupText = `⚠️ Already processed (Status: ${w.status})`;
                 } else {
                     await dbRun("UPDATE withdrawals SET status = 'APPROVED' WHERE id = ?", [recordId]);
+                    await dbRun('UPDATE transactions SET status = ? WHERE user_id = ? AND type = ? AND amount = ? AND status = ?', ['COMPLETED', w.user_id, 'WITHDRAW', w.amount, 'PENDING']);
                     await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Approved', `Your withdrawal of $${parseFloat(w.amount).toFixed(2)} has been processed successfully!`, 'WITHDRAW', 'SUCCESS']);
                     
                     const uWD = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
@@ -188,7 +189,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                     const refund = parseFloat(w.amount) + 1.0; // Refund amount + processing fee ($1)
                     await dbRun("UPDATE withdrawals SET status = 'REJECTED' WHERE id = ?", [recordId]);
                     await dbRun('UPDATE users SET balance = balance + ? WHERE id = ?', [refund, w.user_id]);
-
+                    await dbRun('UPDATE transactions SET status = ? WHERE user_id = ? AND type = ? AND amount = ? AND status = ?', ['REJECTED', w.user_id, 'WITHDRAW', w.amount, 'PENDING']);
                     await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'TRANSFER_IN', refund, 'Refund for rejected withdrawal (including fee)', 'COMPLETED']);
                     await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Rejected', `Your withdrawal request was rejected and $${refund.toFixed(2)} USDT has been refunded to your balance.`, 'WITHDRAW', 'FAILED']);
                     
