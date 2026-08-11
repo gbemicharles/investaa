@@ -657,8 +657,9 @@ app.post('/api/auth/register', async (req, res) => {
         // Generate verification code (6 digits, expires in 30 minutes)
         const code = String(Math.floor(100000 + Math.random() * 900000));
         const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-        // Admin accounts skip verification
-        const verifiedFlag = is_admin ? 1 : 0;
+        // Admin accounts skip verification. Also skip if verification is disabled.
+        const requiresVerification = process.env.EMAIL_VERIFICATION_REQUIRED !== 'false';
+        const verifiedFlag = (!requiresVerification || is_admin) ? 1 : 0;
         await dbRun('UPDATE users SET verification_code = ?, verification_expires = ?, email_verified = ? WHERE id = ?',
             [code, expiresAt, verifiedFlag, result.lastID]);
 
@@ -675,8 +676,8 @@ app.post('/api/auth/register', async (req, res) => {
             console.error('Failed to notify admins of new registration:', notifErr.message);
         }
 
-        if (is_admin) {
-            const userToken = jwt.sign({ id: result.lastID, username, is_admin: 1 }, JWT_SECRET, { expiresIn: '7d' });
+        if (verifiedFlag === 1) {
+            const userToken = jwt.sign({ id: result.lastID, username, is_admin }, JWT_SECRET, { expiresIn: '7d' });
             res.cookie('auth_token', userToken, { httpOnly: true, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
             Emails.welcome(email, username);
             return res.json({ token: userToken, msg: 'Registration successful' });
