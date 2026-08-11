@@ -133,7 +133,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
 
                     const uDep = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]).catch(() => null);
                     if (uDep) {
-                        await sendUserEmail(deposit.user_id, () => Emails.depositApproved(uDep.email, uDep.username, amount));
+                        sendUserEmail(deposit.user_id, () => Emails.depositApproved(uDep.email, uDep.username, amount)).catch(() => {});
                     }
 
                     popupText = `✅ Deposit approved successfully!`;
@@ -151,7 +151,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                     
                     const uDepR = await dbGet('SELECT email, username FROM users WHERE id = ?', [deposit.user_id]).catch(() => null);
                     if (uDepR) {
-                        await sendUserEmail(deposit.user_id, () => Emails.depositRejected(uDepR.email, uDepR.username));
+                        sendUserEmail(deposit.user_id, () => Emails.depositRejected(uDepR.email, uDepR.username)).catch(() => {});
                     }
 
                     popupText = `❌ Deposit rejected successfully.`;
@@ -172,7 +172,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                     
                     const uWD = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
                     if (uWD) {
-                        await sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWD.email, uWD.username, parseFloat(w.amount)));
+                        sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWD.email, uWD.username, parseFloat(w.amount))).catch(() => {});
                     }
 
                     popupText = `✅ Withdrawal approved successfully!`;
@@ -194,7 +194,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                     
                     const uWDR = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
                     if (uWDR) {
-                        await sendUserEmail(w.user_id, () => Emails.withdrawalRejected(uWDR.email, uWDR.username, parseFloat(w.amount)));
+                        sendUserEmail(w.user_id, () => Emails.withdrawalRejected(uWDR.email, uWDR.username, parseFloat(w.amount))).catch(() => {});
                     }
 
                     popupText = `❌ Withdrawal rejected & balance refunded.`;
@@ -216,7 +216,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                     
                     const uKyc = await dbGet('SELECT email, username, phone FROM users WHERE id = ?', [sub.user_id]).catch(() => null);
                     if (uKyc) {
-                        await sendUserEmail(sub.user_id, () => Emails.kycApproved(uKyc.email, uKyc.username));
+                        sendUserEmail(sub.user_id, () => Emails.kycApproved(uKyc.email, uKyc.username)).catch(() => {});
                     }
 
                     popupText = `✅ KYC submission approved successfully!`;
@@ -235,7 +235,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                     
                     const uKycR = await dbGet('SELECT email, username FROM users WHERE id = ?', [sub.user_id]).catch(() => null);
                     if (uKycR) {
-                        await sendUserEmail(sub.user_id, () => Emails.kycRejected(uKycR.email, uKycR.username, 'Rejected via Telegram Control Bot'));
+                        sendUserEmail(sub.user_id, () => Emails.kycRejected(uKycR.email, uKycR.username, 'Rejected via Telegram Control Bot')).catch(() => {});
                     }
 
                     popupText = `❌ KYC submission rejected.`;
