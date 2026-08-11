@@ -1422,7 +1422,7 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
             // 1. Insert deposit as APPROVED
             await dbRunReturning(
                 'INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [req.user.id, finalCreditedAmount, network, txid, null, screenshotData, finalCreditedAmount, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1), 'APPROVED']
+                [req.user.id, finalCreditedAmount, network, txid, null, screenshotData, finalCreditedAmount, parseFloat(crypto_amount || finalCreditedAmount), parseFloat(exchange_rate || 1), 'APPROVED']
             );
 
             // 2. Load user and welcome bonus to merge, then credit user balances
@@ -1457,7 +1457,7 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
         }
 
         // If not auto-approved, fall back to standard PENDING manual review flow
-        const depResult = await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, parseFloat(amount), network, txid || '', null, screenshotData, usdtAmt, parseFloat(crypto_amount || amount), parseFloat(exchange_rate || 1)]);
+        const depResult = await dbRunReturning('INSERT INTO deposits (user_id, amount, network, txid, proof_path, screenshot, usdt_amount, crypto_amount, exchange_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.user.id, usdtAmt, network, txid || '', null, screenshotData, usdtAmt, parseFloat(crypto_amount || usdtAmt), parseFloat(exchange_rate || 1)]);
         const depositId = depResult.lastID;
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'Deposit Submitted', `Your deposit of $${usdtAmt.toFixed(2)} USDT via ${network} has been received and is currently under review. Our team will verify your transaction and credit your account within 10–30 minutes. You will be notified once it is approved.`, 'DEPOSIT', 'PENDING']);
         const uDS = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);

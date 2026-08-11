@@ -109,7 +109,7 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                 } else if (deposit.status !== 'PENDING') {
                     popupText = `⚠️ Already processed (Status: ${deposit.status})`;
                 } else {
-                    const amount = parseFloat(deposit.amount);
+                    const amount = parseFloat(deposit.usdt_amount || deposit.amount);
                     await dbRun("UPDATE deposits SET status = 'APPROVED' WHERE id = ?", [recordId]);
 
                     const userForBonus = await dbGet('SELECT bonus_balance FROM users WHERE id = ?', [deposit.user_id]);
