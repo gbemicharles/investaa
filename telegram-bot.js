@@ -1,4 +1,5 @@
 const https = require('https');
+const Telegram = require('./telegram');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -218,6 +219,29 @@ function startTelegramPolling(dbGet, dbRun, sendUserEmail, Emails) {
                     const uKyc = await dbGet('SELECT email, username, phone FROM users WHERE id = ?', [sub.user_id]).catch(() => null);
                     if (uKyc) {
                         sendUserEmail(sub.user_id, () => Emails.kycApproved(uKyc.email, uKyc.username)).catch(() => {});
+                        
+                        const archiveId = process.env.TELEGRAM_ARCHIVE_CHAT_ID;
+                        if (archiveId) {
+                            const detailsText = [
+                                `=======================================`,
+                                `INVESTAA - APPROVED KYC RECORD`,
+                                `=======================================`,
+                                `Submission ID: ${sub.id}`,
+                                `User ID:       ${sub.user_id}`,
+                                `Username:      ${uKyc.username}`,
+                                `Email:         ${uKyc.email}`,
+                                `Phone:         ${uKyc.phone || 'N/A'}`,
+                                `Country:       ${sub.country}`,
+                                `ID Type:       ${sub.id_type}`,
+                                `ID Number:     ${sub.id_number}`,
+                                `Submitted At:  ${sub.submitted_at || 'N/A'}`,
+                                `Approved At:   ${new Date().toLocaleString()}`,
+                                `=======================================`
+                            ].join('\n');
+                            Telegram.archiveKyc(archiveId, sub, uKyc, detailsText).catch((err) => {
+                                console.error('[KYC-ARCHIVE] Failed to archive KYC:', err.message);
+                            });
+                        }
                     }
 
                     popupText = `✅ KYC submission approved successfully!`;

@@ -1161,6 +1161,12 @@ function switchKycTab(tab) {
 
 function kycDocBlock(label, dataUrl, filename) {
     if (!dataUrl) return '';
+    if (dataUrl.startsWith('Sent to Telegram') || dataUrl === 'null' || !dataUrl.startsWith('data:')) {
+        return `<div style="grid-column:span 2;margin-top:14px;padding:12px 16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;">
+            <strong style="color:var(--text-main);">${label}</strong>
+            <div style="margin-top:4px;color:#f59e0b;"><i class="fab fa-telegram"></i> Sent directly to Telegram Bot for privacy/storage savings. Review on Telegram.</div>
+        </div>`;
+    }
     return `<div style="grid-column:span 2;margin-top:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span class="detail-label">${label}</span>

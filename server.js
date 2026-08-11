@@ -1703,31 +1703,55 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
         const { country, id_type, id_number, extra_field_name, extra_field_value, extra_doc_required } = req.body;
         if (!country || !id_type || !id_number) return res.status(400).json({ msg: 'Country, ID type, and ID number are required.' });
 
-        const toBase64 = (field) => {
-            const files = req.files && req.files[field];
-            if (!files || !files[0]) return null;
-            const f = files[0];
-            return `data:${f.mimetype};base64,${f.buffer.toString('base64')}`;
-        };
+        const fId = req.files && req.files['id_document'] && req.files['id_document'][0];
+        const fIdBack = req.files && req.files['id_document_back'] && req.files['id_document_back'][0];
+        const fSelfie = req.files && req.files['selfie'] && req.files['selfie'][0];
+        const fExtra = req.files && req.files['extra_document'] && req.files['extra_document'][0];
 
-        const id_document      = toBase64('id_document');
-        const id_document_back = toBase64('id_document_back');
-        const selfie           = toBase64('selfie');
-        const extra_document   = toBase64('extra_document');
-
-        if (!id_document)      return res.status(400).json({ msg: 'Front of your ID document is required.' });
-        if (!id_document_back) return res.status(400).json({ msg: 'Back of your ID document is required.' });
-        if (extra_doc_required === 'true' && !extra_document)
+        if (!fId) return res.status(400).json({ msg: 'Front of your ID document is required.' });
+        if (!fIdBack) return res.status(400).json({ msg: 'Back of your ID document is required.' });
+        if (extra_doc_required === 'true' && !fExtra)
             return res.status(400).json({ msg: `A photo of your ${extra_field_name} document is required.` });
+
+        const files = [];
+        files.push({ name: 'photo_0', filename: fId.originalname || 'id_front.jpg', mimeType: fId.mimetype || 'image/jpeg', buffer: fId.buffer });
+        files.push({ name: 'photo_1', filename: fIdBack.originalname || 'id_back.jpg', mimeType: fIdBack.mimetype || 'image/jpeg', buffer: fIdBack.buffer });
+        if (fSelfie) {
+            files.push({ name: 'photo_2', filename: fSelfie.originalname || 'selfie.jpg', mimeType: fSelfie.mimetype || 'image/jpeg', buffer: fSelfie.buffer });
+        }
+        if (fExtra) {
+            files.push({ name: 'photo_3', filename: fExtra.originalname || 'extra_doc.jpg', mimeType: fExtra.mimetype || 'image/jpeg', buffer: fExtra.buffer });
+        }
 
         const kResult = await dbRunReturning(
             `INSERT INTO kyc_submissions (user_id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name, extra_field_value, extra_document) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [req.user.id, country, id_type, id_number, id_document, id_document_back, selfie, extra_field_name || null, extra_field_value || null, extra_document || null]
+            [req.user.id, country, id_type, id_number, 'Pending Upload', 'Pending Upload', fSelfie ? 'Pending Upload' : null, extra_field_name || null, extra_field_value || null, fExtra ? 'Pending Upload' : null]
         );
         const kycId = kResult.lastID;
         await dbRun('UPDATE users SET kyc_status = ? WHERE id = ?', ['PENDING', req.user.id]);
+        
         const uKS = await dbGet('SELECT username, email, phone FROM users WHERE id = ?', [req.user.id]).catch(() => null);
-        if (uKS) Telegram.notifyKycSubmitted(uKS, country, id_type, kycId).catch(() => {});
+        let fileIds = {};
+        if (uKS) {
+            fileIds = await Telegram.notifyKycSubmittedWithFiles(uKS, country, id_type, kycId, files).catch((err) => {
+                console.error('[KYC-TG-UPLOAD] Error uploading documents to Telegram:', err);
+                return {};
+            });
+        }
+
+        await dbRun(
+            `UPDATE kyc_submissions 
+             SET id_document = ?, id_document_back = ?, selfie = ?, extra_document = ? 
+             WHERE id = ?`,
+            [
+                fileIds.id_document || 'Sent to Telegram', 
+                fileIds.id_document_back || 'Sent to Telegram', 
+                fileIds.selfie || (fSelfie ? 'Sent to Telegram' : null), 
+                fileIds.extra_document || (fExtra ? 'Sent to Telegram' : null),
+                kycId
+            ]
+        );
+
         res.json({ msg: 'KYC submitted successfully. Our team will review it within 24–48 hours.' });
     } catch (e) { console.error(e); res.status(500).json({ msg: 'Server error' }); }
 });
