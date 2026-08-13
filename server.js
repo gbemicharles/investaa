@@ -1871,9 +1871,9 @@ app.post('/api/admin/email/test', authenticateAdmin, async (req, res) => {
         const mode   = status.mode;
         if (mode === 'hostinger' && !status.hostinger) return res.status(500).json({ ok: false, msg: 'Hostinger credentials (SMTP_USER/SMTP_PASS) are not configured.' });
         if (mode === 'gmail'     && !status.gmail)     return res.status(500).json({ ok: false, msg: 'Gmail credentials (GMAIL_USER/GMAIL_APP_PASSWORD) are not configured.' });
-        if (mode === 'auto' && !status.hostinger && !status.gmail) return res.status(500).json({ ok: false, msg: 'No email credentials configured in environment.' });
+        if (mode === 'auto' && !status.hostinger && !status.gmail && !status.resend) return res.status(500).json({ ok: false, msg: 'No email credentials configured in environment.' });
         await Emails.securityAlert(a.email, a.username, 'Test email fired from the Admin Email Centre — if you received this, email is working correctly.');
-        res.json({ ok: true, msg: `Test email sent to ${a.email} via ${mode === 'auto' ? 'auto (Hostinger → Gmail)' : mode}. Check your inbox.` });
+        res.json({ ok: true, msg: `Test email sent to ${a.email} via ${status.resend ? 'Resend HTTPS' : (mode === 'auto' ? 'auto (Hostinger → Gmail)' : mode)}. Check your inbox.` });
     } catch (e) {
         console.error('[EMAIL-TEST]', e);
         res.status(500).json({ ok: false, msg: e.message });
