@@ -1879,39 +1879,6 @@ app.post('/api/admin/email/test', authenticateAdmin, async (req, res) => {
         res.status(500).json({ ok: false, msg: e.message });
     }
 });
-
-app.get('/api/debug-resend', async (req, res) => {
-    try {
-        const status = Emails.getMailerStatus();
-        const from = process.env.RESEND_FROM_EMAIL || 'InvestAA <onboarding@resend.dev>';
-        const to = req.query.to || 'support@resend.dev';
-        
-        console.log('[DEBUG-RESEND] Testing direct Resend API call...');
-        
-        // Let's call sendMail directly and catch errors
-        let errorObj = null;
-        try {
-            await Emails.securityAlert(to, 'Debug User', 'Direct Resend Debug Test Alert');
-        } catch (mailErr) {
-            errorObj = { message: mailErr.message, stack: mailErr.stack };
-        }
-        
-        res.json({
-            success: true,
-            resend_env_key_present: !!process.env.RESEND_API_KEY,
-            from: from,
-            to: to,
-            status: status,
-            error: errorObj
-        });
-    } catch (err) {
-        res.json({
-            success: false,
-            error: err.message,
-            stack: err.stack
-        });
-    }
-});
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function drip(users, sendFn, label) {
