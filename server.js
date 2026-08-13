@@ -1879,6 +1879,15 @@ app.post('/api/admin/email/test', authenticateAdmin, async (req, res) => {
         res.status(500).json({ ok: false, msg: e.message });
     }
 });
+
+app.get('/api/admin/email/error', authenticateAdmin, (req, res) => {
+    res.json({
+        ok: true,
+        lastError: Emails.getLastError(),
+        status: Emails.getMailerStatus(),
+        fromEmail: process.env.RESEND_FROM_EMAIL || 'InvestAA <onboarding@resend.dev>'
+    });
+});
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function drip(users, sendFn, label) {

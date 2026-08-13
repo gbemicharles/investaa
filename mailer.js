@@ -68,11 +68,14 @@ function setMailerMode(mode) {
     }
 }
 function getMailerMode() { return _mailerMode; }
+let _lastError = null;
+function getLastError() { return _lastError; }
 function getMailerStatus() {
     return {
         mode: _mailerMode,
         hostinger: !!(SMTP_USER && SMTP_PASS),
         gmail:     !!(GMAIL_USER && GMAIL_PASS),
+        resend:    !!process.env.RESEND_API_KEY
     };
 }
 
@@ -219,6 +222,12 @@ async function sendMail(to, subject, html, opts = {}) {
             console.log(`[MAILER] Sent via Resend HTTPS: "${subject}" → ${to}`);
             return;
         } catch (err) {
+            _lastError = {
+                timestamp: new Date().toLocaleString(),
+                recipient: to,
+                error: err.message,
+                stack: err.stack
+            };
             console.error(`[MAILER] Resend failed (${err.message}) — attempting fallback SMTP…`);
         }
     }
@@ -860,6 +869,7 @@ const Emails = {
 Emails.setMailerMode       = setMailerMode;
 Emails.getMailerMode       = getMailerMode;
 Emails.getMailerStatus     = getMailerStatus;
+Emails.getLastError        = getLastError;
 Emails.setSuppressionChecker = setSuppressionChecker;
 
 module.exports = Emails;
