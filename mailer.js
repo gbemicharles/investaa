@@ -2,6 +2,7 @@ const dns = require('dns');
 if (typeof dns.setDefaultResultOrder === 'function') {
     dns.setDefaultResultOrder('ipv4first');
 }
+const https = require('https');
 const nodemailer = require('nodemailer');
 
 const APP_NAME = 'InvestAA';
@@ -153,16 +154,49 @@ function wrap(preheader, bodyHtml, ctaText, ctaUrl) {
 </body></html>`;
 }
 
+function sendResend(from, to, subject, html, text) {
+    return new Promise((resolve, reject) => {
+        const apiKey = process.env.RESEND_API_KEY;
+        const body = JSON.stringify({
+            from: from,
+            to: Array.isArray(to) ? to : [to],
+            subject: subject,
+            html: html,
+            text: text
+        });
+
+        const options = {
+            hostname: 'api.resend.com',
+            path: '/emails',
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(body)
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    resolve(JSON.parse(data));
+                } else {
+                    reject(new Error(`Resend API status ${res.statusCode}: ${data}`));
+                }
+            });
+        });
+
+        req.on('error', (err) => reject(err));
+        req.write(body);
+        req.end();
+    });
+}
+
 async function sendMail(to, subject, html, opts = {}) {
     if (!to) return;
-    const msg = {
-        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-        to,
-        subject,
-        html,
-        text: opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim(),
-        ...(opts.headers ? { headers: opts.headers } : {}),
-    };
+
     // Check suppression list before sending
     if (_suppressionChecker) {
         try {
@@ -176,11 +210,33 @@ async function sendMail(to, subject, html, opts = {}) {
         }
     }
 
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (resendApiKey) {
+        try {
+            const fromEmail = process.env.RESEND_FROM_EMAIL || 'InvestAA <onboarding@resend.dev>';
+            const plainText = opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim();
+            await sendResend(fromEmail, to, subject, html, plainText);
+            console.log(`[MAILER] Sent via Resend HTTPS: "${subject}" → ${to}`);
+            return;
+        } catch (err) {
+            console.error(`[MAILER] Resend failed (${err.message}) — attempting fallback SMTP…`);
+        }
+    }
+
+    const msg = {
+        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+        to,
+        subject,
+        html,
+        text: opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim(),
+        ...(opts.headers ? { headers: opts.headers } : {}),
+    };
+
     const mode     = _mailerMode;
     const primary  = (mode === 'gmail')      ? null : getPrimary();
     const fallback = (mode === 'hostinger')  ? null : getFallback();
     if (!primary && !fallback) {
-        console.warn(`[MAILER] No transport available in mode "${mode}" — email skipped.`);
+        console.warn(`[MAILER] No fallback SMTP transport available in mode "${mode}" — email skipped.`);
         return;
     }
     if (primary) {
