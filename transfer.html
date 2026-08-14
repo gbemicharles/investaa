@@ -182,32 +182,32 @@
                     <span class="amount" style="font-weight: 800; font-size: 1.2rem;">$0.00</span>
                 </div>
 
-                <h3 style="margin-bottom: 20px;">Your VIP Status & Limits</h3>
+                <h3 style="margin-bottom: 20px;">Your VIP Status & Transfer Limits</h3>
                 <div class="vip-status-grid">
-                    <div class="vip-rank" data-limit="1000">
+                    <div class="vip-rank" data-rank="BRONZE" data-limit="5000">
                         <i class="fas fa-medal" style="color: #cd7f32;"></i>
                         <span class="rank-name">BRONZE</span>
-                        <span class="limit">$1,000/day</span>
+                        <span class="limit">$5,000/tx</span>
                     </div>
-                    <div class="vip-rank" data-limit="5000">
+                    <div class="vip-rank" data-rank="SILVER" data-limit="50000">
                         <i class="fas fa-medal" style="color: #c0c0c0;"></i>
                         <span class="rank-name">SILVER</span>
-                        <span class="limit">$5,000/day</span>
+                        <span class="limit">$50,000/tx</span>
                     </div>
-                    <div class="vip-rank" data-limit="20000">
+                    <div class="vip-rank" data-rank="GOLD" data-limit="200000">
                         <i class="fas fa-medal" style="color: #ffd700;"></i>
                         <span class="rank-name">GOLD</span>
-                        <span class="limit">$20,000/day</span>
+                        <span class="limit">$200k/tx</span>
                     </div>
-                    <div class="vip-rank" data-limit="100000">
+                    <div class="vip-rank" data-rank="PLATINUM" data-limit="500000">
                         <i class="fas fa-gem" style="color: #e5e4e2;"></i>
                         <span class="rank-name">PLATINUM</span>
-                        <span class="limit">$100k/day</span>
+                        <span class="limit">$500k/tx</span>
                     </div>
-                    <div class="vip-rank active" data-limit="1000000">
+                    <div class="vip-rank" data-rank="DIAMOND" data-limit="2000000">
                         <i class="fas fa-crown" style="color: #b9f2ff;"></i>
                         <span class="rank-name">DIAMOND</span>
-                        <span class="limit">Unlimited</span>
+                        <span class="limit">$2M/tx</span>
                     </div>
                 </div>
 
@@ -221,8 +221,9 @@
                     <label>Amount to Transfer</label>
                     <div id="transfer-amount-display" style="margin-bottom:8px;font-size:0.9rem;color:var(--accent-primary);font-weight:700;">$0.00</div>
                     <input type="text" inputmode="decimal" id="transfer-amount" placeholder="0.00">
+                    <div id="transfer-limit-error" style="display:none;margin-top:8px;padding:10px 14px;border-radius:10px;font-size:0.83rem;font-weight:600;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#f87171;"></div>
                     <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
-                        Remaining Daily Limit: <span id="current-limit" style="color: var(--accent-primary); font-weight: 700;">$1,000.00</span>
+                        Your Tier Limit: <span id="current-limit" style="color: var(--accent-primary); font-weight: 700;">$5,000.00 / transfer</span>
                     </p>
                 </div>
 
@@ -253,24 +254,31 @@
 
     <script src="js/api.js"></script>
     <script>
+        let currentUser = null;
+        const PER_TRANSFER_CAP = { REGULAR: 0, BRONZE: 5000, SILVER: 50000, GOLD: 200000, PLATINUM: 500000, DIAMOND: 2000000 };
+
         document.addEventListener('DOMContentLoaded', async () => {
-                const user = await API.getProfile();
-                if (user) {
-                    // Admin Link
-                    if (user.role === 'ADMIN') {
-                        const adminLink = document.getElementById('admin-link');
-                        if (adminLink) adminLink.style.display = 'block';
-                    }
-                    document.querySelector('.balance-brief .amount').innerText = `$${user.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                
-                // Highlight VIP Rank
+            currentUser = await API.getProfile().catch(() => null);
+            if (currentUser) {
+                if (currentUser.role === 'ADMIN') {
+                    const adminLink = document.getElementById('admin-link');
+                    if (adminLink) adminLink.style.display = 'block';
+                }
+                document.querySelector('.balance-brief .amount').innerText = `$${Number(currentUser.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+            
+                // Highlight VIP Rank & set limit text
+                const userRank = currentUser.vip_rank || 'REGULAR';
+                const cap = PER_TRANSFER_CAP[userRank] || 0;
+                document.getElementById('current-limit').innerText = cap > 0 ? `$${cap.toLocaleString()} USDT / transfer` : 'Transfers Locked (VIP Required)';
+
                 document.querySelectorAll('.vip-rank').forEach(rank => {
                     rank.classList.remove('active');
-                    if (rank.querySelector('.rank-name').innerText === user.vip_rank) {
+                    if (rank.dataset.rank === userRank) {
                         rank.classList.add('active');
-                        document.getElementById('current-limit').innerText = rank.querySelector('.limit').innerText;
                     }
                 });
+
+                validateTransferAmount();
             }
         });
 
@@ -280,6 +288,8 @@
         const summaryAmount = document.getElementById('summary-amount');
         const summaryTotal = document.getElementById('summary-total');
         const amountDisplay = document.getElementById('transfer-amount-display');
+        const limitError = document.getElementById('transfer-limit-error');
+        const btnTransfer = document.getElementById('btn-transfer');
 
         function formatMoney(value) {
             const amount = Number(value) || 0;
@@ -309,17 +319,53 @@
             amountDisplay.innerText = `${formatMoney(amount)} • ${amountToWords(amount)}`;
             return amount;
         }
-        
-        [recipientInput, amountInput].forEach(el => el.addEventListener('input', updateSummary));
-        amountInput.addEventListener('input', () => {
+
+        function validateTransferAmount() {
             const amount = normalizeAmountInput(amountInput);
-            if (amount > 0) summaryAmount.innerText = formatMoney(amount) + ' USDT';
-            else summaryAmount.innerText = '0.00 USDT';
-        });
+            const userRank = currentUser ? (currentUser.vip_rank || 'REGULAR') : 'REGULAR';
+            const userCap = PER_TRANSFER_CAP[userRank] || 0;
+            const balance = currentUser ? parseFloat(currentUser.balance || 0) : 0;
+            const fee = 1.00;
+            const totalRequired = amount + fee;
+
+            let errorMsg = '';
+
+            if (userRank === 'REGULAR') {
+                errorMsg = '⛔ REGULAR accounts cannot make transfers. Please upgrade to at least BRONZE VIP.';
+            } else if (amount > userCap) {
+                errorMsg = `⚠️ Amount exceeds your ${userRank} VIP transfer limit of $${userCap.toLocaleString()} USDT per transfer.`;
+            } else if (amount > 0 && totalRequired > balance) {
+                errorMsg = `⚠️ Insufficient balance. Available: $${balance.toFixed(2)} USDT ($1.00 USDT fee applies).`;
+            }
+
+            if (errorMsg) {
+                amountInput.style.border = '2px solid #ef4444';
+                amountInput.style.background = 'rgba(239, 68, 68, 0.12)';
+                amountInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.2)';
+                limitError.style.display = 'block';
+                limitError.innerText = errorMsg;
+                btnTransfer.disabled = true;
+                btnTransfer.style.opacity = '0.5';
+                btnTransfer.style.cursor = 'not-allowed';
+            } else {
+                amountInput.style.border = '1px solid var(--glass-border)';
+                amountInput.style.background = 'var(--glass-bg)';
+                amountInput.style.boxShadow = 'none';
+                limitError.style.display = 'none';
+                btnTransfer.disabled = false;
+                btnTransfer.style.opacity = '1';
+                btnTransfer.style.cursor = 'pointer';
+            }
+        }
+        
+        [recipientInput, amountInput].forEach(el => el.addEventListener('input', () => {
+            validateTransferAmount();
+            updateSummary();
+        }));
 
         function updateSummary() {
             const recipient = recipientInput.value || "Not Specified";
-            const amount = normalizeAmountInput(amountInput);
+            const amount = parseFloat(amountInput.value) || 0;
             const fee = 1.00;
             const total = amount > 0 ? amount + fee : 0;
             
@@ -335,6 +381,9 @@
             if (!recipient) { alert('Please enter recipient identifier (UID, Email, Phone, or Username).'); return; }
             if (!amount || amount <= 0) { alert('Enter a valid amount.'); return; }
             
+            validateTransferAmount();
+            if (btnTransfer.disabled) return;
+
             try {
                 const data = await API.transfer(recipient, amount);
                 if (data.msg === 'Transfer successful') {
@@ -344,7 +393,7 @@
                     alert(data.msg || 'Transfer failed');
                 }
             } catch (err) {
-                alert('Connection error');
+                alert('Connection error: ' + err.message);
             }
         });
     </script>

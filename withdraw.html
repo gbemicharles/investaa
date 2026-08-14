@@ -236,6 +236,7 @@
                     <label>Withdraw Amount</label>
                     <div id="withdraw-amount-display" style="margin-bottom:8px;font-size:0.9rem;color:var(--accent-primary);font-weight:700;">$0.00</div>
                     <input type="text" inputmode="decimal" id="withdraw-amount" placeholder="0.00">
+                    <div id="withdraw-limit-error" style="display:none;margin-top:8px;padding:10px 14px;border-radius:10px;font-size:0.83rem;font-weight:600;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#f87171;"></div>
                 </div>
 
                 <div class="notice-box">
@@ -244,7 +245,7 @@
                         <li>• Double check the destination address. Transactions cannot be reversed.</li>
                         <li>• Ensure your wallet supports the selected blockchain network.</li>
                         <li>• Large withdrawals may undergo additional security reviews.</li>
-                        <li>• <strong>A FIXED FEE OF 1 USDT APPLIES TO ALL WITHDRAWALS.</strong></li>
+                        <li>• <strong>A FIXED FEE OF 1 USDT APPLIES TO ALL WITHDRAWALS. MINIMUM WITHDRAWAL IS 10 USDT.</strong></li>
                     </ul>
                 </div>
 
@@ -301,17 +302,27 @@
 
     <script src="js/api.js"></script>
     <script>
+        let currentUser = null;
+        let currentLimitsData = null;
+        const amountInput = document.getElementById('withdraw-amount');
+        const networkCards = document.querySelectorAll('.network-card');
+        const summaryNetwork = document.getElementById('summary-network');
+        const summaryAmount = document.getElementById('summary-amount');
+        const summaryTotal = document.getElementById('summary-total');
+        const amountDisplay = document.getElementById('withdraw-amount-display');
+        const limitError = document.getElementById('withdraw-limit-error');
+        const btnConfirm = document.getElementById('confirm-withdrawal');
+
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                const user = await API.getProfile();
-                if (user) {
-                    // Admin Link
-                    if (user.role === 'ADMIN') {
+                currentUser = await API.getProfile();
+                if (currentUser) {
+                    if (currentUser.role === 'ADMIN') {
                         const adminLink = document.getElementById('admin-link');
                         if (adminLink) adminLink.style.display = 'block';
                     }
-                    document.getElementById('available-balance').innerText = `$${user.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                    document.getElementById('rank-badge').innerText = `RANK: ${user.vip_rank}`;
+                    document.getElementById('available-balance').innerText = `$${Number(currentUser.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    document.getElementById('rank-badge').innerText = `RANK: ${currentUser.vip_rank}`;
                 }
             } catch (error) {
                 console.error('Failed to fetch user profile:', error);
@@ -320,16 +331,16 @@
 
             try {
                 // Fetch limits
-                const limitData = await API.getLimits();
-                if (limitData && limitData.limits) {
-                    const { usage, limits } = limitData;
+                currentLimitsData = await API.getLimits();
+                if (currentLimitsData && currentLimitsData.limits) {
+                    const { usage, limits } = currentLimitsData;
                     if (limits.daily === 0 && limits.monthly === 0) {
                         document.getElementById('limits-summary').innerHTML = `
                             <span style="color: var(--danger); font-weight: 800;">WITHDRAWAL LOCKED</span><br>
                             Upgrade VIP to enable withdrawals.
                         `;
-                        document.getElementById('confirm-withdrawal').disabled = true;
-                        document.getElementById('confirm-withdrawal').innerText = 'Upgrade to Withdraw';
+                        btnConfirm.disabled = true;
+                        btnConfirm.innerText = 'Upgrade to Withdraw';
                     } else {
                         document.getElementById('limits-summary').innerHTML = `
                             Daily: <strong>$${usage.daily.toFixed(0)}</strong> / $${limits.daily.toLocaleString()} <br>
@@ -337,17 +348,11 @@
                         `;
                     }
                 }
+                validateWithdrawalAmount();
             } catch (error) {
                 console.error('Failed to fetch limits:', error);
             }
         });
-
-        const amountInput = document.getElementById('withdraw-amount');
-        const networkCards = document.querySelectorAll('.network-card');
-        const summaryNetwork = document.getElementById('summary-network');
-        const summaryAmount = document.getElementById('summary-amount');
-        const summaryTotal = document.getElementById('summary-total');
-        const amountDisplay = document.getElementById('withdraw-amount-display');
 
         function formatMoney(value) {
             const amount = Number(value) || 0;
@@ -377,6 +382,51 @@
             amountDisplay.innerText = `${formatMoney(amount)} • ${amountToWords(amount)}`;
             return amount;
         }
+
+        function validateWithdrawalAmount() {
+            const amount = normalizeAmountInput(amountInput);
+            const balance = currentUser ? parseFloat(currentUser.balance || 0) : 0;
+            const rank = currentUser ? (currentUser.vip_rank || 'REGULAR') : 'REGULAR';
+            const limits = currentLimitsData ? currentLimitsData.limits : null;
+            const usage = currentLimitsData ? currentLimitsData.usage : null;
+            const fee = 1.00;
+            const totalDeducted = amount + fee;
+
+            let errorMsg = '';
+
+            if (rank === 'REGULAR' || (limits && limits.daily === 0)) {
+                errorMsg = '⛔ REGULAR accounts cannot withdraw. Upgrade to VIP to enable withdrawals.';
+            } else if (amount > 0 && amount < 10) {
+                errorMsg = '⚠️ Minimum withdrawal amount is $10.00 USDT.';
+            } else if (limits && (usage.daily + amount > limits.daily)) {
+                const remaining = Math.max(0, limits.daily - usage.daily);
+                errorMsg = `⚠️ Amount exceeds your daily withdrawal limit of $${limits.daily.toLocaleString()} USDT (Remaining today: $${remaining.toFixed(2)} USDT).`;
+            } else if (limits && (usage.monthly + amount > limits.monthly)) {
+                const remaining = Math.max(0, limits.monthly - usage.monthly);
+                errorMsg = `⚠️ Amount exceeds your monthly withdrawal limit of $${limits.monthly.toLocaleString()} USDT (Remaining this month: $${remaining.toFixed(2)} USDT).`;
+            } else if (amount > 0 && totalDeducted > balance) {
+                errorMsg = `⚠️ Insufficient balance. You have $${balance.toFixed(2)} USDT available (requires $${totalDeducted.toFixed(2)} USDT including $1.00 fee).`;
+            }
+
+            if (errorMsg) {
+                amountInput.style.border = '2px solid #ef4444';
+                amountInput.style.background = 'rgba(239, 68, 68, 0.12)';
+                amountInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.2)';
+                limitError.style.display = 'block';
+                limitError.innerText = errorMsg;
+                btnConfirm.disabled = true;
+                btnConfirm.style.opacity = '0.5';
+                btnConfirm.style.cursor = 'not-allowed';
+            } else {
+                amountInput.style.border = '1px solid var(--glass-border)';
+                amountInput.style.background = 'var(--glass-bg)';
+                amountInput.style.boxShadow = 'none';
+                limitError.style.display = 'none';
+                btnConfirm.disabled = false;
+                btnConfirm.style.opacity = '1';
+                btnConfirm.style.cursor = 'pointer';
+            }
+        }
         
         let selectedNetwork = "USDT (TRC-20)";
 
@@ -390,7 +440,8 @@
         });
 
         amountInput.addEventListener('input', () => {
-            const amount = normalizeAmountInput(amountInput);
+            validateWithdrawalAmount();
+            const amount = parseFloat(amountInput.value) || 0;
             const fee = 1.00;
             const total = Math.max(0, amount - fee);
             
