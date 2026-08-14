@@ -386,7 +386,47 @@ async function sendTelegramDocumentBuffer(chatId, filename, buffer, caption = nu
     });
 }
 
-async function notifyKycSubmittedWithFiles(user, country, idType, kycId, files) {
+function sendPhotoBuffer(imageBuffer, caption, mimeType = 'image/jpeg') {
+    return new Promise((resolve) => {
+        if (!BOT_TOKEN || !CHAT_ID || !imageBuffer) return resolve(null);
+
+        const boundary = '----TGBoundary' + Date.now();
+        const ext = (mimeType.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+
+        const captionPart =
+            `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${CHAT_ID}\r\n` +
+            `--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption || ''}\r\n` +
+            `--${boundary}\r\nContent-Disposition: form-data; name="parse_mode"\r\n\r\nHTML\r\n` +
+            `--${boundary}\r\nContent-Disposition: form-data; name="photo"; filename="kyc_doc.${ext}"\r\nContent-Type: ${mimeType}\r\n\r\n`;
+
+        const closing = `\r\n--${boundary}--\r\n`;
+        const body = Buffer.concat([
+            Buffer.from(captionPart, 'utf8'),
+            imageBuffer,
+            Buffer.from(closing, 'utf8')
+        ]);
+
+        const options = {
+            hostname: 'api.telegram.org',
+            path: `/bot${BOT_TOKEN}/sendPhoto`,
+            method: 'POST',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Content-Length': body.length
+            }
+        };
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => resolve(data));
+        });
+        req.on('error', (e) => { console.error('[TELEGRAM] sendPhotoBuffer error:', e.message); resolve(null); });
+        req.write(body);
+        req.end();
+    });
+}
+
+async function notifyKycSubmittedWithFiles(user, country, idType, idNumber, extraName, extraValue, kycId, files) {
     try {
         const text = [
             `🪪 <b>NEW KYC SUBMISSION</b>`,
@@ -397,32 +437,12 @@ async function notifyKycSubmittedWithFiles(user, country, idType, kycId, files) 
             ``,
             `🌍 <b>Country:</b> ${country}`,
             `🪪 <b>ID Type:</b> ${idType}`,
+            `🔢 <b>ID Number:</b> <code>${idNumber || 'N/A'}</code>`,
+            (extraName && extraValue) ? `📋 <b>${extraName}:</b> <code>${extraValue}</code>` : null,
             ``,
             `📅 <b>Submitted:</b> ${new Date().toLocaleString()}`,
             `⏳ <i>Awaiting admin review</i>`,
         ].filter(l => l !== null).join('\n');
-
-        const result = await sendTelegramMediaGroupBuffers(files, `🪪 KYC Docs: ${user.username} (${idType})`);
-
-        const fileIds = {};
-        if (result && Array.isArray(result)) {
-            if (result[0]?.photo) {
-                const photos = result[0].photo;
-                fileIds.id_document = photos[photos.length - 1].file_id;
-            }
-            if (result[1]?.photo) {
-                const photos = result[1].photo;
-                fileIds.id_document_back = photos[photos.length - 1].file_id;
-            }
-            if (result[2]?.photo) {
-                const photos = result[2].photo;
-                fileIds.selfie = photos[photos.length - 1].file_id;
-            }
-            if (result[3]?.photo) {
-                const photos = result[3].photo;
-                fileIds.extra_document = photos[photos.length - 1].file_id;
-            }
-        }
 
         const replyMarkup = {
             inline_keyboard: [
@@ -433,7 +453,34 @@ async function notifyKycSubmittedWithFiles(user, country, idType, kycId, files) 
             ]
         };
 
+        // 1. Send header details message with inline action buttons
         await sendTelegram(text, replyMarkup);
+
+        // 2. Upload each photo document individually to Telegram with labeled captions
+        const fileIds = {};
+        if (Array.isArray(files)) {
+            for (const fileObj of files) {
+                if (!fileObj || !fileObj.buffer) continue;
+                try {
+                    const docLabel = fileObj.label || fileObj.name || 'Document';
+                    const caption = `🪪 <b>${docLabel}</b> — <code>${user.username}</code>${idNumber ? ` (ID: ${idNumber})` : ''}`;
+                    const resData = await sendPhotoBuffer(fileObj.buffer, caption, fileObj.mimeType || 'image/jpeg');
+                    if (resData) {
+                        const parsed = typeof resData === 'string' ? JSON.parse(resData) : resData;
+                        if (parsed && parsed.ok && parsed.result && parsed.result.photo) {
+                            const photos = parsed.result.photo;
+                            const fileId = photos[photos.length - 1].file_id;
+                            if (fileObj.key) {
+                                fileIds[fileObj.key] = fileId;
+                            }
+                        }
+                    }
+                } catch (fileErr) {
+                    console.error(`[KYC-TG-UPLOAD] Error sending ${fileObj.key || 'doc'}:`, fileErr.message);
+                }
+            }
+        }
+
         return fileIds;
     } catch(e) {
         console.error('[TELEGRAM] notifyKycSubmittedWithFiles error:', e.message);

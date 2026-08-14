@@ -1718,13 +1718,14 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
             return res.status(400).json({ msg: `A photo of your ${extra_field_name} document is required.` });
 
         const files = [];
-        files.push({ name: 'photo_0', filename: fId.originalname || 'id_front.jpg', mimeType: fId.mimetype || 'image/jpeg', buffer: fId.buffer });
-        files.push({ name: 'photo_1', filename: fIdBack.originalname || 'id_back.jpg', mimeType: fIdBack.mimetype || 'image/jpeg', buffer: fIdBack.buffer });
+        files.push({ key: 'id_document', label: 'Front of ID', filename: fId.originalname || 'id_front.jpg', mimeType: fId.mimetype || 'image/jpeg', buffer: fId.buffer });
+        files.push({ key: 'id_document_back', label: 'Back of ID', filename: fIdBack.originalname || 'id_back.jpg', mimeType: fIdBack.mimetype || 'image/jpeg', buffer: fIdBack.buffer });
         if (fSelfie) {
-            files.push({ name: 'photo_2', filename: fSelfie.originalname || 'selfie.jpg', mimeType: fSelfie.mimetype || 'image/jpeg', buffer: fSelfie.buffer });
+            files.push({ key: 'selfie', label: 'Selfie with ID', filename: fSelfie.originalname || 'selfie.jpg', mimeType: fSelfie.mimetype || 'image/jpeg', buffer: fSelfie.buffer });
         }
         if (fExtra) {
-            files.push({ name: 'photo_3', filename: fExtra.originalname || 'extra_doc.jpg', mimeType: fExtra.mimetype || 'image/jpeg', buffer: fExtra.buffer });
+            const extraLabel = extra_field_name ? `${extra_field_name} Document` : 'Supporting Document';
+            files.push({ key: 'extra_document', label: extraLabel, filename: fExtra.originalname || 'extra_doc.jpg', mimeType: fExtra.mimetype || 'image/jpeg', buffer: fExtra.buffer });
         }
 
         const kResult = await dbRunReturning(
@@ -1737,7 +1738,7 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
         const uKS = await dbGet('SELECT username, email, phone FROM users WHERE id = ?', [req.user.id]).catch(() => null);
         let fileIds = {};
         if (uKS) {
-            fileIds = await Telegram.notifyKycSubmittedWithFiles(uKS, country, id_type, kycId, files).catch((err) => {
+            fileIds = await Telegram.notifyKycSubmittedWithFiles(uKS, country, id_type, id_number, extra_field_name, extra_field_value, kycId, files).catch((err) => {
                 console.error('[KYC-TG-UPLOAD] Error uploading documents to Telegram:', err);
                 return {};
             });
