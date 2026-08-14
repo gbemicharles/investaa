@@ -214,6 +214,21 @@ function sendResend(from, to, subject, html, text) {
     });
 }
 
+function formatResendFrom(fromEnv) {
+    if (!fromEnv) return 'InvestAA <onboarding@resend.dev>';
+    let str = fromEnv.trim().replace(/^["']|["']$/g, '');
+    if (/^[^<>]+\s*<[^@\s]+@[^@\s]+\.[^@\s]+>$/.test(str)) {
+        return str;
+    }
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)) {
+        return `${APP_NAME} <${str}>`;
+    }
+    if (/^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/.test(str)) {
+        return `${APP_NAME} <support@${str}>`;
+    }
+    return str;
+}
+
 async function sendMail(to, subject, html, opts = {}) {
     if (!to) return;
 
@@ -241,7 +256,7 @@ async function sendMail(to, subject, html, opts = {}) {
             if (mode === 'resend') throw new Error(errStr);
         } else {
             try {
-                const fromEmail = process.env.RESEND_FROM_EMAIL || 'InvestAA <onboarding@resend.dev>';
+                const fromEmail = formatResendFrom(process.env.RESEND_FROM_EMAIL);
                 const plainText = opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim();
                 await sendResend(fromEmail, to, subject, html, plainText);
                 console.log(`[MAILER] Sent via Resend HTTPS: "${subject}" → ${to}`);
