@@ -385,6 +385,19 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // Instant cached balance render
+            try {
+                const cachedUser = JSON.parse(localStorage.getItem('user'));
+                if (cachedUser) {
+                    if (cachedUser.role === 'ADMIN') {
+                        const adminLink = document.getElementById('admin-link');
+                        if (adminLink) adminLink.style.display = 'block';
+                    }
+                    const balEl = document.querySelector('.balance-brief .amount');
+                    if (balEl && cachedUser.balance !== undefined) balEl.innerText = `$${Number(cachedUser.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                }
+            } catch(e) {}
+
             try {
                 // Initial Load Balance
                 const user = await API.getProfile();
@@ -605,8 +618,8 @@
             } else {
                 alert(`Redirecting to automated ${selectedNetwork} payment gateway...`);
             }
-        });
     </script>
+    <script src="js/main.js"></script>
     <script src="js/chat.js"></script>
 </body>
 

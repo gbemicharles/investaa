@@ -173,6 +173,9 @@
                     <p>Send funds instantly to other users.</p>
                 </div>
             </div>
+            <div class="header-right">
+                <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+            </div>
         </header>
 
         <section class="transfer-container">
@@ -258,6 +261,25 @@
         const PER_TRANSFER_CAP = { REGULAR: 0, BRONZE: 5000, SILVER: 50000, GOLD: 200000, PLATINUM: 500000, DIAMOND: 2000000 };
 
         document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const cachedUser = JSON.parse(localStorage.getItem('user'));
+                if (cachedUser) {
+                    currentUser = cachedUser;
+                    if (cachedUser.role === 'ADMIN') {
+                        const adminLink = document.getElementById('admin-link');
+                        if (adminLink) adminLink.style.display = 'block';
+                    }
+                    if (cachedUser.balance !== undefined) document.querySelector('.balance-brief .amount').innerText = `$${Number(cachedUser.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    const userRank = cachedUser.vip_rank || 'REGULAR';
+                    const cap = PER_TRANSFER_CAP[userRank] || 0;
+                    document.getElementById('current-limit').innerText = cap > 0 ? `$${cap.toLocaleString()} USDT / transfer` : 'Transfers Locked (VIP Required)';
+                    document.querySelectorAll('.vip-rank').forEach(rank => {
+                        rank.classList.remove('active');
+                        if (rank.dataset.rank === userRank) rank.classList.add('active');
+                    });
+                }
+            } catch(e) {}
+
             currentUser = await API.getProfile().catch(() => null);
             if (currentUser) {
                 if (currentUser.role === 'ADMIN') {
@@ -397,6 +419,7 @@
             }
         });
     </script>
+    <script src="js/main.js"></script>
     <script src="js/chat.js"></script>
 </body>
 </html>

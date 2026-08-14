@@ -1,21 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
-    initDashboard();
+    initSidebarToggle();
+    if (document.getElementById('crypto-list')) {
+        initDashboard();
+    }
 });
 
-async function initDashboard() {
-    // Update live data
-    await updateCryptoPrices();
-    
-    // Set interval for updates (every 60 seconds to avoid rate limits)
-    setInterval(updateCryptoPrices, 60000);
-
-    initSidebarToggle();
+function initDashboard() {
+    // Non-blocking initial update & periodic refresh
+    updateCryptoPrices().catch(err => console.warn('Crypto prices error:', err));
+    setInterval(() => {
+        updateCryptoPrices().catch(err => console.warn('Crypto prices refresh error:', err));
+    }, 60000);
 }
 
 function initSidebarToggle() {
     const menuToggle = document.querySelector('.menu-toggle');
     const sidebar = document.querySelector('.sidebar');
     if (!menuToggle || !sidebar) return;
+    if (menuToggle.dataset.bound === 'true') return; // Prevent duplicate listeners
+    menuToggle.dataset.bound = 'true';
 
     // Backdrop overlay (created once)
     let backdrop = document.querySelector('.sidebar-backdrop');
@@ -36,7 +39,9 @@ function initSidebarToggle() {
         document.body.style.overflow = 'hidden';
     };
 
-    menuToggle.addEventListener('click', () => {
+    menuToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         sidebar.classList.contains('open') ? close() : open();
     });
     backdrop.addEventListener('click', close);
@@ -52,8 +57,10 @@ function initSidebarToggle() {
 
 async function updateCryptoPrices() {
     const listContainer = document.getElementById('crypto-list');
+    if (!listContainer) return;
     const cryptoIds = ['bitcoin', 'ethereum', 'solana', 'tether'];
     
+    if (typeof CryptoAPI === 'undefined') return;
     const data = await CryptoAPI.getMarketPrices(cryptoIds);
     
     if (listContainer) {
@@ -85,3 +92,4 @@ async function updateCryptoPrices() {
         });
     }
 }
+

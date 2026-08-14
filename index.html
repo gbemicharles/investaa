@@ -282,161 +282,161 @@
     <script src="js/crypto-api.js"></script>
     <script src="js/api.js"></script>
     <script>
+        function renderDashboardUser(user) {
+            if (!user || !user.username) return;
+            if (user.role === 'ADMIN') {
+                const adminLink = document.getElementById('admin-link');
+                if (adminLink) adminLink.style.display = 'block';
+            }
+            document.querySelectorAll('.user-info .name').forEach(el => el.innerText = user.username);
+            document.querySelector('.sidebar-footer .avatar').innerText = user.username.substring(0, 2).toUpperCase();
+            document.querySelector('.balance-card .value').innerText = (user.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const bonusBal = parseFloat(user.bonus_balance) || 0;
+            let bonusNotice = document.getElementById('bonus-notice');
+            if (bonusBal > 0) {
+                if (!bonusNotice) {
+                    bonusNotice = document.createElement('a');
+                    bonusNotice.id = 'bonus-notice';
+                }
+                bonusNotice.style.cssText = 'margin:16px 0 4px;background:linear-gradient(135deg,rgba(245,158,11,0.16),rgba(251,191,36,0.07));border:2px solid rgba(245,158,11,0.5);border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 0 24px rgba(245,158,11,0.15);animation:bonusPulse 2.5s ease-in-out infinite;cursor:pointer;text-decoration:none;';
+                bonusNotice.setAttribute('href', 'deposit.html');
+                bonusNotice.innerHTML = `<div style="font-size:2rem;flex-shrink:0;">🎁</div><div><div style="font-size:0.68rem;color:#fbbf24;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Welcome Bonus</div><div style="font-size:1.7rem;font-weight:900;color:#f59e0b;line-height:1;text-shadow:0 0 20px rgba(245,158,11,0.4);">$${bonusBal.toLocaleString(undefined,{minimumFractionDigits:2})}</div><div style="font-size:0.73rem;color:#94a3b8;margin-top:5px;font-weight:500;">Tap to deposit &amp; activate →</div></div>`;
+                const balAmount = document.querySelector('.balance-card .balance-amount');
+                if (balAmount && !bonusNotice.parentNode) balAmount.insertAdjacentElement('afterend', bonusNotice);
+            } else if (bonusNotice) {
+                bonusNotice.remove();
+            }
+            const profit = user.total_earnings || 0;
+            document.getElementById('total-profit').innerText = `+$${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const vipIcons = {
+                'REGULAR': { icon: 'fas fa-user-circle', color: '#94a3b8' },
+                'BRONZE': { icon: 'fas fa-medal', color: '#cd7f32' },
+                'SILVER': { icon: 'fas fa-medal', color: '#c0c0c0' },
+                'GOLD': { icon: 'fas fa-medal', color: '#ffd700' },
+                'PLATINUM': { icon: 'fas fa-gem', color: '#e5e4e2' },
+                'DIAMOND': { icon: 'fas fa-crown', color: '#b9f2ff' }
+            };
+            const config = vipIcons[user.vip_rank] || vipIcons['REGULAR'];
+            const roleText = user.vip_rank === 'REGULAR' ? 'Regular Member' : `${user.vip_rank} Member`;
+            const roleElement = document.querySelector('.user-info .role');
+            if (roleElement) roleElement.innerHTML = `<i class="${config.icon}" style="color: ${config.color}; font-size: 0.8rem; margin-right: 4px;"></i> ${roleText}`;
+            const avatarEl = document.querySelector('.sidebar .avatar');
+            if (avatarEl) {
+                avatarEl.innerHTML = `<i class="${config.icon}" style="color: ${config.color}"></i>`;
+                avatarEl.style.background = 'transparent';
+            }
+        }
+
+        async function loadTransactions(page = 1) {
+            try {
+                const data = await API.getTransactions(page, 5);
+                const transactions = Array.isArray(data) ? data : (data.transactions || []);
+                const pagination = data.pagination || null;
+                
+                const list = document.querySelector('.transaction-list');
+                if (list) {
+                    list.innerHTML = '';
+                    if (!transactions || transactions.length === 0) {
+                        list.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); opacity: 0.7;">No transactions yet</div>';
+                    } else {
+                        transactions.forEach(tx => {
+                            const date = new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                            const isNegative = tx.type.includes('OUT') || tx.type === 'WITHDRAW' || tx.type === 'VIP_UPGRADE' || tx.type === 'FEE' || tx.type === 'PENALTY';
+                            const amountClass = isNegative ? 'negative' : 'positive';
+                            const prefix = isNegative ? '-' : '+';
+                            
+                            let iconClass = 'deposit';
+                            let icon = 'fa-arrow-down';
+                            if (tx.type === 'WITHDRAW') { iconClass = 'withdraw'; icon = 'fa-arrow-up'; }
+                            if (tx.type.includes('TRANSFER')) { iconClass = 'transfer'; icon = 'fa-sync-alt'; }
+                            if (tx.type === 'VIP_UPGRADE') { iconClass = 'withdraw'; icon = 'fa-gem'; }
+                            if (tx.type === 'FEE') { iconClass = 'withdraw'; icon = 'fa-receipt'; }
+                            if (tx.type === 'EARNING') { iconClass = 'deposit'; icon = 'fa-chart-line'; }
+                            if (tx.type === 'BONUS') { iconClass = 'deposit'; icon = 'fa-gift'; }
+                            if (tx.type === 'PENALTY') { iconClass = 'withdraw'; icon = 'fa-exclamation-triangle'; }
+
+                            const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Fee', EARNING: 'Daily Investment Return', BONUS: '🎁 Welcome Bonus', PENALTY: 'Inactivity Fee' };
+                            const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
+                            const item = document.createElement('div');
+                            item.className = 'transaction';
+                            item.style.cssText = 'cursor:pointer;transition:background .2s,transform .15s;border-radius:12px;padding:4px 6px;margin:0 -6px;';
+                            item.title = 'Tap to view details';
+                            item.addEventListener('mouseenter', () => { item.style.background = 'rgba(59,130,246,0.07)'; item.style.transform = 'translateX(3px)'; });
+                            item.addEventListener('mouseleave', () => { item.style.background = ''; item.style.transform = ''; });
+                            item.addEventListener('click', () => showTxDetail(tx.id));
+                            item.innerHTML = `
+                                <div class="icon ${iconClass}"><i class="fas ${icon}"></i></div>
+                                <div class="details">
+                                    <p class="title">${txLabel}</p>
+                                    <p class="date">${date}</p>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <div class="amount ${amountClass}">${prefix}$${Math.abs(parseFloat(tx.amount)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                    <i class="fas fa-chevron-right" style="color:#475569;font-size:0.7rem;flex-shrink:0;"></i>
+                                </div>
+                            `;
+                            list.appendChild(item);
+                        });
+                    }
+                }
+
+                const controls = document.getElementById('pagination-controls');
+                if (controls && pagination) {
+                    controls.innerHTML = '';
+                    const { totalPages, currentPage } = pagination;
+                    if (totalPages > 1) {
+                        for (let i = 1; i <= totalPages; i++) {
+                            const btn = document.createElement('button');
+                            btn.innerText = i;
+                            btn.style.cssText = `
+                                padding: 5px 12px;
+                                border: 1px solid var(--glass-border);
+                                background: ${i === currentPage ? 'var(--accent-primary)' : 'var(--glass-bg)'};
+                                color: white;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 0.8rem;
+                                transition: 0.2s;
+                            `;
+                            btn.onclick = () => loadTransactions(i);
+                            controls.appendChild(btn);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Transactions error:', err);
+            }
+        }
+
+        const refreshNotifs = async () => {
+            try {
+                const { count } = await API.getUnreadCount();
+                const dot = document.getElementById('notif-dot');
+                if (dot) dot.style.display = count > 0 ? 'block' : 'none';
+                const badge = document.getElementById('messages-badge');
+                if (badge) {
+                    badge.innerText = count;
+                    badge.style.display = count > 0 ? 'inline-block' : 'none';
+                }
+            } catch (err) {}
+        };
+
         document.addEventListener('DOMContentLoaded', async () => {
-            // Load User Data
+            // Instant render from localStorage cache
+            try {
+                const cachedUser = JSON.parse(localStorage.getItem('user'));
+                if (cachedUser) renderDashboardUser(cachedUser);
+            } catch(e) {}
+
+            // Parallel background loading
+            refreshNotifs();
+            setInterval(refreshNotifs, 30000);
+            loadTransactions(1);
+
             try {
                 const user = await API.getProfile();
                 if (user && user.username) {
-                    // Admin Link
-                    if (user.role === 'ADMIN') {
-                        const adminLink = document.getElementById('admin-link');
-                        if (adminLink) adminLink.style.display = 'block';
-                    }
-                    // Update Name
-                    document.querySelectorAll('.user-info .name').forEach(el => el.innerText = user.username);
-                    document.querySelector('.sidebar-footer .avatar').innerText = user.username.substring(0, 2).toUpperCase();
-                    
-                    // Update Balance
-                    document.querySelector('.balance-card .value').innerText = user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-                    // Welcome bonus notice
-                    const bonusBal = parseFloat(user.bonus_balance) || 0;
-                    let bonusNotice = document.getElementById('bonus-notice');
-                    if (bonusBal > 0) {
-                        if (!bonusNotice) {
-                            bonusNotice = document.createElement('a');
-                            bonusNotice.id = 'bonus-notice';
-                        }
-                        bonusNotice.style.cssText = 'margin:16px 0 4px;background:linear-gradient(135deg,rgba(245,158,11,0.16),rgba(251,191,36,0.07));border:2px solid rgba(245,158,11,0.5);border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 0 24px rgba(245,158,11,0.15);animation:bonusPulse 2.5s ease-in-out infinite;cursor:pointer;text-decoration:none;';
-                        bonusNotice.setAttribute('href', 'deposit.html');
-                        bonusNotice.innerHTML = `<div style="font-size:2rem;flex-shrink:0;">🎁</div><div><div style="font-size:0.68rem;color:#fbbf24;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Welcome Bonus</div><div style="font-size:1.7rem;font-weight:900;color:#f59e0b;line-height:1;text-shadow:0 0 20px rgba(245,158,11,0.4);">$${bonusBal.toLocaleString(undefined,{minimumFractionDigits:2})}</div><div style="font-size:0.73rem;color:#94a3b8;margin-top:5px;font-weight:500;">Tap to deposit &amp; activate →</div></div>`;
-                        const balAmount = document.querySelector('.balance-card .balance-amount');
-                        if (balAmount && !bonusNotice.parentNode) balAmount.insertAdjacentElement('afterend', bonusNotice);
-                    } else if (bonusNotice) {
-                        bonusNotice.remove();
-                    }
-
-                    // Update Total Profit
-                    const profit = user.total_earnings || 0;
-                    document.getElementById('total-profit').innerText = `+$${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    
-                    // Update VIP / Role
-                    const vipIcons = {
-                        'REGULAR': { icon: 'fas fa-user-circle', color: '#94a3b8' },
-                        'BRONZE': { icon: 'fas fa-medal', color: '#cd7f32' },
-                        'SILVER': { icon: 'fas fa-medal', color: '#c0c0c0' },
-                        'GOLD': { icon: 'fas fa-medal', color: '#ffd700' },
-                        'PLATINUM': { icon: 'fas fa-gem', color: '#e5e4e2' },
-                        'DIAMOND': { icon: 'fas fa-crown', color: '#b9f2ff' }
-                    };
-                    const config = vipIcons[user.vip_rank] || vipIcons['REGULAR'];
-                    const roleText = user.vip_rank === 'REGULAR' ? 'Regular Member' : `${user.vip_rank} Member`;
-                    
-                    const roleElement = document.querySelector('.user-info .role');
-                    roleElement.innerHTML = `<i class="${config.icon}" style="color: ${config.color}; font-size: 0.8rem; margin-right: 4px;"></i> ${roleText}`;
-                    
-                    document.querySelector('.sidebar .avatar').innerHTML = `<i class="${config.icon}" style="color: ${config.color}"></i>`;
-                    document.querySelector('.sidebar .avatar').style.background = 'transparent';
-
-                    // Fetch & Render Transactions
-                    async function loadTransactions(page = 1) {
-                        const data = await API.getTransactions(page, 5);
-                        const transactions = Array.isArray(data) ? data : (data.transactions || []);
-                        const pagination = data.pagination || null;
-                        
-                        const list = document.querySelector('.transaction-list');
-                        if (list) {
-                            list.innerHTML = '';
-                            if (!transactions || transactions.length === 0) {
-                                list.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); opacity: 0.7;">No transactions yet</div>';
-                            } else {
-                                transactions.forEach(tx => {
-                                    const date = new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                                    const isNegative = tx.type.includes('OUT') || tx.type === 'WITHDRAW' || tx.type === 'VIP_UPGRADE' || tx.type === 'FEE' || tx.type === 'PENALTY';
-                                    const amountClass = isNegative ? 'negative' : 'positive';
-                                    const prefix = isNegative ? '-' : '+';
-                                    
-                                    let iconClass = 'deposit';
-                                    let icon = 'fa-arrow-down';
-                                    if (tx.type === 'WITHDRAW') { iconClass = 'withdraw'; icon = 'fa-arrow-up'; }
-                                    if (tx.type.includes('TRANSFER')) { iconClass = 'transfer'; icon = 'fa-sync-alt'; }
-                                    if (tx.type === 'VIP_UPGRADE') { iconClass = 'withdraw'; icon = 'fa-gem'; }
-                                    if (tx.type === 'FEE') { iconClass = 'withdraw'; icon = 'fa-receipt'; }
-                                    if (tx.type === 'EARNING') { iconClass = 'deposit'; icon = 'fa-chart-line'; }
-                                    if (tx.type === 'BONUS') { iconClass = 'deposit'; icon = 'fa-gift'; }
-                                    if (tx.type === 'PENALTY') { iconClass = 'withdraw'; icon = 'fa-exclamation-triangle'; }
-
-                                    const typeLabels = { DEPOSIT: 'Deposit', WITHDRAW: 'Withdrawal', TRANSFER_IN: 'Transfer Received', TRANSFER_OUT: 'Transfer Sent', VIP_UPGRADE: 'VIP Upgrade', FEE: 'Fee', EARNING: 'Daily Investment Return', BONUS: '🎁 Welcome Bonus', PENALTY: 'Inactivity Fee' };
-                                    const txLabel = typeLabels[tx.type] || tx.type.replace(/_/g, ' ');
-                                    const item = document.createElement('div');
-                                    item.className = 'transaction';
-                                    item.style.cssText = 'cursor:pointer;transition:background .2s,transform .15s;border-radius:12px;padding:4px 6px;margin:0 -6px;';
-                                    item.title = 'Tap to view details';
-                                    item.addEventListener('mouseenter', () => { item.style.background = 'rgba(59,130,246,0.07)'; item.style.transform = 'translateX(3px)'; });
-                                    item.addEventListener('mouseleave', () => { item.style.background = ''; item.style.transform = ''; });
-                                    item.addEventListener('click', () => showTxDetail(tx.id));
-                                    item.innerHTML = `
-                                        <div class="icon ${iconClass}"><i class="fas ${icon}"></i></div>
-                                        <div class="details">
-                                            <p class="title">${txLabel}</p>
-                                            <p class="date">${date}</p>
-                                        </div>
-                                        <div style="display:flex;align-items:center;gap:10px;">
-                                            <div class="amount ${amountClass}">${prefix}$${Math.abs(parseFloat(tx.amount)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                                            <i class="fas fa-chevron-right" style="color:#475569;font-size:0.7rem;flex-shrink:0;"></i>
-                                        </div>
-                                    `;
-                                    list.appendChild(item);
-                                });
-                            }
-                        }
-
-                        // Render Pagination Controls
-                        const controls = document.getElementById('pagination-controls');
-                        if (controls && pagination) {
-                            controls.innerHTML = '';
-                            const { totalPages, currentPage } = pagination;
-                            
-                            if (totalPages > 1) {
-                                for (let i = 1; i <= totalPages; i++) {
-                                    const btn = document.createElement('button');
-                                    btn.innerText = i;
-                                    btn.style.cssText = `
-                                        padding: 5px 12px;
-                                        border: 1px solid var(--glass-border);
-                                        background: ${i === currentPage ? 'var(--accent-primary)' : 'var(--glass-bg)'};
-                                        color: white;
-                                        border-radius: 6px;
-                                        cursor: pointer;
-                                        font-size: 0.8rem;
-                                        transition: 0.2s;
-                                    `;
-                                    btn.onclick = () => loadTransactions(i);
-                                    controls.appendChild(btn);
-                                }
-                            }
-                        }
-                    }
-
-                    const refreshNotifs = async () => {
-                        try {
-                            const { count } = await API.getUnreadCount();
-                            // Bell dot
-                            const dot = document.getElementById('notif-dot');
-                            if (dot) dot.style.display = count > 0 ? 'block' : 'none';
-                            
-                            // Sidebar badge
-                            const badge = document.getElementById('messages-badge');
-                            if (badge) {
-                                badge.innerText = count;
-                                badge.style.display = count > 0 ? 'inline-block' : 'none';
-                            }
-                        } catch (err) {}
-                    };
-                    refreshNotifs();
-                    setInterval(refreshNotifs, 30000); // Check every 30s
-
-                    await loadTransactions(1);
+                    renderDashboardUser(user);
                     loadAnalytics(user);
                 }
             } catch (err) {

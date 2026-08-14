@@ -316,6 +316,19 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
+                const cachedUser = JSON.parse(localStorage.getItem('user'));
+                if (cachedUser) {
+                    currentUser = cachedUser;
+                    if (cachedUser.role === 'ADMIN') {
+                        const adminLink = document.getElementById('admin-link');
+                        if (adminLink) adminLink.style.display = 'block';
+                    }
+                    if (cachedUser.balance !== undefined) document.getElementById('available-balance').innerText = `$${Number(cachedUser.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    if (cachedUser.vip_rank) document.getElementById('rank-badge').innerText = `RANK: ${cachedUser.vip_rank}`;
+                }
+            } catch(e) {}
+
+            try {
                 currentUser = await API.getProfile();
                 if (currentUser) {
                     if (currentUser.role === 'ADMIN') {
@@ -327,7 +340,7 @@
                 }
             } catch (error) {
                 console.error('Failed to fetch user profile:', error);
-                window.location.href = 'login.html';
+                if (!localStorage.getItem('token')) window.location.href = 'login.html';
             }
 
             try {
@@ -521,6 +534,7 @@
             }
         });
     </script>
+    <script src="js/main.js"></script>
     <script src="js/chat.js"></script>
 </body>
 </html>
