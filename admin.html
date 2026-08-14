@@ -699,29 +699,40 @@
                 </div>
 
                 <!-- Mode selector -->
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">
                     <button class="mailer-mode-btn" data-mode="auto" onclick="setMailerMode('auto')"
                         style="padding:12px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;text-align:center;">
                         <div style="font-size:1.2rem;margin-bottom:4px;">🔄</div>
                         <div style="font-size:0.8rem;font-weight:700;color:#f8fafc;">Auto</div>
-                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">Hostinger → Gmail</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">Resend → SMTP</div>
+                    </button>
+                    <button class="mailer-mode-btn" data-mode="resend" onclick="setMailerMode('resend')"
+                        style="padding:12px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;text-align:center;">
+                        <div style="font-size:1.2rem;margin-bottom:4px;">🚀</div>
+                        <div style="font-size:0.8rem;font-weight:700;color:#f8fafc;">Resend Only</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">HTTPS API</div>
                     </button>
                     <button class="mailer-mode-btn" data-mode="hostinger" onclick="setMailerMode('hostinger')"
                         style="padding:12px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;text-align:center;">
                         <div style="font-size:1.2rem;margin-bottom:4px;">🟠</div>
                         <div style="font-size:0.8rem;font-weight:700;color:#f8fafc;">Hostinger Only</div>
-                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">No Gmail fallback</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">SMTP Port 465</div>
                     </button>
                     <button class="mailer-mode-btn" data-mode="gmail" onclick="setMailerMode('gmail')"
                         style="padding:12px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;text-align:center;">
                         <div style="font-size:1.2rem;margin-bottom:4px;">📧</div>
                         <div style="font-size:0.8rem;font-weight:700;color:#f8fafc;">Gmail Only</div>
-                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">Skip Hostinger</div>
+                        <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">SMTP Fallback</div>
                     </button>
                 </div>
 
                 <!-- Transport status row -->
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <div id="mailer-status-resend" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 14px;font-size:0.8rem;">
+                        <span id="mailer-dot-resend" style="width:8px;height:8px;border-radius:50%;background:#64748b;flex-shrink:0;"></span>
+                        <span style="color:#94a3b8;">Resend HTTPS: </span>
+                        <span id="mailer-label-resend" style="color:#f8fafc;font-weight:600;">—</span>
+                    </div>
                     <div id="mailer-status-hostinger" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 14px;font-size:0.8rem;">
                         <span id="mailer-dot-hostinger" style="width:8px;height:8px;border-radius:50%;background:#64748b;flex-shrink:0;"></span>
                         <span style="color:#94a3b8;">Hostinger: </span>
@@ -1655,9 +1666,12 @@ async function loadMailerStatus() {
 
         // Update transport status dots
         const setDot = (id, ok) => {
-            document.getElementById(`mailer-dot-${id}`).style.background = ok ? '#22c55e' : '#ef4444';
-            document.getElementById(`mailer-label-${id}`).textContent = ok ? 'Configured' : 'Not configured';
+            const dot = document.getElementById(`mailer-dot-${id}`);
+            const label = document.getElementById(`mailer-label-${id}`);
+            if (dot) dot.style.background = ok ? '#22c55e' : '#ef4444';
+            if (label) label.textContent = ok ? 'Configured' : 'Not configured';
         };
+        setDot('resend', data.resend);
         setDot('hostinger', data.hostinger);
         setDot('gmail', data.gmail);
 

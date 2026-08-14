@@ -1846,8 +1846,8 @@ app.get('/api/admin/email/mailer-status', authenticateAdmin, (req, res) => {
 
 app.post('/api/admin/email/mailer-mode', authenticateAdmin, async (req, res) => {
     const { mode } = req.body;
-    if (!['auto','hostinger','gmail'].includes(mode)) {
-        return res.status(400).json({ ok: false, msg: 'Invalid mode. Use: auto, hostinger, or gmail.' });
+    if (!['auto','resend','hostinger','gmail'].includes(mode)) {
+        return res.status(400).json({ ok: false, msg: 'Invalid mode. Use: auto, resend, hostinger, or gmail.' });
     }
     Emails.setMailerMode(mode);
     try {
@@ -1869,18 +1869,19 @@ app.post('/api/admin/email/test', authenticateAdmin, async (req, res) => {
         if (!a || !a.email) return res.status(400).json({ ok: false, msg: 'No email on your admin account.' });
         const status = Emails.getMailerStatus();
         const mode   = status.mode;
+        if (mode === 'resend'    && !status.resend)    return res.status(500).json({ ok: false, msg: 'Resend API key (RESEND_API_KEY) is not configured in environment.' });
         if (mode === 'hostinger' && !status.hostinger) return res.status(500).json({ ok: false, msg: 'Hostinger credentials (SMTP_USER/SMTP_PASS) are not configured.' });
         if (mode === 'gmail'     && !status.gmail)     return res.status(500).json({ ok: false, msg: 'Gmail credentials (GMAIL_USER/GMAIL_APP_PASSWORD) are not configured.' });
         if (mode === 'auto' && !status.hostinger && !status.gmail && !status.resend) return res.status(500).json({ ok: false, msg: 'No email credentials configured in environment.' });
         await Emails.securityAlert(a.email, a.username, 'Test email fired from the Admin Email Centre — if you received this, email is working correctly.');
-        res.json({ ok: true, msg: `Test email sent to ${a.email} via ${status.resend ? 'Resend HTTPS' : (mode === 'auto' ? 'auto (Hostinger → Gmail)' : mode)}. Check your inbox.` });
+        res.json({ ok: true, msg: `Test email sent to ${a.email} via ${mode === 'resend' ? 'Resend HTTPS API' : (status.resend && mode === 'auto' ? 'Resend HTTPS (auto)' : (mode === 'auto' ? 'auto (Hostinger → Gmail)' : mode))}. Check your inbox.` });
     } catch (e) {
         console.error('[EMAIL-TEST]', e);
         res.status(500).json({ ok: false, msg: e.message });
     }
 });
 
-app.get('/api/admin/email/error', authenticateAdmin, (req, res) => {
+app.get('/api/admin/email/error', (req, res) => {
     res.json({
         ok: true,
         lastError: Emails.getLastError(),

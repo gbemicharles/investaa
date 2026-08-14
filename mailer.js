@@ -1,3 +1,4 @@
+require('dotenv').config();
 const dns = require('dns');
 if (typeof dns.setDefaultResultOrder === 'function') {
     dns.setDefaultResultOrder('ipv4first');
@@ -59,10 +60,10 @@ function getFallback() { if (_fallback === undefined) _fallback = makeFallbackTr
 let _suppressionChecker = null;
 function setSuppressionChecker(fn) { _suppressionChecker = fn; }
 
-// Mailer mode: 'auto' (Hostinger → Gmail fallback) | 'hostinger' | 'gmail'
+// Mailer mode: 'auto' | 'resend' | 'hostinger' | 'gmail'
 let _mailerMode = 'auto';
 function setMailerMode(mode) {
-    if (['auto','hostinger','gmail'].includes(mode)) {
+    if (['auto','resend','hostinger','gmail'].includes(mode)) {
         _mailerMode = mode;
         console.log(`[MAILER] Mode set to "${mode}"`);
     }
@@ -75,7 +76,7 @@ function getMailerStatus() {
         mode: _mailerMode,
         hostinger: !!(SMTP_USER && SMTP_PASS),
         gmail:     !!(GMAIL_USER && GMAIL_PASS),
-        resend:    !!process.env.RESEND_API_KEY
+        resend:    !!(process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim())
     };
 }
 
@@ -159,7 +160,11 @@ function wrap(preheader, bodyHtml, ctaText, ctaUrl) {
 
 function sendResend(from, to, subject, html, text) {
     return new Promise((resolve, reject) => {
-        const apiKey = process.env.RESEND_API_KEY;
+        const apiKey = (process.env.RESEND_API_KEY || '').trim();
+        if (!apiKey) {
+            return reject(new Error('RESEND_API_KEY is not configured in environment.'));
+        }
+
         const body = JSON.stringify({
             from: from,
             to: Array.isArray(to) ? to : [to],
@@ -184,9 +189,21 @@ function sendResend(from, to, subject, html, text) {
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 if (res.statusCode >= 200 && res.statusCode < 300) {
-                    resolve(JSON.parse(data));
+                    try {
+                        resolve(JSON.parse(data));
+                    } catch (e) {
+                        resolve({ ok: true, raw: data });
+                    }
                 } else {
-                    reject(new Error(`Resend API status ${res.statusCode}: ${data}`));
+                    let detail = data;
+                    try {
+                        const parsed = JSON.parse(data);
+                        if (parsed.message) detail = parsed.message;
+                    } catch (_) {}
+                    if (res.statusCode === 403 && from.includes('onboarding@resend.dev')) {
+                        detail += ' (Note: onboarding@resend.dev can only send to the email address used to create your Resend account. To send to any recipient, verify your domain in Resend and set RESEND_FROM_EMAIL)';
+                    }
+                    reject(new Error(`Resend API status ${res.statusCode}: ${detail}`));
                 }
             });
         });
@@ -213,22 +230,35 @@ async function sendMail(to, subject, html, opts = {}) {
         }
     }
 
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey) {
-        try {
-            const fromEmail = process.env.RESEND_FROM_EMAIL || 'InvestAA <onboarding@resend.dev>';
-            const plainText = opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim();
-            await sendResend(fromEmail, to, subject, html, plainText);
-            console.log(`[MAILER] Sent via Resend HTTPS: "${subject}" → ${to}`);
-            return;
-        } catch (err) {
-            _lastError = {
-                timestamp: new Date().toLocaleString(),
-                recipient: to,
-                error: err.message,
-                stack: err.stack
-            };
-            console.error(`[MAILER] Resend failed (${err.message}) — attempting fallback SMTP…`);
+    const mode = _mailerMode;
+    const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+
+    // If explicit mode is 'resend', or if mode is 'auto' and Resend key exists
+    if (mode === 'resend' || (mode === 'auto' && resendApiKey)) {
+        if (!resendApiKey) {
+            const errStr = 'Resend mode selected but RESEND_API_KEY is not set in environment.';
+            _lastError = { timestamp: new Date().toLocaleString(), recipient: to, error: errStr };
+            if (mode === 'resend') throw new Error(errStr);
+        } else {
+            try {
+                const fromEmail = process.env.RESEND_FROM_EMAIL || 'InvestAA <onboarding@resend.dev>';
+                const plainText = opts.text || html.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim();
+                await sendResend(fromEmail, to, subject, html, plainText);
+                console.log(`[MAILER] Sent via Resend HTTPS: "${subject}" → ${to}`);
+                return;
+            } catch (err) {
+                _lastError = {
+                    timestamp: new Date().toLocaleString(),
+                    recipient: to,
+                    error: err.message,
+                    stack: err.stack
+                };
+                if (mode === 'resend') {
+                    console.error(`[MAILER] Resend failed (mode=resend): ${err.message}`);
+                    throw err;
+                }
+                console.error(`[MAILER] Resend failed (${err.message}) — attempting fallback SMTP…`);
+            }
         }
     }
 
@@ -241,11 +271,12 @@ async function sendMail(to, subject, html, opts = {}) {
         ...(opts.headers ? { headers: opts.headers } : {}),
     };
 
-    const mode     = _mailerMode;
-    const primary  = (mode === 'gmail')      ? null : getPrimary();
-    const fallback = (mode === 'hostinger')  ? null : getFallback();
+    const primary  = (mode === 'gmail' || mode === 'resend') ? null : getPrimary();
+    const fallback = (mode === 'hostinger' || mode === 'resend') ? null : getFallback();
     if (!primary && !fallback) {
-        console.warn(`[MAILER] No fallback SMTP transport available in mode "${mode}" — email skipped.`);
+        const warning = `No fallback SMTP transport available in mode "${mode}" — email skipped.`;
+        console.warn(`[MAILER] ${warning}`);
+        _lastError = { timestamp: new Date().toLocaleString(), recipient: to, error: warning };
         return;
     }
     if (primary) {
@@ -254,6 +285,7 @@ async function sendMail(to, subject, html, opts = {}) {
             console.log(`[MAILER] Sent via Hostinger: "${subject}" → ${to}`);
             return;
         } catch (err) {
+            _lastError = { timestamp: new Date().toLocaleString(), recipient: to, error: err.message, stack: err.stack };
             if (mode === 'hostinger') {
                 console.error(`[MAILER] Hostinger failed (mode=hostinger, no fallback): ${err.message}`);
                 throw err;
@@ -266,6 +298,7 @@ async function sendMail(to, subject, html, opts = {}) {
             await fallback.sendMail({ ...msg, from: `"${FROM_NAME}" <${GMAIL_USER}>` });
             console.log(`[MAILER] Sent via Gmail: "${subject}" → ${to}`);
         } catch (err) {
+            _lastError = { timestamp: new Date().toLocaleString(), recipient: to, error: err.message, stack: err.stack };
             console.error(`[MAILER] Gmail failed for "${subject}" to ${to}: ${err.message}`);
             throw err;
         }
