@@ -303,9 +303,9 @@ async function applyDailyEarnings() {
                 ]
             );
 
-            // Daily earning email
+            // Daily earning email (Disabled by default to protect Resend 100/day free limit; set ENABLE_DAILY_EARNING_EMAILS=true to enable)
             const newBalance = parseFloat((balance + earning).toFixed(2));
-            if (user.email) {
+            if (user.email && process.env.ENABLE_DAILY_EARNING_EMAILS === 'true') {
                 await sendUserEmail(user.id, () => Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance));
             }
 
@@ -379,9 +379,13 @@ async function startSchedulers() {
     await applyDailyEarnings();
     setInterval(applyDailyEarnings, 60 * 60 * 1000);
 
-    // Run reminder check once at startup then every 24 hours
-    await runReminderEmails();
-    setInterval(runReminderEmails, 24 * 60 * 60 * 1000);
+    // Automated 24h reminder emails (Disabled by default to protect Resend free tier; set ENABLE_REMINDER_EMAILS=true to enable)
+    if (process.env.ENABLE_REMINDER_EMAILS === 'true') {
+        await runReminderEmails();
+        setInterval(runReminderEmails, 24 * 60 * 60 * 1000);
+    } else {
+        console.log('[REMINDER] Automatic 24h reminder emails are disabled (Resend quota protection).');
+    }
 }
 
 initDb().then(() => {
