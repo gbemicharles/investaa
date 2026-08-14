@@ -16,12 +16,12 @@
         .form-group { text-align: left; margin-bottom: 16px; }
         .form-group label { display: block; margin-bottom: 7px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
         .input-wrapper { position: relative; }
-        .input-wrapper i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; pointer-events: none; }
+        .input-wrapper > i:first-child { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; pointer-events: none; z-index: 1; }
         .input-wrapper input {
             width: 100%;
             background: rgba(255,255,255,0.04);
             border: 1px solid var(--glass-border);
-            padding: 13px 14px 13px 44px;
+            padding: 13px 44px 13px 44px;
             border-radius: 12px;
             color: var(--text-main);
             outline: none;
@@ -32,6 +32,23 @@
             background: rgba(59,130,246,0.06);
             box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
         }
+        .toggle-eye-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent !important;
+            border: none !important;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 8px 10px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .toggle-eye-btn:hover { color: var(--accent-primary); }
+        .toggle-eye-btn i { position: static !important; transform: none !important; pointer-events: auto !important; font-size: 0.95rem !important; }
         .phone-input-container { display: flex; flex-direction: column; gap: 10px; }
         .country-select {
             background: rgba(255,255,255,0.04);
@@ -148,37 +165,37 @@
 
                     <div class="form-group">
                         <label>Password</label>
-                        <div class="input-wrapper" style="position:relative;">
+                        <div class="input-wrapper">
                             <i class="fas fa-lock"></i>
-                            <input type="password" id="password" placeholder="Create a strong password" required autocomplete="new-password" style="padding-right:44px;">
-                            <button type="button" onclick="const p=document.getElementById('password');p.type=p.type==='password'?'text':'password';this.innerHTML=p.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>';" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;"><i class="fas fa-eye"></i></button>
+                            <input type="password" id="password" placeholder="Create a strong password" required autocomplete="new-password">
+                            <button type="button" class="toggle-eye-btn" onclick="togglePasswordVisibility('password', this)" title="Toggle password visibility"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label>Confirm Password</label>
-                        <div class="input-wrapper" style="position:relative;">
+                        <div class="input-wrapper">
                             <i class="fas fa-check-double"></i>
-                            <input type="password" id="confirm-password" placeholder="Repeat your password" required autocomplete="new-password" style="padding-right:44px;">
-                            <button type="button" onclick="const p=document.getElementById('confirm-password');p.type=p.type==='password'?'text':'password';this.innerHTML=p.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>';" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;"><i class="fas fa-eye"></i></button>
+                            <input type="password" id="confirm-password" placeholder="Repeat your password" required autocomplete="new-password">
+                            <button type="button" class="toggle-eye-btn" onclick="togglePasswordVisibility('confirm-password', this)" title="Toggle password visibility"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label>Transaction PIN (4-6 digits)</label>
-                        <div class="input-wrapper" style="position:relative;">
+                        <div class="input-wrapper">
                             <i class="fas fa-key"></i>
-                            <input type="password" id="pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required autocomplete="new-password" style="padding-right:44px;">
-                            <button type="button" onclick="const p=document.getElementById('pin');p.type=p.type==='password'?'text':'password';this.innerHTML=p.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>';" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;"><i class="fas fa-eye"></i></button>
+                            <input type="password" id="pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required autocomplete="new-password">
+                            <button type="button" class="toggle-eye-btn" onclick="togglePasswordVisibility('pin', this)" title="Toggle transaction PIN visibility"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label>Confirm Transaction PIN</label>
-                        <div class="input-wrapper" style="position:relative;">
+                        <div class="input-wrapper">
                             <i class="fas fa-check-circle"></i>
-                            <input type="password" id="confirm-pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required autocomplete="new-password" style="padding-right:44px;">
-                            <button type="button" onclick="const p=document.getElementById('pin');p.type=p.type==='password'?'text':'password';this.innerHTML=p.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>';" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;"><i class="fas fa-eye"></i></button>
+                            <input type="password" id="confirm-pin" placeholder="••••" maxlength="6" pattern="\d{4,6}" required autocomplete="new-password">
+                            <button type="button" class="toggle-eye-btn" onclick="togglePasswordVisibility('confirm-pin', this)" title="Toggle transaction PIN visibility"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
 
@@ -390,6 +407,17 @@
             { name: "Zambia", code: "+260", emoji: "🇿🇲" },
             { name: "Zimbabwe", code: "+263", emoji: "🇿🇼" }
         ];
+
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const isPwd = input.type === 'password';
+            input.type = isPwd ? 'text' : 'password';
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = isPwd ? 'fas fa-eye-slash' : 'fas fa-eye';
+            }
+        }
 
         const select = document.getElementById('country-code');
         countries.forEach(c => {

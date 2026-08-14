@@ -281,8 +281,9 @@
                 <p>Withdrawal Amount: <strong id="modal-confirm-amount" style="color: var(--accent-primary);">0.00</strong> USDT</p>
                 <p style="font-size: 0.8rem; margin-top: -15px;">(A 1.00 USDT network fee will apply)</p>
                 
-                <div class="pin-input-group">
+                <div class="pin-input-group" style="position:relative;">
                     <input type="password" id="withdrawal-pin" placeholder="••••" maxlength="6" pattern="\d{4,6}">
+                    <button type="button" class="toggle-eye-btn" onclick="togglePasswordVisibility('withdrawal-pin', this)" title="Toggle PIN visibility" style="position:absolute;right:15px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:8px;z-index:10;"><i class="fas fa-eye" style="position:static !important;transform:none !important;pointer-events:auto !important;font-size:0.95rem !important;"></i></button>
                 </div>
 
                 <div class="modal-note">
@@ -353,6 +354,17 @@
                 console.error('Failed to fetch limits:', error);
             }
         });
+
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const isPwd = input.type === 'password';
+            input.type = isPwd ? 'text' : 'password';
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = isPwd ? 'fas fa-eye-slash' : 'fas fa-eye';
+            }
+        }
 
         function formatMoney(value) {
             const amount = Number(value) || 0;

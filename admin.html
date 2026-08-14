@@ -668,8 +668,8 @@
                     <div>
                         <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">New Temporary Password (min 6 chars)</label>
                         <div style="position:relative;">
-                            <input type="password" id="reset-password" placeholder="Type a temporary password" autocomplete="new-password" class="admin-input" style="width:100%;padding-right:40px;">
-                            <button type="button" onclick="const p=document.getElementById('reset-password');p.type=p.type==='password'?'text':'password';this.innerHTML=p.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>';" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px;"><i class="fas fa-eye"></i></button>
+                            <input type="password" id="reset-password" placeholder="Type a temporary password" autocomplete="new-password" class="admin-input" style="width:100%;padding-right:44px;">
+                            <button type="button" class="toggle-eye-btn" onclick="const p=document.getElementById('reset-password');const isP=p.type==='password';p.type=isP?'text':'password';this.querySelector('i').className=isP?'fas fa-eye-slash':'fas fa-eye';" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;cursor:pointer;padding:8px;z-index:10;"><i class="fas fa-eye" style="position:static !important;transform:none !important;pointer-events:auto !important;font-size:0.95rem !important;"></i></button>
                         </div>
                     </div>
                     <button class="btn primary" id="reset-pw-btn" style="padding:13px 28px;border-radius:12px;height:48px;background:var(--warning);border-color:var(--warning);">Reset Password</button>
