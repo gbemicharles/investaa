@@ -57,7 +57,7 @@
         <header class="top-header">
             <div class="header-left">
                 <h2>Overview Dashboard</h2>
-                <p class="date-today">March 18, 2026</p>
+                <p class="date-today"></p>
             </div>
             <div class="header-right">
                 <div class="search-bar">
@@ -124,30 +124,7 @@
                     <a href="#" class="view-all">View All</a>
                 </div>
                 <div class="transaction-list">
-                    <div class="transaction">
-                        <div class="icon deposit"><i class="fas fa-arrow-down"></i></div>
-                        <div class="details">
-                            <p class="title">Deposit via Bank Transfer</p>
-                            <p class="date">Today, 09:15 AM</p>
-                        </div>
-                        <div class="amount positive">+$2,500.00</div>
-                    </div>
-                    <div class="transaction">
-                        <div class="icon transfer"><i class="fas fa-sync-alt"></i></div>
-                        <div class="details">
-                            <p class="title">BTC to Wallet Transfer</p>
-                            <p class="date">Yesterday, 11:30 PM</p>
-                        </div>
-                        <div class="amount">0.025 BTC</div>
-                    </div>
-                    <div class="transaction">
-                        <div class="icon withdraw"><i class="fas fa-arrow-up"></i></div>
-                        <div class="details">
-                            <p class="title">Withdrawal to VISA-4421</p>
-                            <p class="date">Mar 16, 02:45 PM</p>
-                        </div>
-                        <div class="amount negative">-$800.00</div>
-                    </div>
+                    <div style="padding: 24px; text-align: center; color: var(--text-muted); opacity: 0.7;">Loading transactions...</div>
                 </div>
             </div>
 
@@ -422,6 +399,11 @@
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // Update today's date dynamically
+            document.querySelectorAll('.date-today').forEach(el => {
+                el.innerText = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            });
+
             // Instant render from localStorage cache
             try {
                 const cachedUser = JSON.parse(localStorage.getItem('user'));
