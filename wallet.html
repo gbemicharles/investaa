@@ -582,62 +582,6 @@
     });
 
     async function loadTransactions(page = 1) {
-                    : `${user.vip_rank} VIP`;
-
-                document.querySelector('.vip-badge').innerHTML =
-                    `<i class="${config.icon}" style="color:${config.color}"></i> ${badgeLabel}`;
-
-                // Balance
-                document.getElementById('total-balance').innerText =
-                    `$${user.balance.toLocaleString(undefined, {
-                        minimumFractionDigits: 2
-                    })}`;
-
-                // Welcome bonus (locked)
-                const bonusBal = parseFloat(user.bonus_balance) || 0;
-                if (bonusBal > 0) {
-                    const bonusDisplay = document.getElementById('bonus-balance-display');
-                    if (bonusDisplay) {
-                        bonusDisplay.style.display = 'block';
-                        document.getElementById('bonus-balance-amount').innerText =
-                            `$${bonusBal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                    }
-                }
-
-                // Profit
-                const walletProfit = user.total_earnings || 0;
-                document.getElementById('wallet-total-profit').innerText =
-                    `+$${walletProfit.toLocaleString(undefined, {
-                        minimumFractionDigits: 2
-                    })}`;
-
-                // Personal Info — render by data-field
-                renderPersonalInfo(user);
-
-                // Wire up the Edit Profile modal
-                setupEditProfile(user);
-
-                // KYC Status Badge
-                try {
-                    const kyc = await API.getKycStatus();
-                    const badge = document.getElementById('kyc-status-badge');
-                    if (badge) {
-                        if (kyc.kyc_status === 'APPROVED') {
-                            badge.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> <span style="color:var(--success)">Verified</span>';
-                        } else if (kyc.kyc_status === 'PENDING') {
-                            badge.innerHTML = '<i class="fas fa-clock" style="color:#f59e0b"></i> <span style="color:#f59e0b">Pending Review</span>';
-                        } else if (kyc.kyc_status === 'REJECTED') {
-                            badge.innerHTML = '<i class="fas fa-times-circle" style="color:#ef4444"></i> <span style="color:#ef4444">Rejected</span> — <a href="kyc.html" style="color:var(--accent-primary);font-weight:600">Resubmit →</a>';
-                        } else {
-                            badge.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#f59e0b"></i> <span style="color:#f59e0b">Not Verified</span> — <a href="kyc.html" style="color:var(--accent-primary);font-weight:600">Complete KYC →</a>';
-                        }
-                    }
-                } catch(e) {}
-
-                // =========================
-                // LOAD TRANSACTIONS
-                // =========================
-                async function loadTransactions(page = 1) {
                     try {
                         const data = await API.getTransactions(page, 5);
 
@@ -938,7 +882,6 @@
         cancelEmail.addEventListener('click', resetEmailFlow);
     }
     </script>
-    <script src="js/tx-modal.js"></script>
     <script src="js/chat.js"></script>
 </body>
 </html>
