@@ -222,30 +222,42 @@
                     network for your deposit.</p>
 
                 <div class="network-grid">
-                    <div class="network-card" data-network="bitcoin" data-fee="0" data-address="bc1qn0xn6576hzhf7reqee3dqglvcm0305xn9l5eja">
-                        <i class="fab fa-bitcoin" style="color: #f7931a;"></i>
-                        <span class="name">BITCOIN</span>
-                    </div>
-                    <div class="network-card selected" data-network="usdt" data-fee="0" data-address="TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo">
+                    <div class="network-card selected" data-network="usdt-trc20" data-fee="0" data-address="TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo">
                         <i class="fab fa-ethereum" style="color: #26a17b;"></i>
                         <span class="name">USDT (TRC-20)</span>
                     </div>
+                    <div class="network-card" data-network="usdt-bep20" data-fee="0" data-address="0xB596C691f35b55ee095879Ecf52da180017464D7">
+                        <i class="fas fa-coins" style="color: #f0b90b;"></i>
+                        <span class="name">USDT (BEP-20)</span>
+                    </div>
+                    <div class="network-card" data-network="usdt-erc20" data-fee="5" data-address="0xB596C691f35b55ee095879Ecf52da180017464D7">
+                        <i class="fab fa-ethereum" style="color: #627eea;"></i>
+                        <span class="name">USDT (ERC-20)</span>
+                    </div>
+                    <div class="network-card" data-network="bitcoin" data-fee="0" data-address="bc1qn0xn6576hzhf7reqee3dqglvcm0305xn9l5eja">
+                        <i class="fab fa-bitcoin" style="color: #f7931a;"></i>
+                        <span class="name">BITCOIN (BTC)</span>
+                    </div>
                     <div class="network-card" data-network="lightning" data-fee="0" data-address="bitcoin:?lno=lno1zrxq8pjw7qjlm68mtp7e3yvxee4y5xrgjhhyf2fxhlphpckrvevh50u0qghretzshmpjmtmt72k3smk4zg7pj6ap9ufvzpkkukgm3k3ka6hjyqsr7tsgxh8f2gznlkuxpucug0xf5mxdhxpsyc20gm0qr705hh8j9guqqvulzhnwu6rqg78kseq8l0jl070k8mzeq8egm9cceqd5gplz7cv6glc4fgj2ndymvz9fpp04qh7rgxnyayecq27pq0tu43tc6fyvcqhanf8kry3nl6cue0phpfvpne6h2sjdqmyrxqqsq54tegeket5t2k3u74dvvqmgls">
                         <i class="fas fa-bolt" style="color: #f7b500;"></i>
-                        <span class="name">LIGHTNING</span>
+                        <span class="name">LIGHTNING (BTC)</span>
                     </div>
                     <div class="network-card" data-network="ethereum" data-fee="5" data-address="0xB596C691f35b55ee095879Ecf52da180017464D7">
                         <i class="fab fa-ethereum" style="color: #627eea;"></i>
-                        <span class="name">ETH (ERC-20)</span>
+                        <span class="name">ETHEREUM (ETH)</span>
                     </div>
                     <div class="network-card" data-network="ton" data-fee="0" data-address="UQCgH4hfIo5VbYpEiSQO0cqwypmT5KtGxgxHr8Yp88SSMXPU">
                         <i class="fas fa-gem" style="color: #0088cc;"></i>
                         <span class="name">TON</span>
                     </div>
+                    <div class="network-card" data-network="solana" data-fee="0" data-address="7Xw5qK3Vz4s9pU1h7yZ3mB6vN8c2k5P9xL1mQ4vR8tS">
+                        <i class="fas fa-sun" style="color: #14f195;"></i>
+                        <span class="name">SOLANA (SOL)</span>
+                    </div>
                 </div>
 
                 <div class="amount-entry">
-                    <h3>2. Deposit Amount (Min 5 USD)</h3>
+                    <h3>2. Deposit Amount (Min $5 USD)</h3>
                     <input type="text" inputmode="decimal" id="deposit-amount" placeholder="5.00">
                     <div id="deposit-amount-display" class="amount-helper">$0.00 • 0 dollars</div>
                 </div>
@@ -253,34 +265,25 @@
                 <div class="notice-box">
                     <h4><i class="fas fa-exclamation-triangle"></i> IMPORTANT NOTICE</h4>
                     <ul>
-                        <li>• Please make sure your wallet supports the selected network.</li>
-                        <li>• Deposit asset only supporting the network.</li>
-                        <li>• Deposit crediting time depends on blockchain network confirmation speed.</li>
-                        <li>• <strong>ALL ERC20 NETWORK PAYMENTS INCUR A 5 USDT FEE.</strong></li>
+                        <li>• Please make sure your sending wallet supports the selected network asset.</li>
+                        <li>• Crediting time depends on blockchain network confirmation speed.</li>
+                        <li>• <strong>ALL ERC20 NETWORK DEPOSITS INCUR A 5 USDT NETWORK FEE.</strong></li>
+                        <li>• Funds are automatically credited to your account balance upon verification.</li>
                     </ul>
                 </div>
 
                 <div id="manual-deposit-container" style="display: block; margin-top: 30px; text-align: center;">
-                    <div
-                        style="background: white; padding: 20px; display: inline-block; border-radius: 12px; margin-bottom: 20px;">
-                        <img id="qr-code"
-                            src="@assets/image_1776751097833.png"
-                            alt="Deposit Address QR" style="display: block;">
+                    <div style="background: white; padding: 20px; display: inline-block; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+                        <img id="qr-code" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo" alt="Deposit Address QR" style="display: block; border-radius: 8px;">
                     </div>
-                    <div
-                        style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; margin-bottom: 20px; text-align: left;">
-                        <code id="manual-address"
-                            onclick="copyAddress()"
-                            title="Tap to copy"
-                            style="font-size: 0.8rem; color: var(--accent-primary); flex: 1; min-width: 0; word-break: break-all; overflow-wrap: anywhere; white-space: pre-wrap; cursor: pointer; user-select: all; -webkit-user-select: all; line-height: 1.5;">TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo</code>
-                        <button class="btn secondary" style="padding: 6px 12px; font-size: 0.75rem; flex-shrink: 0; align-self: center;"
-                            onclick="copyAddress()"><i class="fas fa-copy"></i> Copy</button>
+                    <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 16px; border-radius: 14px; display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; margin-bottom: 24px; text-align: left;">
+                        <code id="manual-address" onclick="copyAddress()" title="Tap to copy" style="font-size: 0.82rem; color: var(--accent-primary); flex: 1; min-width: 0; word-break: break-all; overflow-wrap: anywhere; white-space: pre-wrap; cursor: pointer; user-select: all; -webkit-user-select: all; line-height: 1.5; font-family: monospace;">TKGiMTQcvQSgFUv6ZhRHfPTVKz7H4CP9Mo</code>
+                        <button class="btn secondary" style="padding: 8px 16px; font-size: 0.8rem; flex-shrink: 0; align-self: center;" onclick="copyAddress()"><i class="fas fa-copy"></i> Copy</button>
                     </div>
 
                     <h3>3. Payment Details (Optional)</h3>
                     <p id="txid-description" style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">If you have it, paste your transaction ID (TXID) below to help us verify your payment faster. You can also leave this empty &mdash; an uploaded screenshot is enough.</p>
-                    <input type="text" id="txid-input" placeholder="Paste TXID block hash here (optional)..."
-                        style="width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; color: var(--text-main); font-size: 1rem; margin-bottom: 20px; outline: none;">
+                    <input type="text" id="txid-input" placeholder="Paste TXID block hash here (optional)..." style="width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; color: var(--text-main); font-size: 1rem; margin-bottom: 20px; outline: none;">
                     
                     <h3>4. Proof of Payment (Optional)</h3>
                     <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Upload a screenshot of your successful transaction.</p>
@@ -288,38 +291,34 @@
                 </div>
 
                 <div class="summary-card">
-                    <h4>Order Summary</h4>
+                    <h4 style="margin-bottom: 18px; font-size: 1.1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;"><i class="fas fa-receipt"></i> Order Summary</h4>
                     <div class="summary-item">
-                        <span class="label">Network</span>
+                        <span class="label">Selected Network</span>
                         <span class="value" id="summary-network">USDT (TRC-20)</span>
                     </div>
                     <div class="summary-item">
-                        <span class="label">Amount (USDT)</span>
-                        <span class="value" id="summary-amount">0.00 USDT</span>
+                        <span class="label">Deposit Amount (USD)</span>
+                        <span class="value" id="summary-amount">$0.00 USD</span>
                     </div>
                     <div class="summary-item" id="crypto-price-row" style="display: none;">
                         <span class="label">Exchange Rate</span>
                         <span class="value" id="summary-crypto-price">-</span>
                     </div>
                     <div class="summary-item" id="crypto-amount-row" style="display: none;">
-                        <span class="label" id="crypto-label">Amount (BTC)</span>
-                        <span class="value" id="summary-crypto-amount">0.000000 BTC</span>
+                        <span class="label" id="crypto-label">Transfer Crypto Amount</span>
+                        <span class="value" id="summary-crypto-amount">0.000000</span>
                     </div>
                     <div class="summary-item">
-                        <span class="label">Network Fee</span>
-                        <span class="value" id="summary-fee">0.00 USDT</span>
+                        <span class="label">Network Processing Fee</span>
+                        <span class="value" id="summary-fee">$0.00 USD</span>
                     </div>
                     <div class="summary-total">
-                        <span class="label">Total to Receive (USDT)</span>
-                        <span class="value" id="summary-total">0.00 USDT</span>
-                    </div>
-                    <!-- Debug Diagnostics -->
-                    <div id="debug-info" style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; font-family: monospace; font-size: 0.7rem; color: #aaa; display: block; border: 1px dashed rgba(255,255,255,0.1);">
-                        Initializing diagnostics...
+                        <span class="label">Total Account Credit</span>
+                        <span class="value" id="summary-total" style="color: var(--accent-primary);">$0.00 USDT</span>
                     </div>
                 </div>
 
-                <button class="btn primary btn-auth" style="margin-top: 30px;" id="confirm-btn">Confirm Deposit</button>
+                <button class="btn primary btn-auth" style="margin-top: 30px; width: 100%; padding: 16px; font-size: 1.1rem; font-weight: 700; border-radius: 14px;" id="confirm-btn">Confirm Deposit</button>
             </div>
         </section>
     </main>
@@ -347,12 +346,14 @@
 
         let selectedFee = 0;
         let selectedNetwork = "USDT (TRC-20)";
-        let netType = "usdt";
-        let isManual = false;
+        let netType = "usdt-trc20";
+        let isManual = true;
         let cryptoPrices = {
             'bitcoin': { usd: 65420.50 },
             'ethereum': { usd: 3520.15 },
-            'the-open-network': { usd: 5.20 }
+            'the-open-network': { usd: 5.20 },
+            'solana': { usd: 145.80 },
+            'binancecoin': { usd: 580.00 }
         };
 
         function formatMoney(value) {
@@ -399,10 +400,9 @@
             } catch(e) {}
 
             try {
-                // Initial Load Balance
+                // Initial Load Profile
                 const user = await API.getProfile();
                 if (user) {
-                    // Admin Link
                     if (user.role === 'ADMIN') {
                         const adminLink = document.getElementById('admin-link');
                         if (adminLink) adminLink.style.display = 'block';
@@ -412,57 +412,62 @@
                 }
 
                 // Fetch Crypto Prices
-                console.log('[DEPOSIT] Fetching prices...');
                 try {
-                    cryptoPrices = await CryptoAPI.getMarketPrices(['bitcoin', 'ethereum', 'the-open-network']);
-                    console.log('[DEPOSIT] Prices loaded:', cryptoPrices);
+                    const fetchedPrices = await CryptoAPI.getMarketPrices(['bitcoin', 'ethereum', 'the-open-network', 'solana', 'binancecoin']);
+                    cryptoPrices = { ...cryptoPrices, ...fetchedPrices };
                 } catch (pErr) {
-                    console.error('Price fetch failed, using fallback:', pErr);
+                    console.warn('Price fetch fallback used');
                 }
                 
                 // Refresh Prices Every 30 seconds
                 setInterval(async () => {
                     try {
-                        const newPrices = await CryptoAPI.getMarketPrices(['bitcoin', 'ethereum', 'the-open-network']);
+                        const newPrices = await CryptoAPI.getMarketPrices(['bitcoin', 'ethereum', 'the-open-network', 'solana', 'binancecoin']);
                         cryptoPrices = { ...cryptoPrices, ...newPrices };
                         updateSummary();
                     } catch (e) {}
                 }, 30000);
                 
                 selectNetwork(networkCards[0]);
-                
-                // Also trigger updateSummary in case it was missed
                 updateSummary();
-                
             } catch (err) {
                 console.error('Initialization error:', err);
             }
         });
 
         function getCryptoData() {
-            let data = { price: 1, cryptoId: '', unit: 'USDT', cryptoAmount: 0 };
+            let data = { price: 1, cryptoId: '', unit: 'USDT', cryptoAmount: 0, isStable: true };
             const amount = normalizeAmountInput(amountInput);
             const type = (netType || '').toLowerCase().trim();
 
-            if (type === 'usdt') {
+            if (type.includes('usdt')) {
                 data.price = 1;
                 data.unit = 'USDT';
                 data.cryptoAmount = amount;
+                data.isStable = true;
             } else if (type === 'bitcoin' || type === 'lightning') {
                 data.cryptoId = 'bitcoin';
                 data.unit = type === 'lightning' ? 'sats' : 'BTC';
-                data.price = cryptoPrices['bitcoin'] ? cryptoPrices['bitcoin'].usd : 0;
+                data.price = cryptoPrices['bitcoin'] ? cryptoPrices['bitcoin'].usd : 65420.50;
+                data.isStable = false;
             } else if (type === 'ethereum') {
                 data.cryptoId = 'ethereum';
                 data.unit = 'ETH';
-                data.price = cryptoPrices['ethereum'] ? cryptoPrices['ethereum'].usd : 0;
+                data.price = cryptoPrices['ethereum'] ? cryptoPrices['ethereum'].usd : 3520.15;
+                data.isStable = false;
             } else if (type === 'ton') {
                 data.cryptoId = 'the-open-network';
                 data.unit = 'TON';
-                data.price = cryptoPrices['the-open-network'] ? cryptoPrices['the-open-network'].usd : 0;
+                data.price = cryptoPrices['the-open-network'] ? cryptoPrices['the-open-network'].usd : 5.20;
+                data.isStable = false;
+            } else if (type === 'solana') {
+                data.cryptoId = 'solana';
+                data.unit = 'SOL';
+                data.price = cryptoPrices['solana'] ? cryptoPrices['solana'].usd : 145.80;
+                data.isStable = false;
             }
 
-            if (data.price > 0 && type !== 'usdt') {
+            if (data.price > 0 && !data.isStable) {
                 data.cryptoAmount = amount / data.price;
                 if (type === 'lightning') {
                     data.cryptoAmount = data.cryptoAmount * 1e8;
@@ -478,27 +483,18 @@
             selectedFee = parseFloat(card.dataset.fee) || 0;
             selectedNetwork = card.querySelector('.name').innerText;
             netType = (card.dataset.network || '').toLowerCase().trim();
-            
-            console.log('[DEPOSIT] Selected Network:', selectedNetwork, 'Type:', netType);
 
-            // Show traditional file screenshot input
-            const screenshotInput = document.getElementById('screenshot-input');
-            if (screenshotInput) {
-                const formGroup = screenshotInput.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'block';
-            }
-
-            // Show manual submission form if address is present
             if (card.dataset.address) {
                 isManual = true;
                 manualContainer.style.display = 'block';
                 const addr = card.dataset.address;
                 manualAddress.innerText = addr;
-                const qrSize = netType === 'lightning' ? 260 : 150;
+                const qrSize = netType === 'lightning' ? 240 : 160;
                 qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(addr)}`;
                 qrCode.style.display = 'block';
+                
                 if (netType === 'lightning') {
-                    txidDescription.innerText = `Scan the QR with a BOLT12-compatible Lightning wallet (Phoenix, Zeus, etc.). After paying, submit the payment hash or preimage below.`;
+                    txidDescription.innerText = `Scan the QR with a Lightning-compatible wallet (Phoenix, Zeus, etc.). After paying, submit the payment hash below.`;
                     txidInput.placeholder = 'Paste Lightning payment hash / preimage here...';
                 } else {
                     txidDescription.innerText = `Submit your transaction ID (TXID) after sending ${selectedNetwork}.`;
@@ -523,26 +519,24 @@
             const total = Math.max(0, amount - selectedFee);
             
             summaryNetwork.innerText = selectedNetwork;
-            summaryAmount.innerText = `${amount.toFixed(2)} USDT`;
-            summaryFee.innerText = `${selectedFee.toFixed(2)} USDT`;
-            summaryTotal.innerText = `${total.toFixed(2)} USDT`;
+            summaryAmount.innerText = `$${amount.toFixed(2)} USD`;
+            summaryFee.innerText = `$${selectedFee.toFixed(2)} USD`;
+            summaryTotal.innerText = `$${total.toFixed(2)} USDT`;
 
             const cryptoData = getCryptoData();
-            document.getElementById('debug-info').innerText = `DEBUG: type=${netType}, price=${cryptoData.price}, amount=${cryptoData.cryptoAmount.toFixed(8)}`;
 
-            // Update Crypto Amount if not USDT
-            if (netType !== 'usdt') {
+            if (!cryptoData.isStable) {
                 cryptoPriceRow.style.display = 'flex';
                 cryptoAmountRow.style.display = 'flex';
                 
                 if (cryptoData.price > 0) {
                     if (netType === 'lightning') {
-                        summaryCryptoPrice.innerText = `1 BTC = $${cryptoData.price.toLocaleString()} (100,000,000 sats)`;
-                        cryptoLabel.innerText = `Amount (sats)`;
+                        summaryCryptoPrice.innerText = `1 BTC = $${cryptoData.price.toLocaleString()} USD`;
+                        cryptoLabel.innerText = `Transfer Amount (sats)`;
                         summaryCryptoAmount.innerText = `${Math.round(cryptoData.cryptoAmount).toLocaleString()} sats`;
                     } else {
-                        summaryCryptoPrice.innerText = `1 ${cryptoData.unit} = $${cryptoData.price.toLocaleString()}`;
-                        cryptoLabel.innerText = `Amount (${cryptoData.unit})`;
+                        summaryCryptoPrice.innerText = `1 ${cryptoData.unit} = $${cryptoData.price.toLocaleString()} USD`;
+                        cryptoLabel.innerText = `Transfer Amount (${cryptoData.unit})`;
                         summaryCryptoAmount.innerText = `${cryptoData.cryptoAmount.toFixed(8)} ${cryptoData.unit}`;
                     }
                 } else {
@@ -557,14 +551,24 @@
 
         async function copyAddress() {
             const addr = manualAddress.innerText;
-            await navigator.clipboard.writeText(addr);
-            alert('Address copied to clipboard!');
+            try {
+                await navigator.clipboard.writeText(addr);
+                alert('Deposit address copied to clipboard!');
+            } catch (err) {
+                const textarea = document.createElement('textarea');
+                textarea.value = addr;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('Deposit address copied to clipboard!');
+            }
         }
 
         document.getElementById('confirm-btn').addEventListener('click', async () => {
             const amount = parseFloat(amountInput.value);
             if (!amount || amount <= 0) {
-                alert('Please enter a valid amount.');
+                alert('Please enter a valid deposit amount.');
                 return;
             }
 
@@ -573,7 +577,7 @@
                 const screenshotFile = document.getElementById('screenshot-input').files[0];
 
                 if (!txid && !screenshotFile) {
-                    if (!confirm('You haven\'t added a transaction ID or a payment screenshot. Submitting without proof can delay your verification. Do you want to continue anyway?')) {
+                    if (!confirm('You haven\'t provided a Transaction ID (TXID) or payment screenshot. Submitting without proof may delay verification. Continue anyway?')) {
                         return;
                     }
                 }
@@ -584,12 +588,10 @@
 
                 try {
                     const cryptoData = getCryptoData();
-                    console.log('[DEPOSIT] Submitting with crypto data:', cryptoData);
-
                     const formData = new FormData();
                     formData.append('txid', txid || 'N/A (no TXID provided)');
                     formData.append('usdt_amount', amount);
-                    formData.append('btc_amount', amount); // Backward compatibility
+                    formData.append('btc_amount', amount);
                     formData.append('network', selectedNetwork);
                     formData.append('crypto_amount', cryptoData.cryptoAmount.toFixed(8));
                     formData.append('exchange_rate', cryptoData.price);
@@ -604,7 +606,7 @@
                         window.location.href = 'index.html';
                     } else if (res.msg && (res.msg.includes('submitted') || res.msg.includes('review') || res.msg.includes('verified'))) {
                         const creditedAmount = res.amount ? res.amount.toFixed(2) : amount.toFixed(2);
-                        alert(`✅ Deposit of $${creditedAmount} USDT submitted successfully!\n\nYour transaction via ${selectedNetwork} is now under review. Our team will verify it and credit your account within 10–30 minutes. You'll receive a notification once it's approved.`);
+                        alert(`✅ Deposit of $${creditedAmount} USDT submitted successfully!\n\nYour transaction via ${selectedNetwork} is now under review. Our team will verify it and credit your account within 10–30 minutes. You'll receive a notification once approved.`);
                         window.location.href = 'index.html';
                     } else {
                         alert(res.msg || 'Submission failed. Please try again.');
@@ -618,6 +620,7 @@
             } else {
                 alert(`Redirecting to automated ${selectedNetwork} payment gateway...`);
             }
+        });
     </script>
     <script src="js/main.js"></script>
     <script src="js/chat.js"></script>
