@@ -688,16 +688,19 @@ const Emails = {
     },
 
     dailyEarning(to, username, earning, balance, ratePercent, rank, newBalance) {
+        const rUpper = String(rank || 'BRONZE').toUpperCase();
         const NEXT      = { BRONZE: 'SILVER', SILVER: 'GOLD', GOLD: 'PLATINUM', PLATINUM: 'DIAMOND', DIAMOND: null };
         const RATES     = { BRONZE: '0.5', SILVER: '0.75', GOLD: '1', PLATINUM: '1.5', DIAMOND: '2' };
         const TIER_EMOJI = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎', DIAMOND: '👑' };
-        const nextRank  = NEXT[rank];
+        const nextRank  = NEXT[rUpper];
+        const emoji     = TIER_EMOJI[rUpper] || '🏆';
+        const rankFormatted = rUpper.charAt(0) + rUpper.slice(1).toLowerCase();
 
         const upgradeSection = nextRank
             ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:26px 0;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:14px;">
                  <tr><td style="padding:22px 26px;text-align:center;">
                    <div style="font-size:13px;color:#818cf8;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Want to earn more tomorrow?</div>
-                   <p style="margin:0 0 14px;font-size:13px;color:#94a3b8;line-height:1.65;">Upgrading to <strong style="color:#a5b4fc;">${TIER_EMOJI[nextRank]} ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP</strong> raises your rate from <strong style="color:#f8fafc;">${RATES[rank]}%</strong> to <strong style="color:#22c55e;">${RATES[nextRank]}%</strong> — that's <strong style="color:#22c55e;">$${fmt(newBalance * parseFloat(RATES[nextRank]) / 100)}</strong> per day instead of <strong style="color:#f8fafc;">$${fmt(newBalance * parseFloat(RATES[rank]) / 100)}</strong>.</p>
+                   <p style="margin:0 0 14px;font-size:13px;color:#94a3b8;line-height:1.65;">Upgrading to <strong style="color:#a5b4fc;">${TIER_EMOJI[nextRank]} ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP</strong> raises your rate from <strong style="color:#f8fafc;">${RATES[rUpper]}%</strong> to <strong style="color:#22c55e;">${RATES[nextRank]}%</strong> — that's <strong style="color:#22c55e;">$${fmt(newBalance * parseFloat(RATES[nextRank]) / 100)}</strong> per day instead of <strong style="color:#f8fafc;">$${fmt(newBalance * parseFloat(RATES[rUpper]) / 100)}</strong>.</p>
                    <a href="${APP_URL}/vip.html" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;padding:12px 30px;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px;">Upgrade to ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP &rarr;</a>
                  </td></tr>
                </table>`
@@ -707,13 +710,13 @@ const Emails = {
 
         return sendMail(to, `💰 +$${fmt(earning)} earned today — ${APP_NAME}`,
             wrap(
-                `+$${fmt(earning)} just landed in your wallet — your ${ratePercent}% ${rank} return for today.`,
+                `+$${fmt(earning)} just landed in your wallet — your ${ratePercent}% ${rankFormatted} return for today.`,
                 `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Hi ${username},</p>
                  <p>Your daily compounding return has been credited to your account.</p>
 
                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:14px;">
                    <tr><td style="padding:26px;text-align:center;">
-                     <div style="font-size:12px;color:#86efac;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${TIER_EMOJI[rank]} ${rank.charAt(0) + rank.slice(1).toLowerCase()} VIP &middot; ${ratePercent}% Daily Return</div>
+                     <div style="font-size:12px;color:#86efac;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${emoji} ${rankFormatted} VIP &middot; ${ratePercent}% Daily Return</div>
                      <div style="font-size:46px;font-weight:900;color:#22c55e;letter-spacing:-2px;line-height:1;">+$${fmt(earning)}</div>
                      <div style="font-size:13px;color:#64748b;margin-top:8px;">credited to your account</div>
                    </td></tr>
