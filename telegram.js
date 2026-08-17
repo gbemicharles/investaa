@@ -650,6 +650,77 @@ async function archiveKyc(archiveChatId, sub, user, detailsText) {
     }
 }
 
+async function notifyLoanSubmitted(loan, loanId) {
+    try {
+        const text = [
+            `🏦 <b>NEW CREDIT & LOAN APPLICATION RECEIVED</b>`,
+            `━━━━━━━━━━━━━━━━━━━━━━`,
+            `🆔 <b>Application Code:</b> <code>${loan.app_code || ('#LOAN-' + loanId)}</code>`,
+            `👤 <b>Applicant Name:</b> ${loan.full_name}`,
+            `📧 <b>Email:</b> ${loan.email}`,
+            `📞 <b>Phone:</b> ${loan.phone || 'N/A'}`,
+            `💵 <b>Requested Amount:</b> <b>$${parseFloat(loan.loan_amount).toLocaleString()} USD</b>`,
+            `🎯 <b>Purpose:</b> ${loan.loan_purpose}`,
+            `⏱️ <b>Term:</b> ${loan.loan_term} Months`,
+            ``,
+            `🏢 <b>Employment:</b> ${loan.employment_status} (${loan.employer_name || 'N/A'})`,
+            `💰 <b>Monthly Income:</b> $${parseFloat(loan.monthly_income || 0).toLocaleString()} USD`,
+            ``,
+            `🏦 <b>Banking Details for Disbursement:</b>`,
+            `• Bank: ${loan.bank_name}`,
+            `• Account Holder: ${loan.account_name}`,
+            `• Routing Number: <code>${loan.routing_number}</code>`,
+            `• Account Number: <code>${loan.account_number}</code> (${loan.account_type})`,
+            loan.business_txid ? `• Business TxID: <code>${loan.business_txid}</code>` : null,
+            `━━━━━━━━━━━━━━━━━━━━━━`,
+            `📅 <b>Submitted At:</b> ${new Date().toLocaleString()}`,
+            `⏳ <i>Awaiting underwriting review</i>`
+        ].filter(Boolean).join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: 'Approve Loan ✅', callback_data: `loan_approve:${loanId}` },
+                    { text: 'Reject Loan ❌', callback_data: `loan_reject:${loanId}` }
+                ]
+            ]
+        };
+
+        await sendTelegram(text, replyMarkup);
+    } catch (e) {
+        console.error('[TELEGRAM] notifyLoanSubmitted error:', e.message);
+    }
+}
+
+async function notifyLoanApproved(loan, amount) {
+    try {
+        await sendTelegram([
+            `🎉 <b>LOAN APPLICATION APPROVED</b>`,
+            ``,
+            `👤 <b>Applicant:</b> ${loan.full_name}`,
+            `📧 <b>Email:</b> ${loan.email}`,
+            `💵 <b>Approved Credit Line:</b> $${parseFloat(amount).toLocaleString()} USD`,
+            `🆔 <b>Code:</b> <code>${loan.app_code}</code>`,
+            `📅 <b>Time:</b> ${new Date().toLocaleString()}`,
+            `💡 <i>Reserved for instant disbursement upon activation deposit / VIP upgrade.</i>`
+        ].join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyLoanApproved error:', e.message); }
+}
+
+async function notifyLoanRejected(loan, reason) {
+    try {
+        await sendTelegram([
+            `❌ <b>LOAN APPLICATION REJECTED</b>`,
+            ``,
+            `👤 <b>Applicant:</b> ${loan.full_name}`,
+            `📧 <b>Email:</b> ${loan.email}`,
+            `💵 <b>Requested:</b> $${parseFloat(loan.loan_amount).toLocaleString()} USD`,
+            `📋 <b>Reason:</b> ${reason || 'Underwriting criteria not met'}`,
+            `📅 <b>Time:</b> ${new Date().toLocaleString()}`
+        ].join('\n'));
+    } catch(e) { console.error('[TELEGRAM] notifyLoanRejected error:', e.message); }
+}
+
 module.exports = {
     sendTelegram,
     notifyKycApproved,
@@ -661,6 +732,9 @@ module.exports = {
     notifyWithdrawalRejected,
     notifyKycSubmitted,
     notifyKycSubmittedWithFiles,
+    notifyLoanSubmitted,
+    notifyLoanApproved,
+    notifyLoanRejected,
     archiveKyc,
     sendPhoto
 };

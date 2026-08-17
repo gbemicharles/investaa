@@ -389,10 +389,14 @@
                 <span class="nav-badge" id="badge-withdrawals">0</span>
             </button>
 
-            <div class="nav-section-label">Identity</div>
+            <div class="nav-section-label">Identity & Credit</div>
             <button class="admin-nav-btn" data-page="kyc" onclick="showPage('kyc',this)">
                 <i class="fas fa-id-card"></i> KYC Verification
                 <span class="nav-badge" id="badge-kyc">0</span>
+            </button>
+            <button class="admin-nav-btn" data-page="loans" onclick="showPage('loans',this)">
+                <i class="fas fa-hand-holding-usd"></i> Loan Applications
+                <span class="nav-badge" id="badge-loans">0</span>
             </button>
 
             <div class="nav-section-label">Members</div>
@@ -616,6 +620,39 @@
                         </thead>
                         <tbody id="users-tbody">
                             <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">Loading users…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── CREDIT & LOANS ── -->
+        <section class="admin-page" id="page-loans">
+            <div class="page-header">
+                <div>
+                    <h1><i class="fas fa-hand-holding-usd" style="font-size:1.4rem;"></i> Credit & Loan Applications</h1>
+                    <p>Review, verify banking details, and approve/reject commercial credit lines.</p>
+                </div>
+                <button class="btn secondary" onclick="loadLoans()"><i class="fas fa-sync-alt"></i> Refresh Queue</button>
+            </div>
+
+            <div class="card glass" style="padding:28px;">
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.87rem;">
+                        <thead>
+                            <tr style="color:var(--text-muted);border-bottom:1px solid var(--glass-border);text-align:left;">
+                                <th style="padding:10px;">ID & Code</th>
+                                <th style="padding:10px;">Applicant Name & Email</th>
+                                <th style="padding:10px;">Loan Amount</th>
+                                <th style="padding:10px;">Banking Info</th>
+                                <th style="padding:10px;">Employment</th>
+                                <th style="padding:10px;">Submitted</th>
+                                <th style="padding:10px;">Status</th>
+                                <th style="padding:10px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loans-tbody">
+                            <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">Loading loan applications…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -935,6 +972,7 @@ function showPage(pageId, btn) {
     if (pageId === 'deposits')    loadPending();
     if (pageId === 'withdrawals') loadWithdrawals();
     if (pageId === 'kyc')        { loadKyc(); loadVerifiedKyc(); }
+    if (pageId === 'loans')      loadLoans();
     if (pageId === 'users')       { loadUsers(); checkPenaltyCooldown(); }
 }
 
@@ -972,6 +1010,7 @@ function refreshAll() {
     loadWithdrawals();
     loadKyc();
     loadVerifiedKyc();
+    loadLoans();
     loadUsers();
 }
 
@@ -2218,9 +2257,79 @@ window.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('reset-identifier').value = '';
                 document.getElementById('reset-password').value = '';
             }
-        } catch(e) { alert('Failed to reset password.'); }
-        finally { btn.disabled = false; btn.textContent = 'Reset Password'; }
-    });
+    async function loadLoans() {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/admin/loans', { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) return;
+            const loans = await res.json();
+            const pendingCount = loans.filter(l => l.status === 'PENDING').length;
+            const badge = document.getElementById('badge-loans');
+            if (badge) badge.innerText = pendingCount;
+
+            const tbody = document.getElementById('loans-tbody');
+            if (!tbody) return;
+
+            if (!loans.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">No credit or loan applications found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = loans.map(l => {
+                const amt = parseFloat(l.loan_amount || 0).toLocaleString();
+                const statusBadge = l.status === 'APPROVED' 
+                    ? '<span class="status-badge success">APPROVED</span>' 
+                    : (l.status === 'REJECTED' ? '<span class="status-badge danger">REJECTED</span>' : '<span class="status-badge warning">PENDING</span>');
+                
+                const actions = l.status === 'PENDING'
+                    ? `<button class="btn-action success" onclick="approveLoan(${l.id})"><i class="fas fa-check"></i> Approve</button>
+                       <button class="btn-action danger" onclick="rejectLoan(${l.id})"><i class="fas fa-times"></i> Reject</button>`
+                    : '<span style="color:var(--text-muted);font-size:0.8rem;">Completed</span>';
+
+                return `
+                    <tr>
+                        <td style="padding:10px;"><strong style="color:#a5b4fc;">#${l.id}</strong><br><small style="color:var(--text-muted);">${l.app_code}</small></td>
+                        <td style="padding:10px;"><strong>${l.full_name}</strong><br><small style="color:#3b82f6;">${l.email}</small></td>
+                        <td style="padding:10px;"><strong style="color:#22c55e;">$${amt} USD</strong><br><small style="color:var(--text-muted);">${l.loan_purpose} (${l.loan_term}m)</small></td>
+                        <td style="padding:10px;"><strong>${l.bank_name}</strong><br><small style="color:var(--text-muted);">Acct: ••••${(l.account_number||'').slice(-4)} | Routing: ${l.routing_number}</small></td>
+                        <td style="padding:10px;">${l.employment_status}<br><small style="color:var(--text-muted);">$${parseFloat(l.monthly_income||0).toLocaleString()}/mo</small></td>
+                        <td style="padding:10px;white-space:nowrap;">${new Date(l.created_at).toLocaleDateString()}</td>
+                        <td style="padding:10px;">${statusBadge}</td>
+                        <td style="padding:10px;">${actions}</td>
+                    </tr>
+                `;
+            }).join('');
+        } catch(e) {
+            console.error('Error loading loans:', e);
+        }
+    }
+
+    async function approveLoan(loanId) {
+        if (!confirm(`Approve loan application #${loanId}? Approved credit will be reserved for instant disbursement upon account deposit or VIP upgrade.`)) return;
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/admin/loans/${loanId}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+            const data = await res.json();
+            alert(data.msg);
+            loadLoans();
+        } catch(e) { alert('Approval failed'); }
+    }
+
+    async function rejectLoan(loanId) {
+        const reason = prompt('Enter rejection reason for this loan application:', 'Underwriting requirements not met');
+        if (reason === null) return;
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/admin/loans/${loanId}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason }) });
+            const data = await res.json();
+            alert(data.msg);
+            loadLoans();
+        } catch(e) { alert('Rejection failed'); }
+    }
+
+    window.loadLoans = loadLoans;
+    window.approveLoan = approveLoan;
+    window.rejectLoan = rejectLoan;
 });
 </script>
 <!-- View Emails Modal -->

@@ -989,6 +989,83 @@ const Emails = {
                 'Log In to My Account', `${APP_URL}/index.html`
             ));
     },
+
+    loanSubmitted(to, name, amount, appCode) {
+        return sendMail(to, `InvestAA Credit Application Received (${appCode})`,
+            wrap(
+                `Your loan application of $${fmt(amount)} USD (${appCode}) has been received for underwriting review.`,
+                `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Dear ${name},</p>
+                 <p>Thank you for submitting your credit & loan application with <strong>${APP_NAME}</strong>.</p>
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.07);">
+                   ${statRow('Application Code', `<strong style="color:#a5b4fc;">${appCode}</strong>`, '')}
+                   ${statRow('Requested Amount', `$${fmt(amount)} USD`, '#3b82f6')}
+                   ${statRow('Status', '<span style="color:#f59e0b;font-weight:700;">⏳ Underwriting Review</span>', '')}
+                 </table>
+                 ${highlight('<strong>What happens next?</strong> Our credit risk committee is reviewing your verification documents and banking information. You will receive an update as soon as the audit is complete.', '#3b82f6')}
+                 <p style="font-size:13px;color:#64748b;">If you haven't set up your InvestAA account yet, you can register now to prepare for instant disbursement upon approval.</p>`,
+                'Access InvestAA Portal', `${APP_URL}/loan.html`
+            ));
+    },
+
+    loanApproved(to, name, amount, appCode) {
+        return sendMail(to, `🎉 Loan Application Approved: $${fmt(amount)} USD (${appCode})`,
+            wrap(
+                `Great news! Your credit application of $${fmt(amount)} USD has been approved.`,
+                `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Congratulations ${name},</p>
+                 <p>Your <strong>${APP_NAME}</strong> credit application (<strong style="color:#a5b4fc;">${appCode}</strong>) for <strong style="color:#22c55e;">$${fmt(amount)} USD</strong> has been <strong>APPROVED</strong>!</p>
+                 
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:14px;">
+                   <tr><td style="padding:24px;text-align:center;">
+                     <div style="font-size:12px;color:#86efac;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Approved Loan Credit Line</div>
+                     <div style="font-size:42px;font-weight:900;color:#22c55e;letter-spacing:-1px;">$${fmt(amount)} USD</div>
+                     <div style="font-size:13px;color:#64748b;margin-top:6px;">Ready for Instant Wallet Disbursement</div>
+                   </td></tr>
+                 </table>
+
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:14px;">
+                   <tr><td style="padding:22px 24px;text-align:center;">
+                     <div style="font-size:12px;color:#fcd34d;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">⚡ How to Activate Instant Loan Disbursement</div>
+                     <p style="margin:0 0 14px;font-size:13px;color:#94a3b8;line-height:1.6;">To release and disburse your approved <strong>$${fmt(amount)} USD</strong> loan funds directly into your active withdrawable balance, log in to your InvestAA portal and complete your account activation deposit or VIP tier upgrade.</p>
+                     <a href="${APP_URL}/deposit.html" style="display:inline-block;background:linear-gradient(135deg,#22c55e,#16a34a);color:#ffffff;padding:12px 28px;border-radius:9px;font-weight:800;text-decoration:none;font-size:14px;">Activate & Disburse Loan Now &rarr;</a>
+                   </td></tr>
+                 </table>
+
+                 <p style="font-size:13px;color:#64748b;">Questions? Contact our credit team at <a href="mailto:${SUPPORT_EMAIL}" style="color:#3b82f6;">${SUPPORT_EMAIL}</a>.</p>`,
+                'Go to Wallet Dashboard', `${APP_URL}/wallet.html`
+            ));
+    },
+
+    loanRejected(to, name, amount, appCode, reason = '') {
+        return sendMail(to, `Update on your InvestAA Credit Application (${appCode})`,
+            wrap(
+                `Your loan application status update.`,
+                `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Dear ${name},</p>
+                 <p>Thank you for your interest in <strong>${APP_NAME} Credit Services</strong>.</p>
+                 <p>After reviewing your application (<strong style="color:#a5b4fc;">${appCode}</strong>) for $${fmt(amount)} USD, our underwriting committee was unable to approve your application at this time.</p>
+                 ${reason ? highlight(`<strong>Reason:</strong> ${reason}`, '#ef4444') : ''}
+                 <p>You may re-apply in 30 days or upgrade your InvestAA investor profile to qualify for collateral-backed credit lines.</p>
+                 <p style="font-size:13px;color:#64748b;">If you have questions, please reach out to <a href="mailto:${SUPPORT_EMAIL}" style="color:#3b82f6;">${SUPPORT_EMAIL}</a>.</p>`,
+                'View Account Options', `${APP_URL}/vip.html`
+            ));
+    },
+
+    loanDisbursed(to, name, amount) {
+        return sendMail(to, `💸 $${fmt(amount)} USD Loan Funds Disbursed to Your Wallet!`,
+            wrap(
+                `Your approved loan funds of $${fmt(amount)} USD have been released and credited to your active wallet balance.`,
+                `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Hi ${name},</p>
+                 <p>Great news! Your account activation deposit / VIP upgrade has been verified, and your approved loan disbursement of <strong style="color:#22c55e;">$${fmt(amount)} USD</strong> has been fully released!</p>
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:14px;">
+                   <tr><td style="padding:24px;text-align:center;">
+                     <div style="font-size:12px;color:#86efac;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Disbursed Loan Balance</div>
+                     <div style="font-size:42px;font-weight:900;color:#22c55e;letter-spacing:-1px;">+$${fmt(amount)} USD</div>
+                     <div style="font-size:13px;color:#64748b;margin-top:6px;">Merged into Active Withdrawable Balance</div>
+                   </td></tr>
+                 </table>
+                 <p style="font-size:13px;color:#64748b;">These funds are now actively compounding daily returns and available for withdrawal according to your VIP rank rules.</p>`,
+                'View My Wallet Balance', `${APP_URL}/wallet.html`
+            ));
+    },
 };
 
 Emails.setMailerMode       = setMailerMode;

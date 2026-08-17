@@ -62,6 +62,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             const commands = [
                 { command: 'admin', description: '🎛️ Open Admin Control Board' },
                 { command: 'stats', description: '📊 System Financial Metrics' },
+                { command: 'loans', description: '🏦 Review Pending Loan Applications' },
                 { command: 'vips', description: '🏆 VIP Member Breakdown & List' },
                 { command: 'triggerearnings', description: '⚡ Trigger Daily VIP Compound Return' },
                 { command: 'deposits', description: '📥 Review Pending Deposits Queue' },
@@ -135,10 +136,13 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 ],
                 [
                     { text: '📤 Withdrawals Queue', callback_data: 'admin_pending_withdrawals' },
-                    { text: '🪪 Pending KYC', callback_data: 'admin_pending_kyc' }
+                    { text: '🏦 Pending Loans', callback_data: 'admin_pending_loans' }
                 ],
                 [
-                    { text: '⚡ Run Daily Earnings', callback_data: 'admin_run_earnings' },
+                    { text: '🪪 Pending KYC', callback_data: 'admin_pending_kyc' },
+                    { text: '⚡ Run Daily Earnings', callback_data: 'admin_run_earnings' }
+                ],
+                [
                     { text: '🔄 Refresh Board', callback_data: 'admin_menu' }
                 ]
             ]
@@ -149,11 +153,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
         try {
             const userCount = await dbGet('SELECT COUNT(*) as count FROM users');
             const totalBal = await dbGet('SELECT COALESCE(SUM(balance), 0) as sum FROM users');
-            const depPending = await dbGet("SELECT COUNT(*) as count FROM deposits WHERE status = 'PENDING'");
-            const withPending = await dbGet("SELECT COUNT(*) as count FROM withdrawals WHERE status = 'PENDING'");
-            const kycPending = await dbGet("SELECT COUNT(*) as count FROM kyc_submissions WHERE status = 'PENDING'");
-
-            const vip = await getVipMetrics();
+            const loanPending = await dbGet("SELECT COUNT(*) as count FROM loan_applications WHERE status = 'PENDING'").catch(() => ({ count: 0 }));
 
             return [
                 `🎛️ <b>INVESTAA TELEGRAM ADMIN BOARD</b>`,
@@ -176,6 +176,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 `⏳ <b>Action Queues:</b>`,
                 `• 📥 <b>Pending Deposits:</b> ${depPending?.count || 0}`,
                 `• 📤 <b>Pending Withdrawals:</b> ${withPending?.count || 0}`,
+                `• 🏦 <b>Pending Loans:</b> ${loanPending?.count || 0}`,
                 `• 🪪 <b>Pending KYC:</b> ${kycPending?.count || 0}`,
                 ``,
                 `🛠️ <i>Tap the [/] Menu button next to your input bar for instant commands.</i>`
@@ -499,6 +500,62 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
         }
     }
 
+    async function sendPendingLoans(chatId) {
+        try {
+            const loans = await dbAll(`SELECT * FROM loan_applications WHERE status = 'PENDING' ORDER BY created_at DESC LIMIT 10`);
+            if (!loans || loans.length === 0) {
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: '🏦 <b>Pending Loans Queue</b>\n\n✅ There are currently no pending credit/loan applications.',
+                    parse_mode: 'HTML',
+                    reply_markup: { inline_keyboard: [[{ text: '🔙 Main Board', callback_data: 'admin_menu' }]] }
+                });
+                return;
+            }
+
+            await apiCall('sendMessage', {
+                chat_id: chatId,
+                text: `🏦 <b>Found ${loans.length} Pending Loan Application(s):</b>`,
+                parse_mode: 'HTML'
+            });
+
+            for (const l of loans) {
+                const amt = parseFloat(l.loan_amount);
+                const text = [
+                    `🏦 <b>LOAN APPLICATION #${l.id} (${l.app_code})</b>`,
+                    `👤 <b>Applicant:</b> ${l.full_name}`,
+                    `📧 <b>Email:</b> ${l.email}`,
+                    `📞 <b>Phone:</b> ${l.phone || 'N/A'}`,
+                    `💵 <b>Requested:</b> <b>$${amt.toLocaleString()} USD</b>`,
+                    `🎯 <b>Purpose:</b> ${l.loan_purpose} (${l.loan_term} mos)`,
+                    `🏢 <b>Employment:</b> ${l.employment_status} ($${parseFloat(l.monthly_income || 0).toLocaleString()}/mo)`,
+                    `🏦 <b>Bank:</b> ${l.bank_name} (${l.account_type})`,
+                    `🔢 <b>Routing/Acct:</b> <code>${l.routing_number}</code> / <code>${l.account_number}</code>`,
+                    l.business_txid ? `🔗 <b>Business TxID:</b> <code>${l.business_txid}</code>` : null,
+                    `📅 <b>Date:</b> ${new Date(l.created_at).toLocaleString()}`
+                ].filter(Boolean).join('\n');
+
+                const keyboard = {
+                    inline_keyboard: [
+                        [
+                            { text: 'Approve Loan ✅', callback_data: `loan_approve:${l.id}` },
+                            { text: 'Reject Loan ❌', callback_data: `loan_reject:${l.id}` }
+                        ]
+                    ]
+                };
+
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text,
+                    parse_mode: 'HTML',
+                    reply_markup: keyboard
+                });
+            }
+        } catch (err) {
+            console.error('[TELEGRAM-BOT] sendPendingLoans error:', err.message);
+        }
+    }
+
     async function sendUserDirectory(chatId) {
         try {
             const users = await dbAll(`SELECT id, username, email, balance, vip_rank, is_banned FROM users ORDER BY created_at DESC LIMIT 8`);
@@ -617,6 +674,12 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             const text = update.message.text.trim();
             const parts = text.split(/\s+/);
             const cmd = parts[0].toLowerCase();
+
+            // /loans
+            if (cmd === '/loans') {
+                await sendPendingLoans(chatId);
+                return;
+            }
 
             // /vips, /vip
             if (cmd === '/vips' || cmd === '/vip') {
@@ -903,6 +966,12 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 return;
             }
 
+            if (data === 'admin_pending_loans') {
+                await sendPendingLoans(chatId);
+                await apiCall('answerCallbackQuery', { callback_query_id: queryId });
+                return;
+            }
+
             if (data === 'admin_pending_kyc') {
                 await sendPendingKyc(chatId);
                 await apiCall('answerCallbackQuery', { callback_query_id: queryId });
@@ -1123,6 +1192,70 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     }
 
                     popupText = `❌ KYC submission rejected.`;
+                    resultText = `Rejected ❌`;
+                }
+            }
+
+            // ──────────────── LOAN APPLICATIONS ────────────────
+            else if (action === 'loan_approve') {
+                const loan = await dbGet('SELECT * FROM loan_applications WHERE id = ?', [recordId]);
+                if (!loan) {
+                    popupText = '❌ Loan application not found.';
+                } else if (loan.status !== 'PENDING') {
+                    popupText = `⚠️ Already processed (Status: ${loan.status})`;
+                } else {
+                    const amt = parseFloat(loan.loan_amount);
+                    await dbRun("UPDATE loan_applications SET status = 'APPROVED', approved_at = CURRENT_TIMESTAMP WHERE id = ?", [recordId]);
+
+                    let user = await dbGet('SELECT id, username, email FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
+                    if (user) {
+                        await dbRun('UPDATE users SET pending_loan_amount = pending_loan_amount + ? WHERE id = ?', [amt, user.id]);
+                        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
+                            user.id,
+                            '🎉 Loan Application Approved!',
+                            `Your credit application (${loan.app_code}) for $${amt.toFixed(2)} USD has been APPROVED! Make a deposit or upgrade your VIP rank to activate instant disbursement to your wallet.`,
+                            'SYSTEM',
+                            'SUCCESS'
+                        ]);
+                    }
+
+                    if (typeof sendUserEmail === 'function' && Emails) {
+                        sendMail(loan.email, `🎉 Loan Application Approved: $${amt.toFixed(2)} USD (${loan.app_code})`, Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code)).catch(() => {});
+                    }
+
+                    Telegram.notifyLoanApproved(loan, amt).catch(() => {});
+
+                    popupText = `✅ Loan application approved!`;
+                    resultText = `Approved ✅ ($${amt.toLocaleString()} USD)`;
+                }
+            } else if (action === 'loan_reject') {
+                const loan = await dbGet('SELECT * FROM loan_applications WHERE id = ?', [recordId]);
+                if (!loan) {
+                    popupText = '❌ Loan application not found.';
+                } else if (loan.status !== 'PENDING') {
+                    popupText = `⚠️ Already processed (Status: ${loan.status})`;
+                } else {
+                    const rejReason = 'Underwriting requirements not met.';
+                    await dbRun("UPDATE loan_applications SET status = 'REJECTED', rejection_reason = ? WHERE id = ?", [rejReason, recordId]);
+
+                    let user = await dbGet('SELECT id FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
+                    if (user) {
+                        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
+                            user.id,
+                            'Loan Application Update',
+                            `Your credit application (${loan.app_code}) was not approved at this time.`,
+                            'SYSTEM',
+                            'FAILED'
+                        ]);
+                    }
+
+                    if (typeof sendUserEmail === 'function' && Emails) {
+                        sendMail(loan.email, `Update on your InvestAA Credit Application (${loan.app_code})`, Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason)).catch(() => {});
+                    }
+
+                    Telegram.notifyLoanRejected(loan, rejReason).catch(() => {});
+
+                    popupText = `❌ Loan application rejected.`;
                     resultText = `Rejected ❌`;
                 }
             }

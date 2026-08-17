@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply for Personal & Business Credit Line — InvestAA Loans</title>
+    <meta name="description" content="Apply for fast, flexible business and personal credit lines with InvestAA. Up to $250,000 USD with instant wallet disbursement upon VIP account activation.">
+    <link rel="icon" href="attached_assets/investaa_logo.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent-gold: #f59e0b;
+            --accent-gold-glow: rgba(245, 158, 11, 0.25);
+            --accent-blue: #6366f1;
+            --bg-card: rgba(15, 23, 42, 0.75);
+            --border-glass: rgba(255, 255, 255, 0.08);
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #090d16;
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+        .loan-hero {
+            text-align: center;
+            padding: 40px 20px 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .loan-hero h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 30%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        .loan-hero p {
+            color: #94a3b8;
+            font-size: 1.05rem;
+            line-height: 1.6;
+        }
+
+        /* 8-Step Wizard Container */
+        .wizard-container {
+            max-width: 900px;
+            margin: 20px auto 60px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 36px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        /* Step Progress Bar */
+        .progress-track {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            margin-bottom: 40px;
+            padding: 0 10px;
+        }
+        .progress-track::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 30px;
+            right: 30px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 1;
+        }
+        .progress-bar-fill {
+            position: absolute;
+            top: 18px;
+            left: 30px;
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #f59e0b);
+            z-index: 1;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+        .step-node {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+        .step-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #1e293b;
+            border: 2px solid #334155;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+        .step-node.active .step-badge {
+            background: #6366f1;
+            border-color: #818cf8;
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+        }
+        .step-node.completed .step-badge {
+            background: #10b981;
+            border-color: #34d399;
+            color: #ffffff;
+        }
+        .step-label {
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-top: 8px;
+            font-weight: 600;
+            text-align: center;
+            max-width: 75px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .step-node.active .step-label {
+            color: #f59e0b;
+        }
+
+        /* Form Steps */
+        .step-content {
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+        }
+        .step-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step-heading {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 14px;
+            margin-bottom: 24px;
+        }
+        .step-heading h3 {
+            font-size: 1.35rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .step-heading h3 i {
+            color: #f59e0b;
+        }
+        .step-heading p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .form-grid.full {
+            grid-template-columns: 1fr;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-group.span-2 {
+            grid-column: span 2;
+        }
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+        .form-group label span.req {
+            color: #ef4444;
+        }
+        .form-control {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+        }
+
+        /* Document Dropzones */
+        .dropzone-box {
+            border: 2px dashed #334155;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .dropzone-box:hover {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.05);
+        }
+        .dropzone-box i {
+            font-size: 2rem;
+            color: #6366f1;
+            margin-bottom: 8px;
+        }
+        .dropzone-box input[type="file"] {
+            display: none;
+        }
+
+        /* Review Summary Cards */
+        .review-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 18px 22px;
+            margin-bottom: 16px;
+        }
+        .review-card h4 {
+            color: #f59e0b;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .review-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.88rem;
+        }
+        .review-row:last-child {
+            border-bottom: none;
+        }
+        .review-row span.label {
+            color: #94a3b8;
+        }
+        .review-row span.val {
+            color: #f8fafc;
+            font-weight: 600;
+        }
+
+        /* Navigation Buttons */
+        .wizard-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 36px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .btn-prev {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-prev:hover {
+            background: #334155;
+            color: #ffffff;
+        }
+        .btn-next {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #ffffff;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            transition: all 0.3s;
+        }
+        .btn-next:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+        .btn-submit {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #ffffff;
+            border: none;
+            padding: 12px 36px;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
+        }
+
+        /* Success Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        .modal-card {
+            background: #0f172a;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 24px;
+            max-width: 540px;
+            width: 100%;
+            padding: 36px;
+            text-align: center;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.8);
+            position: relative;
+            animation: modalPop 0.4s ease;
+        }
+        @keyframes modalPop {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.span-2 { grid-column: span 1; }
+            .progress-track { overflow-x: auto; padding-bottom: 10px; }
+            .wizard-container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="header">
+        <div class="container header-content">
+            <a href="index.html" class="logo">
+                <img src="attached_assets/investaa_logo.png" alt="InvestAA Logo">
+                <span>INVESTAA</span>
+            </a>
+            <nav class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="vip.html">VIP Plans</a>
+                <a href="loan.html" class="active" style="color:#f59e0b;font-weight:700;">Credit & Loans</a>
+                <a href="wallet.html">Wallet</a>
+                <a href="login.html" class="btn-secondary" style="padding:6px 16px;border-radius:8px;">Log In</a>
+                <a href="register.html" class="btn-primary" style="padding:6px 16px;border-radius:8px;">Sign Up</a>
+            </nav>
+            <div class="mobile-toggle">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="loan-hero">
+            <h1>InvestAA Commercial & Personal Credit Facilities</h1>
+            <p>Flexible credit lines up to <strong>$250,000 USD</strong>. Complete our 8-step application below. Approved funds are reserved for instant disbursement upon account activation.</p>
+        </div>
+
+        <div class="wizard-container">
+            <!-- Progress Tracker -->
+            <div class="progress-track">
+                <div class="progress-bar-fill" id="progressFill"></div>
+                <div class="step-node active" data-step="1">
+                    <div class="step-badge">1</div>
+                    <div class="step-label">Personal</div>
+                </div>
+                <div class="step-node" data-step="2">
+                    <div class="step-badge">2</div>
+                    <div class="step-label">Address</div>
+                </div>
+                <div class="step-node" data-step="3">
+                    <div class="step-badge">3</div>
+                    <div class="step-label">Income</div>
+                </div>
+                <div class="step-node" data-step="4">
+                    <div class="step-badge">4</div>
+                    <div class="step-label">Loan Request</div>
+                </div>
+                <div class="step-node" data-step="5">
+                    <div class="step-badge">5</div>
+                    <div class="step-label">Banking</div>
+                </div>
+                <div class="step-node" data-step="6">
+                    <div class="step-badge">6</div>
+                    <div class="step-label">Identity</div>
+                </div>
+                <div class="step-node" data-step="7">
+                    <div class="step-badge">7</div>
+                    <div class="step-label">Credit Auth</div>
+                </div>
+                <div class="step-node" data-step="8">
+                    <div class="step-badge">8</div>
+                    <div class="step-label">Review</div>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form id="loanForm" enctype="multipart/form-data">
+                
+                <!-- STEP 1: Personal Information -->
+                <div class="step-content active" id="step-1">
+                    <div class="step-heading">
+                        <h3><i class="fas fa-user-circle"></i> Step 1 — Personal Information</h3>
+                        <p>Provide your basic identification details to open your credit file.</p>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group span-2">
+                            <label>Full Legal Name <span class="req">*</span></label>
+                            <input type="text" id="full_name" name="full_name" class="form-control" placeholder="e.g. John Alexander Doe" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email Address <span class="req">*</span></label>
+                            <input type="email" id="email" name="email" class="form-control" placeholder="john.doe@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number <span class="req">*</span></label>
+                            <input type="tel" id="phone" name="phone" class="form-control" placeholder="+1 (555) 000-0000" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Date of Birth <span class="req">*</span></label>
+                            <input type="date" id="dob" name="dob" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tax ID / SSN / National ID <span class="req">*</span></label>
+                            <input type="text" id="ssn_id" name="ssn_id" class="form-control" placeholder="XXX-XX-XXXX" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 2: Address & Housing -->
+                <div class="step-content" id="step-2">
+                    <div class="step-heading">
+                        <h3><i class="fas fa-home"></i> Step 2 — Residential Address & Housing</h3>
+                        <p>Enter your primary residential address and housing expense details.</p>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group span-2">
+                            <label>Street Address <span class="req">*</span></label>
+                            <input type="text" id="address" name="address" class="form-control" placeholder="123 Financial Boulevard, Suite 400" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Housing Status <span class="req">*</span></label>
+                            <select id="housing_status" name="housing_status" class="form-control" required>
+                                <option value="Rent">Renting</option>
+                                <option value="Own">Own Home (Mortgage)</option>
+                                <option value="Own-Outright">Own Home (Paid Off)</option>
+                                <option value="Lease">Lease / Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Monthly Rent / Mortgage ($ USD) <span class="req">*</span></label>
+                            <input type="number" id="monthly_housing" name="monthly_housing" class="form-control" placeholder="1500" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 3: Employment & Income -->
+                <div class="step-content" id="step-3">
+                    <div class="step-heading">
+                        <h3><i class="fas fa-briefcase"></i> Step 3 — Employment & Financial Income</h3>
+                        <p>Tell us about your primary source of revenue or employment.</p>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Employment Status <span class="req">*</span></label>
+                            <select id="employment_status" name="employment_status" class="form-control" required>
+                                <option value="Full-time">Employed (Full-Time)</option>
+                                <option value="Part-time">Employed (Part-Time)</option>
+                                <option value="Self-Employed">Self-Employed / Consultant</option>
+                                <option value="Business Owner">Business Owner / Entrepreneur</option>
+                                <option value="Investor">Independent Investor</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Employer / Company Name <span class="req">*</span></label>
+                            <input type="text" id="employer_name" name="employer_name" class="form-control" placeholder="Acme Global Inc." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Job Title / Position</label>
+                            <input type="text" id="job_title" name="job_title" class="form-control" placeholder="Senior Manager / Managing Director">
+                        </div>
+                        <div class="form-group">
+                            <label>Monthly Gross Income ($ USD) <span class="req">*</span></label>
+                            <input type="number" id="monthly_income" name="monthly_income" class="form-control" placeholder="8500" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 4: Loan Request -->
+                <div class="step-content" id="step-4">
+                    <div class="step-heading">
+                        <h3><i class="fas fa-hand-holding-usd"></i> Step 4 — Loan Request & Capital Terms</h3>
+                        <p>Specify the desired credit facility amount and repayment timeline.</p>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group span-2">
+                            <label>Desired Loan Amount ($ USD) <span class="req">*</span></label>
+                            <input type="number" id="loan_amount" name="loan_amount" class="form-control" placeholder="50000" min="500" max="250000" required style="font-size:1.2rem;font-weight:700;color:#f59e0b;">
+                        </div>
+                        <div class="form-group">
+                            <label>Primary Loan Purpose <span class="req">*</span></label>
+                            <select id="loan_purpose" name="loan_purpose" class="form-control" required>
+                                <option value="Business Expansion">Business Expansion & Capital</option>
+                                <option value="Personal Investment">Crypto & Portfolio Investment</option>
+                                <option value="Real Estate">Real Estate Acquisition</option>
+                                <option value="Debt Consolidation">Debt Refinancing & Consolidation</option>
+                                <option value="Working Capital">Inventory & Working Capital</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Preferred Term Length <span class="req">*</span></label>
+                            <select id="loan_term" name="loan_term" class="form-control" required>
+                                <option value="6">6 Months (Short-Term)</option>
+                                <option value="12" selected>12 Months (Standard)</option>
+                                <option value="24">24 Months (Medium-Term)</option>
+                                <option value="36">36 Months (Long-Term)</option>
+                            </select>
+                        </div>
+                        <div class="form-group span-2">
+                            <label>Business Registration TxID / EIN (Optional for Business Credit Lines)</label>
+                            <input type="text" id="business_txid" name="business_txid" class="form-control" placeholder="e.g. 0x892a... or EIN 12-3456789">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 5: Financial Obligations & Banking -->
+                <div class="step-content" id="step-5">
+                    <div class="step-heading">
+                        <h3><i class="fas fa-university"></i> Step 5 — Banking Details for Direct Disbursement</h3>
+                        <p>Provide the banking account details where approved funds will be wired.</p>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Bank Name <span class="req">*</span></label>
+                            <input type="text" id="bank_name" name="bank_name" class="form-control" placeholder="Chase / Bank of America / Wells Fargo" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Account Holder Name <span class="req">*</span></label>
+                            <input type="text" id="account_name" name="account_name" class="form-control" placeholder="John Alexander Doe" required>
+                        </div>
+                        <div class="form-group">
+                            <label>ABA Routing Number (9 Digits) <span class="req">*</span></label>
+                            <input type="text" id="routing_number" name="routing_number" class="form-control" placeholder="123456789" maxlength="12" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Account Number <span class="req">*</span></label>
+                            <input type="text" id="account_number" name="account_number" class="form-control" placeholder="000123456789" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Account Type <span class="req">*</span></label>
+                            <select id="account_type" name="account_type" class="form-control" required>
+                                <option value="Checking">Checking Account</option>
+                                <option value="Savings">Savings Account</option>
+                                <option value="Business Checking">Business Checking Account</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 6: Identity Verification -->
+                <div class="step-content" id="step-6">
+                    <div class="step-heading">
+                        <h3><i class="fas fa-id-card"></i> Step 6 — Identity Verification Uploads</h3>
+                        <p>Upload a clear photo of your government-issued ID to prevent fraud.</p>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Government ID (Front Photo) <span class="req">*</span></label>
+                            <div class="dropzone-box" onclick="document.getElementById('id_document').click()">
+                                <i class="fas fa-id-badge"></i>
+                                <div style="font-weight:600;font-size:0.9rem;" id="idFrontLabel">Click to Upload ID Front</div>
+                                <span style="font-size:0.75rem;color:#64748b;">PNG, JPG or PDF up to 15MB</span>
+                                <input type="file" id="id_document" name="id_document" accept="image/*,.pdf" onchange="updateFileLabel(this, 'idFrontLabel')">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Government ID (Back Photo)</label>
+                            <div class="dropzone-box" onclick="document.getElementById('id_document_back').click()">
+                                <i class="fas fa-passport"></i>
+                                <div style="font-weight:600;font-size:0.9rem;" id="idBackLabel">Click to Upload ID Back</div>
+                                <span style="font-size:0.75rem;color:#64748b;">PNG, JPG or PDF up to 15MB</span>
+                                <input type="file" id="id_document_back" name="id_document_back" accept="image/*,.pdf" onchange="updateFileLabel(this, 'idBackLabel')">
+                            </div>
+                        </div>
+                        <div class="form-group span-2">
+                            <label>Verification Selfie Photo (Holding ID) <span class="req">*</span></label>
+                            <div class="dropzone-box" onclick="document.getElementById('selfie').click()">
+                                <i class="fas fa-camera"></i>
+                                <div style="font-weight:600;font-size:0.9rem;" id="selfieLabel">Click to Upload Verification Selfie</div>
+                                <span style="font-size:0.75rem;color:#64748b;">Clear selfie holding your ID next to your face</span>
+                                <input type="file" id="selfie" name="selfie" accept="image/*" onchange="updateFileLabel(this, 'selfieLabel')">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 7: Credit Authorization -->
+                <div class="step-content" id="step-7">
+                    <div class="step-heading">
+                        <h3><i class="fas fa-file-signature"></i> Step 7 — FCRA Credit Disclosure & Legal Consent</h3>
+                        <p>Review disclosure terms and sign your authorization.</p>
+                    </div>
+                    <div style="background:rgba(15,23,42,0.8);border:1px solid #334155;border-radius:12px;padding:18px;font-size:0.85rem;color:#94a3b8;line-height:1.6;margin-bottom:20px;max-height:140px;overflow-y:auto;">
+                        <strong>Fair Credit Reporting Act (FCRA) Disclosure:</strong><br>
+                        By submitting this application, you authorize InvestAA Credit Services and its underwriting partners to obtain consumer credit reports, soft credit checks, and employment verification to evaluate your eligibility for requested credit lines. You certify that all statements made in this application are true and complete.
+                    </div>
+                    <div class="form-grid full">
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                                <input type="checkbox" id="credit_auth_check" required style="width:18px;height:18px;accent-color:#6366f1;">
+                                <span>I authorize InvestAA to perform credit checks and verify my banking information. <span class="req">*</span></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>Type Full Legal Signature <span class="req">*</span></label>
+                            <input type="text" id="credit_signature" name="credit_signature" class="form-control" placeholder="e.g. /s/ John Alexander Doe" required style="font-family:cursive;font-size:1.1rem;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 8: Review & Consent -->
+                <div class="step-content" id="step-8">
+                    <div class="step-heading">
+                        <h3><i class="fas fa-clipboard-check"></i> Step 8 — Application Summary & Final Consent</h3>
+                        <p>Please double-check all details below before submitting your credit file.</p>
+                    </div>
+
+                    <div id="reviewSummaryContainer">
+                        <!-- Dynamic Review Summary Cards Rendered via JS -->
+                    </div>
+
+                    <div class="form-group" style="margin-top:20px;">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                            <input type="checkbox" id="terms_agree_check" required style="width:18px;height:18px;accent-color:#22c55e;">
+                            <span>I certify that all details submitted are accurate and agree to InvestAA Credit Terms. <span class="req">*</span></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="wizard-actions">
+                    <button type="button" class="btn-prev" id="prevBtn" onclick="changeStep(-1)" style="display:none;"><i class="fas fa-arrow-left"></i> Previous</button>
+                    <button type="button" class="btn-next" id="nextBtn" onclick="changeStep(1)">Next Step <i class="fas fa-arrow-right"></i></button>
+                    <button type="submit" class="btn-submit" id="submitBtn" style="display:none;"><i class="fas fa-paper-plane"></i> Submit Application</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- Success Confirmation Modal -->
+    <div class="modal-overlay" id="successModal">
+        <div class="modal-card">
+            <div style="width:70px;height:70px;border-radius:50%;background:rgba(34,197,94,0.15);color:#22c55e;display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin:0 auto 16px;">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2 style="font-size:1.6rem;color:#ffffff;margin-bottom:8px;">Credit Application Received!</h2>
+            <div style="font-size:0.9rem;color:#94a3b8;margin-bottom:18px;">Application Code: <strong style="color:#f59e0b;" id="modalAppCode">#LOAN-000000</strong></div>
+            
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;font-size:0.88rem;color:#cbd5e1;line-height:1.6;margin-bottom:24px;text-align:left;">
+                <p style="margin-bottom:8px;"><strong style="color:#ffffff;">Underwriting Status:</strong> ⏳ In Underwriting Review</p>
+                <p style="margin:0;"><strong style="color:#ffffff;">Disbursement Note:</strong> Approved loan funds will be reserved for your email address. Setting up your InvestAA account enables <strong>instant wallet disbursement</strong> as soon as your account deposit or VIP upgrade is verified.</p>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <a id="modalRegisterBtn" href="register.html" class="btn-next" style="display:block;text-align:center;text-decoration:none;background:linear-gradient(135deg,#f59e0b,#d97706);font-size:1rem;padding:14px;">
+                    <i class="fas fa-user-plus"></i> Set Up / Link InvestAA Account Now
+                </a>
+                <a href="index.html" style="color:#94a3b8;font-size:0.85rem;text-decoration:none;">Return to Homepage</a>
+            </div>
+        </div>
+    </div>
+
+    <script class="script">
+        let currentStep = 1;
+        const totalSteps = 8;
+
+        function updateProgress() {
+            const pct = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+
+            document.querySelectorAll('.step-node').forEach(node => {
+                const step = parseInt(node.getAttribute('data-step'));
+                node.classList.remove('active', 'completed');
+                if (step === currentStep) {
+                    node.classList.add('active');
+                } else if (step < currentStep) {
+                    node.classList.add('completed');
+                }
+            });
+
+            document.querySelectorAll('.step-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+
+            // Buttons
+            document.getElementById('prevBtn').style.display = currentStep > 1 ? 'block' : 'none';
+            if (currentStep === totalSteps) {
+                document.getElementById('nextBtn').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'block';
+                renderReviewSummary();
+            } else {
+                document.getElementById('nextBtn').style.display = 'block';
+                document.getElementById('submitBtn').style.display = 'none';
+            }
+
+            window.scrollTo({ top: 200, behavior: 'smooth' });
+        }
+
+        function validateStep(step) {
+            const stepEl = document.getElementById(`step-${step}`);
+            const inputs = stepEl.querySelectorAll('input[required], select[required]');
+            for (let input of inputs) {
+                if (input.type === 'checkbox') {
+                    if (!input.checked) {
+                        alert('Please accept the required authorization terms.');
+                        input.focus();
+                        return false;
+                    }
+                } else if (!input.value.trim()) {
+                    alert(`Please fill in: ${input.previousElementSibling ? input.previousElementSibling.innerText.replace('*','').trim() : 'required field'}`);
+                    input.focus();
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function changeStep(delta) {
+            if (delta > 0 && !validateStep(currentStep)) return;
+            currentStep += delta;
+            if (currentStep < 1) currentStep = 1;
+            if (currentStep > totalSteps) currentStep = totalSteps;
+            updateProgress();
+        }
+
+        function updateFileLabel(input, labelId) {
+            if (input.files && input.files[0]) {
+                document.getElementById(labelId).innerHTML = `<span style="color:#22c55e;"><i class="fas fa-check-circle"></i> ${input.files[0].name}</span>`;
+            }
+        }
+
+        function renderReviewSummary() {
+            const container = document.getElementById('reviewSummaryContainer');
+            const fn = document.getElementById('full_name').value;
+            const em = document.getElementById('email').value;
+            const ph = document.getElementById('phone').value;
+            const amt = document.getElementById('loan_amount').value;
+            const pur = document.getElementById('loan_purpose').value;
+            const trm = document.getElementById('loan_term').value;
+            const bnk = document.getElementById('bank_name').value;
+            const acc = document.getElementById('account_number').value;
+
+            container.innerHTML = `
+                <div class="review-card">
+                    <h4><span>👤 Personal Details</span> <i class="fas fa-pen" style="cursor:pointer;" onclick="goToStep(1)"></i></h4>
+                    <div class="review-row"><span class="label">Applicant Name</span><span class="val">${fn}</span></div>
+                    <div class="review-row"><span class="label">Email Address</span><span class="val">${em}</span></div>
+                    <div class="review-row"><span class="label">Phone</span><span class="val">${ph}</span></div>
+                </div>
+                <div class="review-card">
+                    <h4><span>💵 Loan Facility</span> <i class="fas fa-pen" style="cursor:pointer;" onclick="goToStep(4)"></i></h4>
+                    <div class="review-row"><span class="label">Requested Amount</span><span class="val" style="color:#f59e0b;">$${parseFloat(amt || 0).toLocaleString()} USD</span></div>
+                    <div class="review-row"><span class="label">Purpose</span><span class="val">${pur}</span></div>
+                    <div class="review-row"><span class="label">Term Length</span><span class="val">${trm} Months</span></div>
+                </div>
+                <div class="review-card">
+                    <h4><span>🏦 Banking Account</span> <i class="fas fa-pen" style="cursor:pointer;" onclick="goToStep(5)"></i></h4>
+                    <div class="review-row"><span class="label">Bank Name</span><span class="val">${bnk}</span></div>
+                    <div class="review-row"><span class="label">Account Number</span><span class="val">•••• ${acc.slice(-4)}</span></div>
+                </div>
+            `;
+        }
+
+        function goToStep(step) {
+            currentStep = step;
+            updateProgress();
+        }
+
+        document.getElementById('loanForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!validateStep(currentStep)) return;
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+            const formData = new FormData(this);
+
+            try {
+                const res = await fetch('/api/loans/apply', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    document.getElementById('modalAppCode').innerText = data.app_code;
+                    document.getElementById('modalRegisterBtn').href = `register.html?email=${encodeURIComponent(document.getElementById('email').value)}`;
+                    document.getElementById('successModal').style.display = 'flex';
+                } else {
+                    alert(data.msg || 'Submission error. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
+                }
+            } catch (err) {
+                console.error('Submission error:', err);
+                alert('Connection error. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
+            }
+        });
+    </script>
+</body>
+</html>

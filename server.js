@@ -175,10 +175,41 @@ async function initDb() {
         await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS bonus_amount NUMERIC(18,2) DEFAULT 0`);
         await pool.query(`ALTER TABLE outreach_campaigns ADD COLUMN IF NOT EXISTS body TEXT`);
 
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_loan_amount NUMERIC DEFAULT 0`);
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS app_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT
+            CREATE TABLE IF NOT EXISTS loan_applications (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                app_code TEXT UNIQUE NOT NULL,
+                full_name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                phone TEXT,
+                dob DATE,
+                ssn_id TEXT,
+                address TEXT,
+                housing_status TEXT,
+                monthly_housing NUMERIC DEFAULT 0,
+                employment_status TEXT,
+                employer_name TEXT,
+                job_title TEXT,
+                monthly_income NUMERIC DEFAULT 0,
+                loan_amount NUMERIC NOT NULL,
+                loan_purpose TEXT,
+                loan_term INTEGER DEFAULT 12,
+                business_txid TEXT,
+                bank_name TEXT NOT NULL,
+                account_name TEXT NOT NULL,
+                routing_number TEXT NOT NULL,
+                account_number TEXT NOT NULL,
+                account_type TEXT DEFAULT 'Checking',
+                id_document TEXT,
+                id_document_back TEXT,
+                selfie TEXT,
+                credit_signature TEXT,
+                status TEXT DEFAULT 'PENDING',
+                rejection_reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                approved_at TIMESTAMP
             )
         `);
 
@@ -253,6 +284,45 @@ const EARNING_RATES = {
     PLATINUM: 0.015,
     DIAMOND:  0.02
 };
+
+async function checkAndReleaseLoanDisbursement(userId) {
+    try {
+        const user = await dbGet('SELECT id, username, email, pending_loan_amount FROM users WHERE id = ?', [userId]);
+        if (!user) return;
+
+        const pendingLoan = parseFloat(user.pending_loan_amount || 0);
+        if (pendingLoan > 0) {
+            await dbRun(
+                'UPDATE users SET balance = balance + ?, pending_loan_amount = 0 WHERE id = ?',
+                [pendingLoan, userId]
+            );
+
+            await dbRun(
+                'INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)',
+                [userId, 'LOAN_DISBURSEMENT', pendingLoan, 'Approved Credit & Loan Funds Disbursed to Wallet', 'COMPLETED']
+            );
+
+            await dbRun(
+                'INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)',
+                [
+                    userId,
+                    '🎉 Approved Loan Disbursed!',
+                    `Your approved credit loan disbursement of $${pendingLoan.toFixed(2)} USD has been released and credited to your active wallet balance!`,
+                    'SYSTEM',
+                    'SUCCESS'
+                ]
+            );
+
+            if (user.email && typeof sendUserEmail === 'function' && Emails) {
+                sendUserEmail(userId, () => Emails.loanDisbursed(user.email, user.username, pendingLoan)).catch(() => {});
+            }
+
+            console.log(`[LOAN-DISBURSEMENT] Released $${pendingLoan} loan disbursement to user #${userId} (${user.username})`);
+        }
+    } catch (err) {
+        console.error('[LOAN-DISBURSEMENT] Release error:', err.message);
+    }
+}
 
 async function applyDailyEarnings() {
     try {
@@ -1074,6 +1144,7 @@ app.post('/api/admin/deposits/approve', authenticateAdmin, async (req, res) => {
             sendUserEmail(deposit.user_id, () => Emails.depositApproved(uDep.email, uDep.username, amount)).catch(() => {});
             Telegram.notifyDepositApproved(uDep, amount).catch(() => {});
         }
+        await checkAndReleaseLoanDisbursement(deposit.user_id).catch(() => {});
         res.json({ msg: 'Deposit approved' });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -1496,6 +1567,7 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
                 Telegram.sendTelegram(`🤖 <b>AUTO-DEPOSIT APPROVED</b>\n\n👤 <b>User:</b> ${uDS.username}\n📧 <b>Email:</b> ${uDS.email}\n💵 <b>Amount:</b> $${finalCreditedAmount.toFixed(2)} USDT\n🌐 <b>Network:</b> ${network}\n🔗 <b>TxID:</b> <code>${txid}</code>\n✔️ <i>Auto-verified on-chain</i>`).catch(() => {});
             }
 
+            await checkAndReleaseLoanDisbursement(req.user.id).catch(() => {});
             return res.json({ msg: 'Deposit verified and credited automatically', amount: finalCreditedAmount, autoApproved: true });
         }
 
@@ -1685,6 +1757,7 @@ app.post('/api/user/upgrade', authenticate, async (req, res) => {
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'VIP Upgrade Successful', `Congratulations! Your account has been upgraded to ${rank} VIP status. You now earn a daily investment return and enjoy all ${rank} benefits.`, 'UPGRADE', 'SUCCESS']);
         const uVIP = await dbGet('SELECT email, username FROM users WHERE id = ?', [req.user.id]).catch(() => null);
         if (uVIP) sendUserEmail(req.user.id, () => Emails.vipUpgrade(uVIP.email, uVIP.username, rank)).catch(() => {});
+        await checkAndReleaseLoanDisbursement(req.user.id).catch(() => {});
         res.json({ msg: `Successfully upgraded to ${rank}!` });
     } catch (e) { res.status(500).json({ msg: 'Server error' }); }
 });
@@ -2687,6 +2760,181 @@ app.post('/api/admin/users/penalty-apply', authenticateAdmin, async (req, res) =
     } catch(e) {
         console.error('[PENALTY-APPLY] error:', e);
         res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// ── LOAN APPLICATION ENDPOINTS ──
+
+const loanUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } }).fields([
+    { name: 'id_document', maxCount: 1 },
+    { name: 'id_document_back', maxCount: 1 },
+    { name: 'selfie', maxCount: 1 }
+]);
+
+app.post('/api/loans/apply', loanUpload, async (req, res) => {
+    try {
+        const {
+            full_name, email, phone, dob, ssn_id,
+            address, housing_status, monthly_housing,
+            employment_status, employer_name, job_title, monthly_income,
+            loan_amount, loan_purpose, loan_term, business_txid,
+            bank_name, account_name, routing_number, account_number, account_type,
+            credit_signature
+        } = req.body;
+
+        if (!full_name || !email || !loan_amount || !bank_name || !account_name || !routing_number || !account_number) {
+            return res.status(400).json({ msg: 'Please fill in all required personal, loan, and banking fields.' });
+        }
+
+        const amt = parseFloat(loan_amount);
+        if (isNaN(amt) || amt <= 0) {
+            return res.status(400).json({ msg: 'Please enter a valid loan amount.' });
+        }
+
+        let idDocPath = null;
+        let idDocBackPath = null;
+        let selfiePath = null;
+
+        if (req.files && req.files['id_document'] && req.files['id_document'][0]) {
+            idDocPath = `data:${req.files['id_document'][0].mimetype};base64,${req.files['id_document'][0].buffer.toString('base64')}`;
+        }
+        if (req.files && req.files['id_document_back'] && req.files['id_document_back'][0]) {
+            idDocBackPath = `data:${req.files['id_document_back'][0].mimetype};base64,${req.files['id_document_back'][0].buffer.toString('base64')}`;
+        }
+        if (req.files && req.files['selfie'] && req.files['selfie'][0]) {
+            selfiePath = `data:${req.files['selfie'][0].mimetype};base64,${req.files['selfie'][0].buffer.toString('base64')}`;
+        }
+
+        const existingUser = await dbGet('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [email.trim()]);
+        const userId = existingUser ? existingUser.id : null;
+        const appCode = `#LOAN-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        const result = await pool.query(
+            `INSERT INTO loan_applications (
+                user_id, app_code, full_name, email, phone, dob, ssn_id,
+                address, housing_status, monthly_housing,
+                employment_status, employer_name, job_title, monthly_income,
+                loan_amount, loan_purpose, loan_term, business_txid,
+                bank_name, account_name, routing_number, account_number, account_type,
+                id_document, id_document_back, selfie, credit_signature, status
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,'PENDING') RETURNING id`,
+            [
+                userId, appCode, full_name.trim(), email.trim().toLowerCase(), phone || '', dob || null, ssn_id || '',
+                address || '', housing_status || 'Rent', parseFloat(monthly_housing) || 0,
+                employment_status || 'Full-time', employer_name || '', job_title || '', parseFloat(monthly_income) || 0,
+                amt, loan_purpose || 'Personal', parseInt(loan_term) || 12, business_txid || '',
+                bank_name.trim(), account_name.trim(), routing_number.trim(), account_number.trim(), account_type || 'Checking',
+                idDocPath, idDocBackPath, selfiePath, credit_signature || full_name,
+            ]
+        );
+
+        const loanId = result.rows[0].id;
+        const loanObj = { id: loanId, app_code: appCode, full_name, email, phone, loan_amount: amt, loan_purpose, loan_term, employment_status, employer_name, monthly_income, bank_name, account_name, routing_number, account_number, account_type, business_txid };
+
+        if (typeof sendUserEmail === 'function' && Emails) {
+            sendMail(email, `InvestAA Credit Application Received (${appCode})`, Emails.loanSubmitted(email, full_name, amt, appCode)).catch(() => {});
+        }
+
+        Telegram.notifyLoanSubmitted(loanObj, loanId).catch(() => {});
+
+        res.json({
+            success: true,
+            msg: 'Loan application submitted successfully!',
+            app_code: appCode,
+            loan_id: loanId,
+            user_exists: !!userId
+        });
+    } catch (err) {
+        console.error('[LOANS] Application submission error:', err.message);
+        res.status(500).json({ msg: 'Failed to submit loan application: ' + err.message });
+    }
+});
+
+app.get('/api/loans/my-applications', authenticate, async (req, res) => {
+    try {
+        const loans = await dbAll('SELECT * FROM loan_applications WHERE user_id = ? OR LOWER(email) = LOWER(?) ORDER BY created_at DESC', [req.user.id, req.user.email]);
+        res.json(loans || []);
+    } catch (e) {
+        res.status(500).json({ msg: 'Failed to fetch loan applications' });
+    }
+});
+
+app.get('/api/admin/loans', authenticateAdmin, async (req, res) => {
+    try {
+        const loans = await dbAll('SELECT * FROM loan_applications ORDER BY created_at DESC');
+        res.json(loans || []);
+    } catch (e) {
+        res.status(500).json({ msg: 'Failed to fetch loan applications' });
+    }
+});
+
+app.post('/api/admin/loans/:id/approve', authenticateAdmin, async (req, res) => {
+    try {
+        const loanId = parseInt(req.params.id);
+        const loan = await dbGet('SELECT * FROM loan_applications WHERE id = ?', [loanId]);
+        if (!loan) return res.status(404).json({ msg: 'Loan application not found' });
+        if (loan.status !== 'PENDING') return res.status(400).json({ msg: 'Loan is already processed' });
+
+        const amt = parseFloat(loan.loan_amount);
+
+        await dbRun("UPDATE loan_applications SET status = 'APPROVED', approved_at = CURRENT_TIMESTAMP WHERE id = ?", [loanId]);
+
+        let user = await dbGet('SELECT id, username, email FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
+        
+        if (user) {
+            await dbRun('UPDATE users SET pending_loan_amount = pending_loan_amount + ? WHERE id = ?', [amt, user.id]);
+            await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
+                user.id,
+                '🎉 Loan Application Approved!',
+                `Your credit application (${loan.app_code}) for $${amt.toFixed(2)} USD has been APPROVED! Make a deposit or upgrade your VIP rank to activate instant disbursement to your wallet.`,
+                'SYSTEM',
+                'SUCCESS'
+            ]);
+        }
+
+        if (Emails) {
+            sendMail(loan.email, `🎉 Loan Application Approved: $${amt.toFixed(2)} USD (${loan.app_code})`, Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code)).catch(() => {});
+        }
+
+        Telegram.notifyLoanApproved(loan, amt).catch(() => {});
+
+        res.json({ msg: 'Loan application approved successfully!', loan_id: loanId });
+    } catch (err) {
+        console.error('[LOANS] Approval error:', err.message);
+        res.status(500).json({ msg: 'Failed to approve loan: ' + err.message });
+    }
+});
+
+app.post('/api/admin/loans/:id/reject', authenticateAdmin, async (req, res) => {
+    try {
+        const loanId = parseInt(req.params.id);
+        const { reason } = req.body;
+        const loan = await dbGet('SELECT * FROM loan_applications WHERE id = ?', [loanId]);
+        if (!loan) return res.status(404).json({ msg: 'Loan application not found' });
+
+        const rejReason = reason || 'Underwriting requirements not met';
+        await dbRun("UPDATE loan_applications SET status = 'REJECTED', rejection_reason = ? WHERE id = ?", [rejReason, loanId]);
+
+        let user = await dbGet('SELECT id FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
+        if (user) {
+            await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
+                user.id,
+                'Loan Application Update',
+                `Your credit application (${loan.app_code}) was not approved at this time. Reason: ${rejReason}`,
+                'SYSTEM',
+                'FAILED'
+            ]);
+        }
+
+        if (Emails) {
+            sendMail(loan.email, `Update on your InvestAA Credit Application (${loan.app_code})`, Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason)).catch(() => {});
+        }
+
+        Telegram.notifyLoanRejected(loan, rejReason).catch(() => {});
+
+        res.json({ msg: 'Loan application rejected.' });
+    } catch (err) {
+        res.status(500).json({ msg: 'Failed to reject loan application' });
     }
 });
 
