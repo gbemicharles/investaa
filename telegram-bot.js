@@ -1202,35 +1202,40 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 if (!loan) {
                     popupText = '❌ Loan application not found.';
                 } else if (loan.status !== 'PENDING') {
-                    popupText = `⚠️ Already processed (Status: ${loan.status})`;
+                    popupText = `⚠️ Loan #${loan.id} (${loan.app_code}) is already ${loan.status}!`;
+                    resultText = `Already ${loan.status} ⚠️`;
                 } else {
-                    const amt = parseFloat(loan.loan_amount);
+                    const amt = parseFloat(loan.loan_amount || 0);
                     await dbRun("UPDATE loan_applications SET status = 'APPROVED', approved_at = CURRENT_TIMESTAMP WHERE id = ?", [recordId]);
 
-                    let user = await dbGet('SELECT id, username, email FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
-                    if (user) {
-                        await dbRun('UPDATE users SET pending_loan_amount = COALESCE(pending_loan_amount, 0) + ? WHERE id = ?', [amt, user.id]);
-                        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
-                            user.id,
-                            '🎉 Loan Application Approved!',
-                            `Your credit application (${loan.app_code}) for $${amt.toFixed(2)} USD has been APPROVED! Make a deposit or upgrade your VIP rank to activate instant disbursement to your wallet.`,
-                            'SYSTEM',
-                            'SUCCESS'
-                        ]);
-                    }
-
-                    if (Emails) {
-                        if (user && typeof sendUserEmail === 'function') {
-                            sendUserEmail(user.id, () => Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code)).catch(() => {});
-                        } else {
-                            Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code).catch(() => {});
+                    try {
+                        let user = await dbGet('SELECT id, username, email FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
+                        if (user) {
+                            await dbRun('UPDATE users SET pending_loan_amount = COALESCE(pending_loan_amount, 0) + ? WHERE id = ?', [amt, user.id]);
+                            await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
+                                user.id,
+                                '🎉 Loan Application Approved!',
+                                `Your credit application (${loan.app_code}) for $${amt.toFixed(2)} USD has been APPROVED! Make a deposit or upgrade your VIP rank to activate instant disbursement to your wallet.`,
+                                'SYSTEM',
+                                'SUCCESS'
+                            ]);
                         }
+
+                        if (Emails) {
+                            if (user && typeof sendUserEmail === 'function') {
+                                sendUserEmail(user.id, () => Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code)).catch(() => {});
+                            } else {
+                                Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code).catch(() => {});
+                            }
+                        }
+
+                        Telegram.notifyLoanApproved(loan, amt).catch(() => {});
+                        Telegram.archiveLoan(loan).catch(() => {});
+                    } catch (subErr) {
+                        console.error('[TELEGRAM-BOT] loan_approve sub-tasks error:', subErr.message);
                     }
 
-                    Telegram.notifyLoanApproved(loan, amt).catch(() => {});
-                    Telegram.archiveLoan(loan).catch(() => {});
-
-                    popupText = `✅ Loan application approved!`;
+                    popupText = `✅ Loan #${loan.id} approved successfully!`;
                     resultText = `Approved ✅ ($${amt.toLocaleString()} USD)`;
                 }
             } else if (action === 'loan_reject') {
@@ -1238,33 +1243,38 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 if (!loan) {
                     popupText = '❌ Loan application not found.';
                 } else if (loan.status !== 'PENDING') {
-                    popupText = `⚠️ Already processed (Status: ${loan.status})`;
+                    popupText = `⚠️ Loan #${loan.id} (${loan.app_code}) is already ${loan.status}!`;
+                    resultText = `Already ${loan.status} ⚠️`;
                 } else {
                     const rejReason = 'Underwriting requirements not met.';
                     await dbRun("UPDATE loan_applications SET status = 'REJECTED', rejection_reason = ? WHERE id = ?", [rejReason, recordId]);
 
-                    let user = await dbGet('SELECT id FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
-                    if (user) {
-                        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
-                            user.id,
-                            'Loan Application Update',
-                            `Your credit application (${loan.app_code}) was not approved at this time.`,
-                            'SYSTEM',
-                            'FAILED'
-                        ]);
-                    }
-
-                    if (Emails) {
-                        if (user && typeof sendUserEmail === 'function') {
-                            sendUserEmail(user.id, () => Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason)).catch(() => {});
-                        } else {
-                            Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason).catch(() => {});
+                    try {
+                        let user = await dbGet('SELECT id FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
+                        if (user) {
+                            await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
+                                user.id,
+                                'Loan Application Update',
+                                `Your credit application (${loan.app_code}) was not approved at this time.`,
+                                'SYSTEM',
+                                'FAILED'
+                            ]);
                         }
+
+                        if (Emails) {
+                            if (user && typeof sendUserEmail === 'function') {
+                                sendUserEmail(user.id, () => Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason)).catch(() => {});
+                            } else {
+                                Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason).catch(() => {});
+                            }
+                        }
+
+                        Telegram.notifyLoanRejected(loan, rejReason).catch(() => {});
+                    } catch (subErr) {
+                        console.error('[TELEGRAM-BOT] loan_reject sub-tasks error:', subErr.message);
                     }
 
-                    Telegram.notifyLoanRejected(loan, rejReason).catch(() => {});
-
-                    popupText = `❌ Loan application rejected.`;
+                    popupText = `❌ Loan #${loan.id} rejected.`;
                     resultText = `Rejected ❌`;
                 }
             }
