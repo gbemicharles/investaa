@@ -118,6 +118,7 @@ async function initDb() {
         // Reminder emails
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_reminder_sent TIMESTAMP`);
+        await pool.query(`ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS reminder_sent INTEGER DEFAULT 0`);
         // KYC
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status TEXT DEFAULT 'NONE'`);
         // Moderation
@@ -377,9 +378,45 @@ async function runReminderEmails() {
     }
 }
 
+async function runPendingWithdrawalReminders() {
+    try {
+        const now = new Date();
+        const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24h ago
+
+        const pending = await dbAll(
+            `SELECT w.id, w.amount, w.details, w.user_id, u.email, u.username, u.vip_rank
+             FROM withdrawals w
+             JOIN users u ON w.user_id = u.id
+             WHERE w.status = 'PENDING'
+               AND w.created_at <= $1
+               AND (w.reminder_sent IS NULL OR w.reminder_sent = 0)`,
+            [cutoff]
+        );
+
+        if (!pending || pending.length === 0) return;
+
+        console.log(`[WITHDRAWAL-REMINDER] Processing ${pending.length} pending withdrawals (>24h)...`);
+
+        for (const w of pending) {
+            if (w.email) {
+                const amt = parseFloat(w.amount);
+                await sendUserEmail(w.user_id, () => Emails.pendingWithdrawalReminder(w.email, w.username, amt, w.vip_rank, w.details)).catch(() => {});
+            }
+            await pool.query('UPDATE withdrawals SET reminder_sent = 1 WHERE id = $1', [w.id]).catch(() => {});
+            console.log(`[WITHDRAWAL-REMINDER] Sent 24h VIP speed-up reminder to ${w.username} for pending withdrawal #${w.id} ($${w.amount} USDT)`);
+        }
+    } catch (err) {
+        console.error('[WITHDRAWAL-REMINDER] Error running pending withdrawal reminders:', err.message);
+    }
+}
+
 async function startSchedulers() {
     await applyDailyEarnings();
     setInterval(applyDailyEarnings, 60 * 60 * 1000);
+
+    // 24h pending withdrawal follow-up emails for VIP express processing
+    await runPendingWithdrawalReminders();
+    setInterval(runPendingWithdrawalReminders, 60 * 60 * 1000);
 
     // Automated 24h reminder emails (Disabled by default to protect Resend free tier; set ENABLE_REMINDER_EMAILS=true to enable)
     if (process.env.ENABLE_REMINDER_EMAILS === 'true') {
@@ -1593,9 +1630,9 @@ app.post('/api/transactions/withdraw', authenticate, async (req, res) => {
             [user.id, 'Withdrawal Submitted', `Your withdrawal request of $${amt.toFixed(2)} USDT has been received and is currently under review.`, 'WITHDRAW', 'PENDING']
         );
 
-        const uWS = await dbGet('SELECT email, username FROM users WHERE id = ?', [user.id]).catch(() => null);
+        const uWS = await dbGet('SELECT email, username, vip_rank FROM users WHERE id = ?', [user.id]).catch(() => null);
         if (uWS) {
-            sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt)).catch(() => {});
+            sendUserEmail(user.id, () => Emails.withdrawalSubmitted(uWS.email, uWS.username, amt, uWS.vip_rank)).catch(() => {});
             Telegram.notifyWithdrawalRequested(uWS, amt, details, withdrawalId).catch(() => {});
         }
         res.json({ msg: 'Withdrawal submitted' });

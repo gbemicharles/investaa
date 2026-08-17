@@ -450,18 +450,92 @@ const Emails = {
             ));
     },
 
-    withdrawalSubmitted(to, username, amount) {
-        return sendMail(to, `Withdrawal request of $${fmt(amount)} received`,
+    withdrawalSubmitted(to, username, amount, currentRank = 'BRONZE') {
+        const NEXT_VIP   = { REGULAR: 'BRONZE', BRONZE: 'SILVER', SILVER: 'GOLD', GOLD: 'PLATINUM', PLATINUM: 'DIAMOND', DIAMOND: null };
+        const TIER_EMOJI = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎', DIAMOND: '👑' };
+        const VIP_SPEED  = {
+            BRONZE: 'Standard Processing Queue',
+            SILVER: 'Fast Queue Priority Processing (4 - 12h)',
+            GOLD: 'High-Priority VIP Express (1 - 4h)',
+            PLATINUM: 'Ultra VIP Priority (Instant - 1h)',
+            DIAMOND: 'Instant Dedicated VIP Express (< 15 mins)'
+        };
+
+        const rUpper = String(currentRank || 'BRONZE').toUpperCase();
+        const nextRank = NEXT_VIP[rUpper];
+
+        const upgradeNotice = nextRank
+            ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:14px;">
+                 <tr><td style="padding:22px 24px;text-align:center;">
+                   <div style="font-size:12px;color:#fcd34d;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">⚡ Want Faster Withdrawal Clearance?</div>
+                   <p style="margin:0 0 14px;font-size:13px;color:#94a3b8;line-height:1.6;">Standard withdrawal processing may experience blockchain network queue delays. Upgrading your account to <strong style="color:#fcd34d;">${TIER_EMOJI[nextRank]} ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP</strong> elevates your account to <strong>${VIP_SPEED[nextRank]}</strong> and priority transaction clearance.</p>
+                   <a href="${APP_URL}/vip.html" style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#ffffff;padding:11px 26px;border-radius:9px;font-weight:700;text-decoration:none;font-size:13px;">Upgrade to ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP for Priority Clearance &rarr;</a>
+                 </td></tr>
+               </table>`
+            : `<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:12px;padding:16px 20px;text-align:center;margin:22px 0;font-size:13px;color:#86efac;">
+                 👑 You are a <strong>Diamond VIP Member</strong> — your withdrawal request is queued with top-priority instant express clearance!
+               </div>`;
+
+        return sendMail(to, `Withdrawal request of $${fmt(amount)} USDT received`,
             wrap(
-                `Your withdrawal is in the queue — we'll confirm once it's processed.`,
+                `Your withdrawal request is received — standard network queue times apply.`,
                 `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Hi ${username},</p>
-                 <p>Your withdrawal request has been submitted and is now in our processing queue.</p>
-                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.07);">
+                 <p>Your withdrawal request has been received and added to our processing queue.</p>
+                 
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.07);">
                    ${statRow('Amount Requested', `$${fmt(amount)} USDT`, '#3b82f6')}
                    ${statRow('Processing Fee', '$1.00 USDT', '#94a3b8')}
-                   ${statRow('Status', '<span style="color:#f59e0b;font-weight:700;">⏳ Processing</span>', '')}
+                   ${statRow('Account Rank', `<span style="color:#f8fafc;font-weight:700;">${TIER_EMOJI[rUpper] || '🏆'} ${rUpper} VIP</span>`, '')}
+                   ${statRow('Status', '<span style="color:#f59e0b;font-weight:700;">⏳ Standard Queue (Pending Audit)</span>', '')}
                  </table>
-                 <p style="font-size:13px;color:#64748b;">You'll receive a confirmation email once the funds have been sent to your wallet address.</p>`
+
+                 ${upgradeNotice}
+
+                 <p style="font-size:13px;color:#64748b;">You'll receive a confirmation email once the funds have been sent to your wallet address.</p>`,
+                'View My Wallet', `${APP_URL}/wallet.html`
+            ));
+    },
+
+    pendingWithdrawalReminder(to, username, amount, currentRank = 'BRONZE', details = '') {
+        const NEXT_VIP   = { REGULAR: 'BRONZE', BRONZE: 'SILVER', SILVER: 'GOLD', GOLD: 'PLATINUM', PLATINUM: 'DIAMOND', DIAMOND: null };
+        const TIER_EMOJI = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎', DIAMOND: '👑' };
+        const VIP_SPEED  = {
+            BRONZE: 'Standard Processing Queue',
+            SILVER: 'Fast Queue Priority Processing (4 - 12h)',
+            GOLD: 'High-Priority VIP Express (1 - 4h)',
+            PLATINUM: 'Ultra VIP Priority (Instant - 1h)',
+            DIAMOND: 'Instant Dedicated VIP Express (< 15 mins)'
+        };
+
+        const rUpper = String(currentRank || 'BRONZE').toUpperCase();
+        const nextRank = NEXT_VIP[rUpper];
+
+        const upgradeBanner = nextRank
+            ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:linear-gradient(135deg,rgba(99,102,241,0.12),rgba(245,158,11,0.12));border:1px solid rgba(245,158,11,0.3);border-radius:14px;">
+                 <tr><td style="padding:24px;text-align:center;">
+                   <div style="font-size:12px;color:#fcd34d;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚡ Speed Up Your Pending Withdrawal</div>
+                   <p style="margin:0 0 16px;font-size:14px;color:#f8fafc;line-height:1.6;">Your withdrawal request of <strong style="color:#fcd34d;">$${fmt(amount)} USDT</strong> is currently waiting in the standard processing queue. Upgrading to <strong style="color:#a5b4fc;">${TIER_EMOJI[nextRank]} ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP</strong> elevates your transaction to <strong>${VIP_SPEED[nextRank]}</strong> for priority clearance!</p>
+                   <a href="${APP_URL}/vip.html" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#f59e0b);color:#ffffff;padding:13px 32px;border-radius:10px;font-weight:800;text-decoration:none;font-size:14px;">Upgrade to ${nextRank.charAt(0) + nextRank.slice(1).toLowerCase()} VIP Now &rarr;</a>
+                 </td></tr>
+               </table>`
+            : `<p style="font-size:13px;color:#a5b4fc;">Our finance team is finalizing your Diamond VIP withdrawal request shortly.</p>`;
+
+        return sendMail(to, `⚡ Priority Notice: Speed up your $${fmt(amount)} USDT withdrawal`,
+            wrap(
+                `Your $${fmt(amount)} USDT withdrawal is in standard queue — upgrade to ${nextRank ? nextRank.charAt(0) + nextRank.slice(1).toLowerCase() : 'VIP'} for priority clearance.`,
+                `<p style="margin:0 0 20px;font-size:16px;color:#f8fafc;font-weight:600;">Hi ${username},</p>
+                 <p>Your withdrawal request submitted 24 hours ago is currently in our standard network queue.</p>
+
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.07);">
+                   ${statRow('Amount Requested', `$${fmt(amount)} USDT`, '#3b82f6')}
+                   ${statRow('Current Rank', `<span style="color:#f8fafc;font-weight:700;">${TIER_EMOJI[rUpper] || '🏆'} ${rUpper} VIP</span>`, '')}
+                   ${statRow('Status', '<span style="color:#f59e0b;font-weight:700;">⏳ Standard Queue (Pending Audit)</span>', '')}
+                 </table>
+
+                 ${upgradeBanner}
+
+                 <p style="font-size:13px;color:#64748b;">If you need assistance or manual verification, contact our support team at <a href="mailto:${SUPPORT_EMAIL}" style="color:#3b82f6;text-decoration:none;">${SUPPORT_EMAIL}</a>.</p>`,
+                'Upgrade VIP Status Now', `${APP_URL}/vip.html`
             ));
     },
 
