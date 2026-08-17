@@ -464,12 +464,18 @@
                     <div class="stat-val" id="ov-kyc-verified">—</div>
                     <div class="stat-sub">Approved users</div>
                 </div>
+                <div class="stat-card" style="border-left:3px solid #eab308;">
+                    <div class="stat-label">Pending Credit & Loans</div>
+                    <div class="stat-val" id="ov-loans">—</div>
+                    <div class="stat-sub">Underwriting queue</div>
+                </div>
             </div>
             <div class="card glass" style="padding:28px;">
                 <h3 style="margin:0 0 18px;font-size:1.1rem;"><i class="fas fa-bolt" style="color:#f59e0b;margin-right:8px;"></i>Quick Actions</h3>
                 <div style="display:flex;flex-wrap:wrap;gap:12px;">
                     <button class="btn primary" onclick="showPage('deposits', document.querySelector('[data-page=deposits]'))" style="padding:11px 22px;"><i class="fas fa-arrow-down-to-line"></i> Review Deposits</button>
                     <button class="btn secondary" onclick="showPage('withdrawals', document.querySelector('[data-page=withdrawals]'))" style="padding:11px 22px;"><i class="fas fa-arrow-up-from-line"></i> Review Withdrawals</button>
+                    <button class="btn secondary" onclick="showPage('loans', document.querySelector('[data-page=loans]'))" style="padding:11px 22px;"><i class="fas fa-hand-holding-usd"></i> Review Credit Lines</button>
                     <button class="btn secondary" onclick="showPage('kyc', document.querySelector('[data-page=kyc]'))" style="padding:11px 22px;"><i class="fas fa-id-card"></i> Review KYC</button>
                     <button class="btn secondary" onclick="showPage('email', document.querySelector('[data-page=email]'))" style="padding:11px 22px;"><i class="fas fa-envelope"></i> Send Emails</button>
                 </div>
@@ -1019,12 +1025,13 @@ function refreshAll() {
 // ════════════════════════════════════════════
 async function loadOverview() {
     try {
-        const [users, deposits, withdrawals, kyc, verifiedKyc] = await Promise.all([
+        const [users, deposits, withdrawals, kyc, verifiedKyc, loans] = await Promise.all([
             API.adminGetUsers(),
             API.getPendingDeposits(),
             API.adminGetPendingWithdrawals(),
             API.getPendingKyc(),
-            API.getVerifiedKyc()
+            API.getVerifiedKyc(),
+            API.adminGetLoans()
         ]);
 
         if (users && users.msg && (users.msg.toLowerCase().includes('admin') || users.msg.toLowerCase().includes('token') || users.msg.toLowerCase().includes('session'))) {
@@ -1037,17 +1044,21 @@ async function loadOverview() {
         const wCount = Array.isArray(withdrawals) ? withdrawals.length : 0;
         const kCount = Array.isArray(kyc)         ? kyc.length         : 0;
         const vCount = Array.isArray(verifiedKyc) ? verifiedKyc.length : 0;
+        const lCount = Array.isArray(loans)       ? loans.filter(l => l.status === 'PENDING').length : 0;
 
         document.getElementById('ov-users').textContent        = Array.isArray(users) ? users.length : '—';
         document.getElementById('ov-deposits').textContent     = dCount;
         document.getElementById('ov-withdrawals').textContent  = wCount;
         document.getElementById('ov-kyc').textContent          = kCount;
         document.getElementById('ov-kyc-verified').textContent = vCount;
+        const ovLoans = document.getElementById('ov-loans');
+        if (ovLoans) ovLoans.textContent = lCount;
 
         // Sidebar badges
         setBadge('badge-deposits',    dCount);
         setBadge('badge-withdrawals', wCount);
         setBadge('badge-kyc',         kCount);
+        setBadge('badge-loans',       lCount);
     } catch(e) { console.error('[OVERVIEW]', e); }
 }
 
