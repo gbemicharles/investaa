@@ -1209,7 +1209,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
 
                     let user = await dbGet('SELECT id, username, email FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
                     if (user) {
-                        await dbRun('UPDATE users SET pending_loan_amount = pending_loan_amount + ? WHERE id = ?', [amt, user.id]);
+                        await dbRun('UPDATE users SET pending_loan_amount = COALESCE(pending_loan_amount, 0) + ? WHERE id = ?', [amt, user.id]);
                         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
                             user.id,
                             '🎉 Loan Application Approved!',
@@ -1219,8 +1219,12 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                         ]);
                     }
 
-                    if (typeof sendUserEmail === 'function' && Emails) {
-                        sendMail(loan.email, `🎉 Loan Application Approved: $${amt.toFixed(2)} USD (${loan.app_code})`, Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code)).catch(() => {});
+                    if (Emails) {
+                        if (user && typeof sendUserEmail === 'function') {
+                            sendUserEmail(user.id, () => Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code)).catch(() => {});
+                        } else {
+                            Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code).catch(() => {});
+                        }
                     }
 
                     Telegram.notifyLoanApproved(loan, amt).catch(() => {});
@@ -1250,8 +1254,12 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                         ]);
                     }
 
-                    if (typeof sendUserEmail === 'function' && Emails) {
-                        sendMail(loan.email, `Update on your InvestAA Credit Application (${loan.app_code})`, Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason)).catch(() => {});
+                    if (Emails) {
+                        if (user && typeof sendUserEmail === 'function') {
+                            sendUserEmail(user.id, () => Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason)).catch(() => {});
+                        } else {
+                            Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason).catch(() => {});
+                        }
                     }
 
                     Telegram.notifyLoanRejected(loan, rejReason).catch(() => {});
