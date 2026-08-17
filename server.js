@@ -2797,13 +2797,102 @@ app.post('/api/loans/apply', loanUpload, async (req, res) => {
             credit_signature
         } = req.body;
 
-        if (!full_name || !email || !loan_amount || !bank_name || !account_name || !routing_number || !account_number) {
-            return res.status(400).json({ msg: 'Please fill in all required personal, loan, and banking fields.' });
+        // 1. Basic presence check
+        if (!full_name || !email || !phone || !ssn_id || !dob || !address || !loan_amount || !monthly_income || !bank_name || !account_name || !routing_number || !account_number || !credit_signature) {
+            return res.status(400).json({ msg: 'Please complete all required personal, financial, and banking fields.' });
         }
 
+        // 2. Full Legal Name Security Check (Must have First & Last name, no fake gibberish/numbers)
+        const cleanName = full_name.trim();
+        const nameParts = cleanName.split(/\s+/);
+        if (nameParts.length < 2 || cleanName.length < 4 || cleanName.length > 80 || !/^[A-Za-z' -]+$/.test(cleanName)) {
+            return res.status(400).json({ msg: 'Please provide your full legal name (First Name and Last Name).' });
+        }
+        const gibberishList = ['asdf', 'qwerty', 'zxcv', 'test', 'fake', 'abcd', '1234', 'admin', 'user'];
+        if (gibberishList.some(g => cleanName.toLowerCase().includes(g))) {
+            return res.status(400).json({ msg: 'Please enter your actual legal full name.' });
+        }
+
+        // 3. Email Format & Disposable Domain Security Check
+        const cleanEmail = email.trim().toLowerCase();
+        if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
+            return res.status(400).json({ msg: 'Please enter a valid, deliverable email address.' });
+        }
+        const fakeDomains = ['example.com', 'test.com', 'mailinator.com', 'tempmail.com', 'dispostable.com', 'asdf.com', 'foo.bar'];
+        if (fakeDomains.includes(cleanEmail.split('@')[1])) {
+            return res.status(400).json({ msg: 'Disposable or temporary email addresses are not permitted.' });
+        }
+
+        // 4. Contact Phone Security Check
+        const cleanPhone = (phone || '').replace(/\D/g, '');
+        if (cleanPhone.length < 10 || cleanPhone.length > 15 || /^(\d)\1+$/.test(cleanPhone) || cleanPhone === '1234567890') {
+            return res.status(400).json({ msg: 'Please enter a valid 10-15 digit contact phone number.' });
+        }
+
+        // 5. Date of Birth & Minimum Age Verification (Must be at least 18 years old)
+        const dobDate = new Date(dob);
+        if (isNaN(dobDate.getTime())) {
+            return res.status(400).json({ msg: 'Please select a valid date of birth.' });
+        }
+        const today = new Date();
+        let age = today.getFullYear() - dobDate.getFullYear();
+        const m = today.getMonth() - dobDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) age--;
+        if (age < 18) {
+            return res.status(400).json({ msg: 'Applicants must be at least 18 years old to qualify for commercial credit facilities.' });
+        }
+        if (age > 100) {
+            return res.status(400).json({ msg: 'Please enter a valid date of birth.' });
+        }
+
+        // 6. SSN / Tax ID Security Check (Must be 9 digits & valid pattern)
+        const cleanSSN = (ssn_id || '').replace(/\D/g, '');
+        if (cleanSSN.length !== 9 || /^000|^666|^9/.test(cleanSSN) || cleanSSN.substring(3, 5) === '00' || cleanSSN.substring(5) === '0000' || /^(\d)\1+$/.test(cleanSSN) || cleanSSN === '123456789') {
+            return res.status(400).json({ msg: 'Please enter a valid 9-digit Social Security Number (SSN) or Tax ID.' });
+        }
+
+        // 7. ABA Banking Routing Number Checksum Validation
+        const cleanRouting = (routing_number || '').replace(/\D/g, '');
+        if (cleanRouting.length !== 9) {
+            return res.status(400).json({ msg: 'ABA Routing Number must be exactly 9 numeric digits.' });
+        }
+        const rd = cleanRouting.split('').map(Number);
+        const routingChecksum = (3 * (rd[0] + rd[3] + rd[6]) + 7 * (rd[1] + rd[4] + rd[7]) + 1 * (rd[2] + rd[5] + rd[8])) % 10;
+        if (routingChecksum !== 0) {
+            return res.status(400).json({ msg: 'Invalid ABA Bank Routing Number. Please verify your bank routing details.' });
+        }
+
+        // 8. Bank Account Number Security Check
+        const cleanAccount = (account_number || '').replace(/\D/g, '');
+        if (cleanAccount.length < 4 || cleanAccount.length > 17 || /^(\d)\1+$/.test(cleanAccount) || cleanAccount === '123456' || cleanAccount === '123456789') {
+            return res.status(400).json({ msg: 'Please enter a valid 4-17 digit bank account number.' });
+        }
+
+        // 9. Loan Amount & Monthly Income Verification
         const amt = parseFloat(loan_amount);
-        if (isNaN(amt) || amt <= 0) {
-            return res.status(400).json({ msg: 'Please enter a valid loan amount.' });
+        if (isNaN(amt) || amt < 500 || amt > 500000) {
+            return res.status(400).json({ msg: 'Requested credit amount must be between $500 and $500,000 USD.' });
+        }
+        const income = parseFloat(monthly_income);
+        if (isNaN(income) || income < 300) {
+            return res.status(400).json({ msg: 'Monthly gross income must be at least $300 USD to qualify for underwriting.' });
+        }
+
+        // 10. Digital Signature Security Check
+        const cleanSig = (credit_signature || '').trim();
+        if (cleanSig.length < 3 || cleanSig.toLowerCase() === 'asdf' || cleanSig.toLowerCase() === 'test') {
+            return res.status(400).json({ msg: 'Please type your full legal signature to authorize credit check.' });
+        }
+
+        // 11. Required Identity Document Upload Verification
+        if (!req.files || !req.files['id_document'] || !req.files['id_document'][0]) {
+            return res.status(400).json({ msg: 'Please upload a clear copy of your Government-issued ID.' });
+        }
+
+        // 12. Duplicate Active Application Rate Limiting Guard
+        const activeApp = await dbGet('SELECT app_code FROM loan_applications WHERE (LOWER(email) = LOWER(?) OR ssn_id = ?) AND status = \'PENDING\'', [cleanEmail, cleanSSN]);
+        if (activeApp) {
+            return res.status(400).json({ msg: `You already have an active loan application (${activeApp.app_code}) currently under review. Please wait for the underwriting decision.` });
         }
 
         let idDocPath = null;
@@ -2820,7 +2909,7 @@ app.post('/api/loans/apply', loanUpload, async (req, res) => {
             selfiePath = `data:${req.files['selfie'][0].mimetype};base64,${req.files['selfie'][0].buffer.toString('base64')}`;
         }
 
-        const existingUser = await dbGet('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [email.trim()]);
+        const existingUser = await dbGet('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
         const userId = existingUser ? existingUser.id : null;
         const appCode = `#LOAN-${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -2834,20 +2923,20 @@ app.post('/api/loans/apply', loanUpload, async (req, res) => {
                 id_document, id_document_back, selfie, credit_signature, status
             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,'PENDING') RETURNING id`,
             [
-                userId, appCode, full_name.trim(), email.trim().toLowerCase(), phone || '', dob || null, ssn_id || '',
-                address || '', housing_status || 'Rent', parseFloat(monthly_housing) || 0,
-                employment_status || 'Full-time', employer_name || '', job_title || '', parseFloat(monthly_income) || 0,
+                userId, appCode, cleanName, cleanEmail, phone.trim(), dob || null, cleanSSN,
+                address.trim(), housing_status || 'Rent', parseFloat(monthly_housing) || 0,
+                employment_status || 'Full-time', employer_name || '', job_title || '', income,
                 amt, loan_purpose || 'Personal', parseInt(loan_term) || 12, business_txid || '',
-                bank_name.trim(), account_name.trim(), routing_number.trim(), account_number.trim(), account_type || 'Checking',
-                idDocPath, idDocBackPath, selfiePath, credit_signature || full_name,
+                bank_name.trim(), account_name.trim(), cleanRouting, cleanAccount, account_type || 'Checking',
+                idDocPath, idDocBackPath, selfiePath, cleanSig,
             ]
         );
 
         const loanId = result.rows[0].id;
-        const loanObj = { id: loanId, app_code: appCode, full_name, email, phone, loan_amount: amt, loan_purpose, loan_term, employment_status, employer_name, monthly_income, bank_name, account_name, routing_number, account_number, account_type, business_txid };
+        const loanObj = { id: loanId, app_code: appCode, full_name: cleanName, email: cleanEmail, phone, loan_amount: amt, loan_purpose, loan_term, employment_status, employer_name, monthly_income: income, bank_name, account_name, routing_number: cleanRouting, account_number: cleanAccount, account_type, business_txid };
 
         if (Emails) {
-            Emails.loanSubmitted(email, full_name, amt, appCode).catch(() => {});
+            Emails.loanSubmitted(cleanEmail, cleanName, amt, appCode).catch(() => {});
         }
 
         Telegram.notifyLoanSubmitted(loanObj, loanId).catch(() => {});
