@@ -269,6 +269,16 @@
             background-repeat: no-repeat;
             background-position: right 14px center;
         }
+        input[type="date"].input-field {
+            color-scheme: dark;
+            cursor: pointer;
+        }
+        input[type="date"].input-field::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            filter: invert(0.9);
+            opacity: 0.95;
+            padding: 4px;
+        }
 
         /* File Upload Cards */
         .upload-card {
@@ -623,7 +633,7 @@
                                 </div>
                                 <div class="input-group">
                                     <label>Date of Birth <span class="req">*</span></label>
-                                    <input type="date" id="dob" name="dob" class="input-field" required>
+                                    <input type="date" id="dob" name="dob" class="input-field" required onclick="if(typeof this.showPicker === 'function') this.showPicker();" style="color-scheme:dark;cursor:pointer;">
                                 </div>
                                 <div class="input-group">
                                     <label>Tax ID / SSN / National ID <span class="req">*</span></label>
