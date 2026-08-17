@@ -303,10 +303,10 @@ async function applyDailyEarnings() {
                 ]
             );
 
-            // Daily earning email (Disabled by default to protect Resend 100/day free limit; set ENABLE_DAILY_EARNING_EMAILS=true to enable)
+            // Daily earning email statement (Active by default; set ENABLE_DAILY_EARNING_EMAILS=false to pause)
             const newBalance = parseFloat((balance + earning).toFixed(2));
-            if (user.email && process.env.ENABLE_DAILY_EARNING_EMAILS === 'true') {
-                await sendUserEmail(user.id, () => Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance));
+            if (user.email && process.env.ENABLE_DAILY_EARNING_EMAILS !== 'false') {
+                await sendUserEmail(user.id, () => Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance)).catch(e => console.error(`[EARNINGS] Failed to send daily statement email to ${user.email}:`, e.message));
             }
 
             console.log(`[EARNINGS] Credited ${user.username}: +$${earning} (${ratePercent}% of $${balance})`);
@@ -393,7 +393,7 @@ initDb().then(() => {
     // Only run the bot polling loop in production (dev sets BOT_POLLING_ENABLED=false
     // to avoid competing with the production instance for the same bot token updates).
     if (process.env.BOT_POLLING_ENABLED !== 'false') {
-        TelegramBot.startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails);
+        TelegramBot.startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyDailyEarnings);
     } else {
         console.log('[TELEGRAM-BOT] Polling disabled in this environment (BOT_POLLING_ENABLED=false).');
     }

@@ -36,7 +36,7 @@ function apiCall(method, params = {}) {
 
 let offset = 0;
 
-function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
+function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyDailyEarnings) {
     if (!BOT_TOKEN) {
         console.warn('[TELEGRAM-BOT] Token not configured — skipping interactive polling.');
         return;
@@ -62,6 +62,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
             const commands = [
                 { command: 'admin', description: '🎛️ Open Admin Control Board' },
                 { command: 'stats', description: '📊 System Financial Metrics' },
+                { command: 'triggerearnings', description: '⚡ Trigger Daily VIP Compound Return' },
                 { command: 'deposits', description: '📥 Review Pending Deposits Queue' },
                 { command: 'withdrawals', description: '📤 Review Pending Withdrawals Queue' },
                 { command: 'kyc', description: '🪪 Review Pending Identity Submissions' },
@@ -105,6 +106,9 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
                 ],
                 [
                     { text: '🪪 Pending KYC', callback_data: 'admin_pending_kyc' },
+                    { text: '⚡ Run Daily Earnings', callback_data: 'admin_run_earnings' }
+                ],
+                [
                     { text: '🔄 Refresh Board', callback_data: 'admin_menu' }
                 ]
             ]
@@ -152,6 +156,37 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
         });
     }
 
+    async function handleTriggerEarnings(chatId) {
+        try {
+            if (typeof applyDailyEarnings === 'function') {
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: '⚡ <b>Triggering Daily Compound Earnings & Statement Dispatch...</b>',
+                    parse_mode: 'HTML'
+                });
+                await applyDailyEarnings();
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: '✅ <b>Daily Earnings Cycle Executed!</b>\n\nVIP returns have been calculated, credited to user balances, and daily statement emails dispatched.',
+                    parse_mode: 'HTML'
+                });
+            } else {
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: '❌ Earnings scheduler function is not attached.',
+                    parse_mode: 'HTML'
+                });
+            }
+        } catch (err) {
+            console.error('[TELEGRAM-BOT] handleTriggerEarnings error:', err.message);
+            await apiCall('sendMessage', {
+                chat_id: chatId,
+                text: `❌ Error triggering earnings: ${err.message}`,
+                parse_mode: 'HTML'
+            });
+        }
+    }
+
     async function sendSystemOverview(chatId, messageId = null) {
         try {
             const users = await dbGet('SELECT COUNT(*) as count FROM users');
@@ -185,7 +220,10 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
             const keyboard = {
                 inline_keyboard: [
                     [
-                        { text: '🔄 Refresh Stats', callback_data: 'admin_overview' },
+                        { text: '⚡ Run Daily Earnings', callback_data: 'admin_run_earnings' },
+                        { text: '🔄 Refresh Stats', callback_data: 'admin_overview' }
+                    ],
+                    [
                         { text: '🔙 Main Board', callback_data: 'admin_menu' }
                     ]
                 ]
@@ -483,6 +521,12 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
             const parts = text.split(/\s+/);
             const cmd = parts[0].toLowerCase();
 
+            // /triggerearnings, /runearnings
+            if (cmd === '/triggerearnings' || cmd === '/runearnings') {
+                await handleTriggerEarnings(chatId);
+                return;
+            }
+
             // /setupmenu, /setmenu
             if (cmd === '/setupmenu' || cmd === '/setmenu') {
                 await registerBotCommands();
@@ -665,6 +709,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
                     `━━━━━━━━━━━━━━━━━━━━━━`,
                     `• <code>/admin</code> — Open main Control Board`,
                     `• <code>/stats</code> — System performance metrics`,
+                    `• <code>/triggerearnings</code> — Run daily earnings cycle & statements`,
                     `• <code>/deposits</code> — Review pending deposits queue`,
                     `• <code>/withdrawals</code> — Review pending withdrawals queue`,
                     `• <code>/kyc</code> — Review pending identity verifications`,
@@ -721,6 +766,12 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
                     reply_markup: keyboard
                 });
                 await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: 'Board updated.' });
+                return;
+            }
+
+            if (data === 'admin_run_earnings') {
+                await handleTriggerEarnings(chatId);
+                await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: 'Daily earnings executed.' });
                 return;
             }
 
