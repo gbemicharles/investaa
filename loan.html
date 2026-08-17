@@ -700,7 +700,7 @@
                             <div class="form-grid-2">
                                 <div class="input-group form-col-full">
                                     <label>Desired Loan Amount ($ USD) <span class="req">*</span></label>
-                                    <input type="number" id="loan_amount" name="loan_amount" class="input-field" placeholder="50000" min="500" max="250000" required style="font-size:1.15rem;font-weight:700;color:var(--accent-gold);" oninput="syncCalcFromForm()">
+                                    <input type="number" id="loan_amount" name="loan_amount" class="input-field" value="50000" placeholder="50000" min="500" max="500000" required style="font-size:1.15rem;font-weight:700;color:var(--accent-gold);" oninput="syncCalcFromForm()">
                                 </div>
                                 <div class="input-group">
                                     <label>Primary Loan Purpose <span class="req">*</span></label>
@@ -934,12 +934,13 @@
 
         function validateCurrentStep(step) {
             const panel = document.getElementById(`panel-${step}`);
-            const requiredFields = panel.querySelectorAll('input[required], select[required]');
+            if (!panel) return true;
             
+            const requiredFields = panel.querySelectorAll('input[required], select[required]');
             for (let field of requiredFields) {
                 if (field.type === 'checkbox') {
                     if (!field.checked) {
-                        alert('Please accept the required legal authorization to proceed.');
+                        alert('Please accept the required authorization check to proceed.');
                         field.focus();
                         return false;
                     }
@@ -956,29 +957,22 @@
                 }
             }
 
-            // Step-specific deep validation
+            // Step 1: Personal Information & Identification
             if (step === 1) {
-                const amt = parseFloat(document.getElementById('loan_amount').value);
-                if (isNaN(amt) || amt < 500 || amt > 500000) {
-                    alert('Requested credit amount must be between $500 and $500,000 USD.');
-                    document.getElementById('loan_amount').focus();
-                    return false;
-                }
-            } else if (step === 2) {
-                const name = document.getElementById('full_name').value.trim();
+                const name = (document.getElementById('full_name').value || '').trim();
                 const parts = name.split(/\s+/);
                 if (parts.length < 2 || name.length < 4 || !/^[A-Za-z' -]+$/.test(name)) {
                     alert('Please enter your full legal name (First Name and Last Name).');
                     document.getElementById('full_name').focus();
                     return false;
                 }
-                const email = document.getElementById('email').value.trim();
+                const email = (document.getElementById('email').value || '').trim();
                 if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
                     alert('Please enter a valid, deliverable email address.');
                     document.getElementById('email').focus();
                     return false;
                 }
-                const phone = document.getElementById('phone').value.replace(/\D/g, '');
+                const phone = (document.getElementById('phone').value || '').replace(/\D/g, '');
                 if (phone.length < 10 || phone.length > 15 || /^(\d)\1+$/.test(phone)) {
                     alert('Please enter a valid 10-15 digit phone number.');
                     document.getElementById('phone').focus();
@@ -997,22 +991,55 @@
                         return false;
                     }
                 }
-            } else if (step === 3) {
-                const ssn = document.getElementById('ssn_id').value.replace(/\D/g, '');
+                const ssn = (document.getElementById('ssn_id').value || '').replace(/\D/g, '');
                 if (ssn.length !== 9 || /^000|^666|^9/.test(ssn) || ssn.substring(3,5) === '00' || ssn.substring(5) === '0000' || /^(\d)\1+$/.test(ssn)) {
                     alert('Please enter a valid 9-digit Social Security Number (SSN) or Tax ID.');
                     document.getElementById('ssn_id').focus();
                     return false;
                 }
-            } else if (step === 4) {
+            } 
+            // Step 2: Residential Address & Housing
+            else if (step === 2) {
+                const addr = (document.getElementById('address').value || '').trim();
+                if (addr.length < 5) {
+                    alert('Please enter your full residential street address.');
+                    document.getElementById('address').focus();
+                    return false;
+                }
+            } 
+            // Step 3: Employment & Financial Income
+            else if (step === 3) {
+                const empName = (document.getElementById('employer_name').value || '').trim();
+                if (empName.length < 2) {
+                    alert('Please enter your employer or business name.');
+                    document.getElementById('employer_name').focus();
+                    return false;
+                }
                 const income = parseFloat(document.getElementById('monthly_income').value);
                 if (isNaN(income) || income < 300) {
                     alert('Monthly gross income must be at least $300 USD to qualify for underwriting.');
                     document.getElementById('monthly_income').focus();
                     return false;
                 }
-            } else if (step === 5) {
-                const routing = document.getElementById('routing_number').value.replace(/\D/g, '');
+            } 
+            // Step 4: Loan Request & Capital Terms
+            else if (step === 4) {
+                const amt = parseFloat(document.getElementById('loan_amount').value);
+                if (isNaN(amt) || amt < 500 || amt > 500000) {
+                    alert('Requested credit amount must be between $500 and $500,000 USD.');
+                    document.getElementById('loan_amount').focus();
+                    return false;
+                }
+            } 
+            // Step 5: Banking Coordinates
+            else if (step === 5) {
+                const bnkName = (document.getElementById('bank_name').value || '').trim();
+                if (bnkName.length < 2) {
+                    alert('Please enter your bank name.');
+                    document.getElementById('bank_name').focus();
+                    return false;
+                }
+                const routing = (document.getElementById('routing_number').value || '').replace(/\D/g, '');
                 if (routing.length !== 9) {
                     alert('ABA Routing Number must be exactly 9 numeric digits.');
                     document.getElementById('routing_number').focus();
@@ -1025,14 +1052,16 @@
                     document.getElementById('routing_number').focus();
                     return false;
                 }
-                const acc = document.getElementById('account_number').value.replace(/\D/g, '');
+                const acc = (document.getElementById('account_number').value || '').replace(/\D/g, '');
                 if (acc.length < 4 || acc.length > 17 || /^(\d)\1+$/.test(acc)) {
                     alert('Please enter a valid 4-17 digit bank account number.');
                     document.getElementById('account_number').focus();
                     return false;
                 }
-            } else if (step === 7) {
-                const sig = document.getElementById('credit_signature').value.trim();
+            } 
+            // Step 7: FCRA Consent & E-Signature
+            else if (step === 7) {
+                const sig = (document.getElementById('credit_signature').value || '').trim();
                 if (sig.length < 3) {
                     alert('Please enter your legal electronic signature.');
                     document.getElementById('credit_signature').focus();
