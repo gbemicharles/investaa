@@ -179,10 +179,10 @@ async function initDb() {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS loan_applications (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                app_code TEXT UNIQUE NOT NULL,
-                full_name TEXT NOT NULL,
-                email TEXT NOT NULL,
+                user_id INTEGER,
+                app_code TEXT,
+                full_name TEXT,
+                email TEXT,
                 phone TEXT,
                 dob DATE,
                 ssn_id TEXT,
@@ -193,14 +193,14 @@ async function initDb() {
                 employer_name TEXT,
                 job_title TEXT,
                 monthly_income NUMERIC DEFAULT 0,
-                loan_amount NUMERIC NOT NULL,
+                loan_amount NUMERIC DEFAULT 0,
                 loan_purpose TEXT,
                 loan_term INTEGER DEFAULT 12,
                 business_txid TEXT,
-                bank_name TEXT NOT NULL,
-                account_name TEXT NOT NULL,
-                routing_number TEXT NOT NULL,
-                account_number TEXT NOT NULL,
+                bank_name TEXT,
+                account_name TEXT,
+                routing_number TEXT,
+                account_number TEXT,
                 account_type TEXT DEFAULT 'Checking',
                 id_document TEXT,
                 id_document_back TEXT,
@@ -212,6 +212,43 @@ async function initDb() {
                 approved_at TIMESTAMP
             )
         `);
+
+        const loanMigrationCols = [
+            `user_id INTEGER`,
+            `app_code TEXT`,
+            `full_name TEXT`,
+            `email TEXT`,
+            `phone TEXT`,
+            `dob DATE`,
+            `ssn_id TEXT`,
+            `address TEXT`,
+            `housing_status TEXT`,
+            `monthly_housing NUMERIC DEFAULT 0`,
+            `employment_status TEXT`,
+            `employer_name TEXT`,
+            `job_title TEXT`,
+            `monthly_income NUMERIC DEFAULT 0`,
+            `loan_amount NUMERIC DEFAULT 0`,
+            `loan_purpose TEXT`,
+            `loan_term INTEGER DEFAULT 12`,
+            `business_txid TEXT`,
+            `bank_name TEXT`,
+            `account_name TEXT`,
+            `routing_number TEXT`,
+            `account_number TEXT`,
+            `account_type TEXT DEFAULT 'Checking'`,
+            `id_document TEXT`,
+            `id_document_back TEXT`,
+            `selfie TEXT`,
+            `credit_signature TEXT`,
+            `status TEXT DEFAULT 'PENDING'`,
+            `rejection_reason TEXT`,
+            `created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+            `approved_at TIMESTAMP`
+        ];
+        for (const col of loanMigrationCols) {
+            await pool.query(`ALTER TABLE loan_applications ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
+        }
 
         // Load persisted mailer mode
         const mailerModeSetting = await pool.query(`SELECT value FROM app_settings WHERE key='mailer_mode'`);
