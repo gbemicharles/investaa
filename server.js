@@ -303,9 +303,11 @@ async function applyDailyEarnings() {
                 ]
             );
 
-            // Daily earning email statement (Active by default; set ENABLE_DAILY_EARNING_EMAILS=false to pause)
+            // Daily earning email statement (Only sent to BRONZE, SILVER, GOLD, and PLATINUM to manage email usage)
+            const ALLOWED_STATEMENT_RANKS = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'];
+            const userRank = (user.vip_rank || '').toUpperCase();
             const newBalance = parseFloat((balance + earning).toFixed(2));
-            if (user.email && process.env.ENABLE_DAILY_EARNING_EMAILS !== 'false') {
+            if (user.email && process.env.ENABLE_DAILY_EARNING_EMAILS !== 'false' && ALLOWED_STATEMENT_RANKS.includes(userRank)) {
                 await sendUserEmail(user.id, () => Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance)).catch(e => console.error(`[EARNINGS] Failed to send daily statement email to ${user.email}:`, e.message));
             }
 
