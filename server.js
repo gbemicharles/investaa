@@ -1479,7 +1479,7 @@ app.post('/api/transactions/submit-deposit', authenticate, upload.single('proof'
             );
 
             // 3. Record transactions
-            await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'DEPOSIT', finalCreditedAmount, `Via ${network} (Auto-Approved)`, 'COMPLETED']);
+            await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, 'DEPOSIT', finalCreditedAmount, `Via ${network}`, 'COMPLETED']);
             await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [req.user.id, '💰 Deposit Auto-Approved', `Your deposit of $${finalCreditedAmount.toFixed(2)} USDT via ${network} was verified on-chain and credited automatically! ${autoVerifyMsg}`, 'DEPOSIT', 'SUCCESS']);
 
             if (bonusToMerge > 0) {

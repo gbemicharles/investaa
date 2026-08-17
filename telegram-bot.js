@@ -712,7 +712,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     }
 
                     await dbRun('UPDATE users SET balance = balance + ?, deposit_balance = deposit_balance + ? WHERE id = ?', [amt, amt, user.id]);
-                    await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [user.id, 'DEPOSIT', amt, 'Telegram Bot Admin Credit', 'COMPLETED']);
+                    await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [user.id, 'DEPOSIT', amt, 'Admin Credit', 'COMPLETED']);
                     await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [user.id, 'Account Funded', `Your account has been credited with $${amt.toFixed(2)} USDT by admin.`, 'SYSTEM', 'SUCCESS']);
 
                     if (typeof sendUserEmail === 'function' && Emails) {
@@ -977,7 +977,8 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                         [totalBalanceCredit, amount, deposit.user_id]
                     );
 
-                    await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [deposit.user_id, 'DEPOSIT', amount, `Via ${deposit.network} (Telegram bot approved)`, 'COMPLETED']);
+                    const depDetails = deposit.network ? `Via ${deposit.network}` : 'Deposit Approved';
+                    await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [deposit.user_id, 'DEPOSIT', amount, depDetails, 'COMPLETED']);
                     await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [deposit.user_id, 'Deposit Approved', `Your deposit of $${amount.toFixed(2)} was approved!`, 'DEPOSIT', 'SUCCESS']);
                     
                     if (bonusToMerge > 0) {
@@ -1111,13 +1112,14 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 } else if (sub.status !== 'PENDING') {
                     popupText = `⚠️ Already processed (Status: ${sub.status})`;
                 } else {
-                    await dbRun("UPDATE kyc_submissions SET status = 'REJECTED', reviewed_at = CURRENT_TIMESTAMP, rejection_reason = ? WHERE id = ?", ['Rejected via Telegram Control Bot', recordId]);
+                    const kycReason = 'Verification requirements not met. Please review document clarity and resubmit.';
+                    await dbRun("UPDATE kyc_submissions SET status = 'REJECTED', reviewed_at = CURRENT_TIMESTAMP, rejection_reason = ? WHERE id = ?", [kycReason, recordId]);
                     await dbRun("UPDATE users SET kyc_status = 'REJECTED' WHERE id = ?", [sub.user_id]);
                     await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [sub.user_id, 'KYC Rejected', 'Your identity verification application was rejected. Please review details and submit again.', 'SYSTEM', 'FAILED']);
                     
                     const uKycR = await dbGet('SELECT email, username FROM users WHERE id = ?', [sub.user_id]).catch(() => null);
                     if (uKycR && typeof sendUserEmail === 'function' && Emails) {
-                        sendUserEmail(sub.user_id, () => Emails.kycRejected(uKycR.email, uKycR.username, 'Rejected via Telegram Control Bot')).catch(() => {});
+                        sendUserEmail(sub.user_id, () => Emails.kycRejected(uKycR.email, uKycR.username, kycReason)).catch(() => {});
                     }
 
                     popupText = `❌ KYC submission rejected.`;
