@@ -48,11 +48,45 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
 
     // Helper: Verify if request comes from authorized Admin Chat
     function isAuthorized(chatId) {
-        if (!ADMIN_CHAT_ID) return true; // If no chat ID set, allow local test
+        if (!ADMIN_CHAT_ID) return true;
         return String(chatId).trim() === ADMIN_CHAT_ID;
     }
 
     console.log('[TELEGRAM-BOT] Starting Long Polling interactive Admin Board listener...');
+
+    // ════════════════════════════════════════════
+    //  REGISTER NATIVE TELEGRAM MENU BUTTON COMMANDS
+    // ════════════════════════════════════════════
+    async function registerBotCommands() {
+        try {
+            const commands = [
+                { command: 'admin', description: '🎛️ Open Admin Control Board' },
+                { command: 'stats', description: '📊 System Financial Metrics' },
+                { command: 'deposits', description: '📥 Review Pending Deposits Queue' },
+                { command: 'withdrawals', description: '📤 Review Pending Withdrawals Queue' },
+                { command: 'kyc', description: '🪪 Review Pending Identity Submissions' },
+                { command: 'users', description: '👥 Member Account Directory' },
+                { command: 'user', description: '👤 Inspect User Account (/user username)' },
+                { command: 'fund', description: '💵 Credit User Balance (/fund username amount)' },
+                { command: 'ban', description: '🚫 Ban User Account (/ban username)' },
+                { command: 'unban', description: '✅ Unban User Account (/unban username)' },
+                { command: 'resetpw', description: '🔑 Reset Password (/resetpw username pass)' },
+                { command: 'help', description: '🛠️ Admin Commands Cheatsheet' }
+            ];
+
+            const res = await apiCall('setMyCommands', { commands });
+            if (res && res.ok) {
+                console.log('[TELEGRAM-BOT] Native Telegram Bot Menu commands registered successfully!');
+            } else {
+                console.warn('[TELEGRAM-BOT] setMyCommands returned:', res);
+            }
+        } catch (e) {
+            console.error('[TELEGRAM-BOT] Error registering bot menu commands:', e.message);
+        }
+    }
+
+    // Execute menu registration on startup
+    registerBotCommands();
 
     // ════════════════════════════════════════════
     //  ADMIN BOARD UI GENERATORS
@@ -99,7 +133,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
                 `• 📤 <b>Pending Withdrawals:</b> ${withPending?.count || 0}`,
                 `• 🪪 <b>Pending KYC:</b> ${kycPending?.count || 0}`,
                 ``,
-                `🛠️ <i>Send <code>/help</code> for quick direct commands (/fund, /user, /ban, etc.).</i>`
+                `🛠️ <i>Tap the [/] Menu button next to your input bar for instant commands.</i>`
             ].join('\n');
         } catch (err) {
             console.error('[TELEGRAM-BOT] Dashboard text error:', err.message);
@@ -334,7 +368,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
         try {
             const users = await dbAll(`SELECT id, username, email, balance, vip_rank, is_banned FROM users ORDER BY created_at DESC LIMIT 8`);
             if (!users || users.length === 0) {
-                await apiCall('sendMessage', { chatId, text: 'No users found.', parse_mode: 'HTML' });
+                await apiCall('sendMessage', { chat_id: chatId, text: 'No users found.', parse_mode: 'HTML' });
                 return;
             }
 
@@ -449,6 +483,17 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
             const parts = text.split(/\s+/);
             const cmd = parts[0].toLowerCase();
 
+            // /setupmenu, /setmenu
+            if (cmd === '/setupmenu' || cmd === '/setmenu') {
+                await registerBotCommands();
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: '✅ <b>Telegram Bot Menu Button Registered!</b>\n\nTap the <code>[/]</code> Menu button next to your chat input field to see all admin commands.',
+                    parse_mode: 'HTML'
+                });
+                return;
+            }
+
             // /admin, /start, /menu, /dashboard, /board
             if (cmd === '/admin' || cmd === '/start' || cmd === '/menu' || cmd === '/dashboard' || cmd === '/board') {
                 await sendAdminDashboard(chatId);
@@ -488,7 +533,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
             // /user <username_or_email_or_id>
             if (cmd === '/user') {
                 if (parts.length < 2) {
-                    await apiCall('sendMessage', { chatId, text: '💡 Usage: <code>/user &lt;username_or_email_or_id&gt;</code>', parse_mode: 'HTML' });
+                    await apiCall('sendMessage', { chat_id: chatId, text: '💡 Usage: <code>/user &lt;username_or_email_or_id&gt;</code>', parse_mode: 'HTML' });
                     return;
                 }
                 await inspectUser(chatId, parts[1]);
@@ -629,6 +674,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails) {
                     `• <code>/ban &lt;username&gt;</code> — Block user account`,
                     `• <code>/unban &lt;username&gt;</code> — Unblock user account`,
                     `• <code>/resetpw &lt;user&gt; &lt;newpass&gt;</code> — Reset password`,
+                    `• <code>/setupmenu</code> — Refresh native Telegram Menu button`,
                     `━━━━━━━━━━━━━━━━━━━━━━`
                 ].join('\n');
                 await apiCall('sendMessage', { chat_id: chatId, text: cheatsheet, parse_mode: 'HTML' });
