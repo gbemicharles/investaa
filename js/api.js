@@ -1,4 +1,6 @@
-const API_URL = window.location.origin + '/api';
+const API_URL = (typeof window !== 'undefined' && (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null'))
+    ? 'http://localhost:5000/api'
+    : ((typeof window !== 'undefined' && window.location.origin) ? window.location.origin.replace(/\/$/, '') + '/api' : '/api');
 
 const API = {
     async register(userData) {

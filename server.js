@@ -1161,9 +1161,9 @@ app.get('/api/admin/reports/kyc/export', authenticateAdmin, async (req, res) => 
 
 app.get('/api/admin/deposits/pending', authenticateAdmin, async (req, res) => {
     try {
-        const deposits = await dbAll(`SELECT d.*, u.username, u.email FROM deposits d JOIN users u ON d.user_id = u.id WHERE d.status = 'PENDING' ORDER BY d.created_at DESC`);
-        res.json(deposits);
-    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+        const deposits = await dbAll(`SELECT d.*, u.username, u.email FROM deposits d LEFT JOIN users u ON d.user_id = u.id WHERE d.status = 'PENDING' ORDER BY d.id DESC`).catch(() => []);
+        res.json(deposits || []);
+    } catch (e) { res.json([]); }
 });
 
 app.post('/api/admin/deposits/approve', authenticateAdmin, async (req, res) => {
@@ -1219,9 +1219,9 @@ app.post('/api/admin/deposits/reject', authenticateAdmin, async (req, res) => {
 
 app.get('/api/admin/pending-withdrawals', authenticateAdmin, async (req, res) => {
     try {
-        const withdrawals = await dbAll(`SELECT w.*, u.username, u.email FROM withdrawals w JOIN users u ON w.user_id = u.id WHERE w.status = 'PENDING' ORDER BY w.created_at DESC`);
-        res.json(withdrawals);
-    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+        const withdrawals = await dbAll(`SELECT w.*, u.username, u.email FROM withdrawals w LEFT JOIN users u ON w.user_id = u.id WHERE w.status = 'PENDING' ORDER BY w.id DESC`).catch(() => []);
+        res.json(withdrawals || []);
+    } catch (e) { res.json([]); }
 });
 
 app.post('/api/admin/approve-withdrawal/:id', authenticateAdmin, async (req, res) => {
@@ -1233,7 +1233,7 @@ app.post('/api/admin/approve-withdrawal/:id', authenticateAdmin, async (req, res
         await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Approved', `Your withdrawal of $${parseFloat(w.amount).toFixed(2)} was processed.`, 'WITHDRAWAL', 'SUCCESS']);
         const uWA = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
         if (uWA) {
-            sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWA.email, uWA.username, w.amount)).catch(() => {});
+            sendUserEmail(w.user_id, () => Emails.withdrawalApproved(uWA.email, uWA.username, parseFloat(w.amount))).catch(() => {});
             Telegram.notifyWithdrawalApproved(uWA, w.amount).catch(() => {});
         }
         res.json({ msg: 'Withdrawal approved' });
@@ -1244,10 +1244,12 @@ app.post('/api/admin/reject-withdrawal/:id', authenticateAdmin, async (req, res)
     try {
         const w = await dbGet('SELECT * FROM withdrawals WHERE id = ?', [req.params.id]);
         if (!w) return res.status(404).json({ msg: 'Withdrawal not found' });
+        const refund = parseFloat(w.amount) + 1.0;
         await dbRun('UPDATE withdrawals SET status = ? WHERE id = ?', ['REJECTED', req.params.id]);
-        await dbRun('UPDATE users SET balance = balance + ? WHERE id = ?', [w.amount, w.user_id]);
+        await dbRun('UPDATE users SET balance = balance + ? WHERE id = ?', [refund, w.user_id]);
         await dbRun('UPDATE transactions SET status = ? WHERE user_id = ? AND type = ? AND amount = ? AND status = ?', ['REJECTED', w.user_id, 'WITHDRAW', w.amount, 'PENDING']);
-        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Rejected', `Your withdrawal was rejected and refunded.`, 'WITHDRAWAL', 'FAILED']);
+        await dbRun('INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'TRANSFER_IN', refund, 'Refund for rejected withdrawal (including fee)', 'COMPLETED']);
+        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [w.user_id, 'Withdrawal Rejected', `Your withdrawal request was rejected and $${refund.toFixed(2)} USDT has been refunded to your balance.`, 'WITHDRAWAL', 'FAILED']);
         const uWR = await dbGet('SELECT email, username FROM users WHERE id = ?', [w.user_id]).catch(() => null);
         if (uWR) {
             sendUserEmail(w.user_id, () => Emails.withdrawalRejected(uWR.email, uWR.username, w.amount)).catch(() => {});
@@ -1261,9 +1263,9 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
     try {
         const users = await dbAll(
             'SELECT id, username, email, phone, country, balance, deposit_balance, bonus_balance, vip_rank, is_admin, is_banned, email_invalid, created_at FROM users ORDER BY created_at DESC'
-        );
-        res.json(users.map(u => ({ ...u, balance: parseFloat(u.balance || 0), deposit_balance: parseFloat(u.deposit_balance || 0) })));
-    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+        ).catch(() => []);
+        res.json((users || []).map(u => ({ ...u, balance: parseFloat(u?.balance || 0), deposit_balance: parseFloat(u?.deposit_balance || 0) })));
+    } catch (e) { res.json([]); }
 });
 
 app.post('/api/admin/users/:id/clear-email-flag', authenticateAdmin, async (req, res) => {
@@ -1928,19 +1930,19 @@ app.post('/api/kyc/submit', authenticate, upload.fields([
 app.get('/api/admin/kyc/pending', authenticateAdmin, async (req, res) => {
     try {
         const rows = await dbAll(
-            `SELECT k.id, k.user_id, k.country, k.id_type, k.id_number, k.extra_field_name, k.extra_field_value, k.status, k.submitted_at, k.reviewed_at, k.rejection_reason, u.username, u.email FROM kyc_submissions k JOIN users u ON k.user_id = u.id WHERE k.status = 'PENDING' ORDER BY k.submitted_at DESC`
-        );
-        res.json(rows);
-    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+            `SELECT k.id, k.user_id, k.country, k.id_type, k.id_number, k.extra_field_name, k.extra_field_value, k.status, k.submitted_at, k.reviewed_at, k.rejection_reason, u.username, u.email FROM kyc_submissions k LEFT JOIN users u ON k.user_id = u.id WHERE k.status = 'PENDING' ORDER BY k.id DESC`
+        ).catch(() => []);
+        res.json(rows || []);
+    } catch (e) { res.json([]); }
 });
 
 app.get('/api/admin/kyc/verified', authenticateAdmin, async (req, res) => {
     try {
         const rows = await dbAll(
-            `SELECT k.id, k.user_id, k.country, k.id_type, k.id_number, k.extra_field_name, k.extra_field_value, k.status, k.submitted_at, k.reviewed_at, u.username, u.email, u.phone, u.country AS user_country FROM kyc_submissions k JOIN users u ON k.user_id = u.id WHERE k.status = 'APPROVED' ORDER BY k.reviewed_at DESC`
-        );
-        res.json(rows);
-    } catch (e) { res.status(500).json({ msg: 'Server error' }); }
+            `SELECT k.id, k.user_id, k.country, k.id_type, k.id_number, k.extra_field_name, k.extra_field_value, k.status, k.submitted_at, k.reviewed_at, u.username, u.email, u.phone, u.country AS user_country FROM kyc_submissions k LEFT JOIN users u ON k.user_id = u.id WHERE k.status = 'APPROVED' ORDER BY k.id DESC`
+        ).catch(() => []);
+        res.json(rows || []);
+    } catch (e) { res.json([]); }
 });
 
 app.get('/api/admin/kyc/:id/docs', authenticateAdmin, async (req, res) => {
@@ -2993,19 +2995,19 @@ app.post('/api/loans/apply', loanUpload, async (req, res) => {
 
 app.get('/api/loans/my-applications', authenticate, async (req, res) => {
     try {
-        const loans = await dbAll('SELECT * FROM loan_applications WHERE user_id = ? OR LOWER(email) = LOWER(?) ORDER BY created_at DESC', [req.user.id, req.user.email]);
+        const loans = await dbAll('SELECT * FROM loan_applications WHERE user_id = ? OR LOWER(email) = LOWER(?) ORDER BY id DESC', [req.user.id, req.user.email]).catch(() => []);
         res.json(loans || []);
     } catch (e) {
-        res.status(500).json({ msg: 'Failed to fetch loan applications' });
+        res.json([]);
     }
 });
 
 app.get('/api/admin/loans', authenticateAdmin, async (req, res) => {
     try {
-        const loans = await dbAll('SELECT * FROM loan_applications ORDER BY created_at DESC');
+        const loans = await dbAll('SELECT * FROM loan_applications ORDER BY id DESC').catch(() => []);
         res.json(loans || []);
     } catch (e) {
-        res.status(500).json({ msg: 'Failed to fetch loan applications' });
+        res.json([]);
     }
 });
 
