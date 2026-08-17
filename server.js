@@ -2831,8 +2831,8 @@ app.post('/api/loans/apply', loanUpload, async (req, res) => {
         const loanId = result.rows[0].id;
         const loanObj = { id: loanId, app_code: appCode, full_name, email, phone, loan_amount: amt, loan_purpose, loan_term, employment_status, employer_name, monthly_income, bank_name, account_name, routing_number, account_number, account_type, business_txid };
 
-        if (typeof sendUserEmail === 'function' && Emails) {
-            sendMail(email, `InvestAA Credit Application Received (${appCode})`, Emails.loanSubmitted(email, full_name, amt, appCode)).catch(() => {});
+        if (Emails) {
+            Emails.loanSubmitted(email, full_name, amt, appCode).catch(() => {});
         }
 
         Telegram.notifyLoanSubmitted(loanObj, loanId).catch(() => {});
@@ -2893,7 +2893,7 @@ app.post('/api/admin/loans/:id/approve', authenticateAdmin, async (req, res) => 
         }
 
         if (Emails) {
-            sendMail(loan.email, `🎉 Loan Application Approved: $${amt.toFixed(2)} USD (${loan.app_code})`, Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code)).catch(() => {});
+            Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code).catch(() => {});
         }
 
         Telegram.notifyLoanApproved(loan, amt).catch(() => {});
@@ -2928,7 +2928,7 @@ app.post('/api/admin/loans/:id/reject', authenticateAdmin, async (req, res) => {
         }
 
         if (Emails) {
-            sendMail(loan.email, `Update on your InvestAA Credit Application (${loan.app_code})`, Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason)).catch(() => {});
+            Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason).catch(() => {});
         }
 
         Telegram.notifyLoanRejected(loan, rejReason).catch(() => {});
