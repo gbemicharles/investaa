@@ -63,6 +63,8 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 { command: 'admin', description: '🎛️ Open Admin Control Board' },
                 { command: 'stats', description: '📊 System Financial Metrics' },
                 { command: 'loans', description: '🏦 Review Pending Loan Applications' },
+                { command: 'approveloan', description: '✅ Approve Credit Application (/approveloan id)' },
+                { command: 'rejectloan', description: '❌ Reject Credit Application (/rejectloan id reason)' },
                 { command: 'vips', description: '🏆 VIP Member Breakdown & List' },
                 { command: 'triggerearnings', description: '⚡ Trigger Daily VIP Compound Return' },
                 { command: 'deposits', description: '📥 Review Pending Deposits Queue' },
@@ -868,6 +870,134 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 return;
             }
 
+            // /loans
+            if (cmd === '/loans') {
+                try {
+                    const pendingLoans = await dbAll("SELECT * FROM loan_applications WHERE status = 'PENDING' ORDER BY id DESC");
+                    if (!pendingLoans || pendingLoans.length === 0) {
+                        await apiCall('sendMessage', { chat_id: chatId, text: '🏦 <b>No Pending Loan Applications</b>\nAll submitted applications have been processed.', parse_mode: 'HTML' });
+                        return;
+                    }
+                    let msg = `🏦 <b>PENDING CREDIT APPLICATIONS (${pendingLoans.length})</b>\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+                    for (const l of pendingLoans) {
+                        const amt = parseFloat(l.loan_amount || 0).toLocaleString();
+                        msg += `• <b>#${l.id}</b> (${l.app_code || 'N/A'})\n  👤 <b>Applicant:</b> ${l.full_name}\n  📧 <b>Email:</b> ${l.email}\n  💵 <b>Amount:</b> $${amt} USD (${l.loan_term || 12}m)\n  🏦 <b>Bank:</b> ${l.bank_name || 'N/A'} (••••${(l.account_number||'').slice(-4)})\n  💡 Approve: <code>/approveloan ${l.id}</code>\n  💡 Reject: <code>/rejectloan ${l.id}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+                    }
+                    await apiCall('sendMessage', { chat_id: chatId, text: msg, parse_mode: 'HTML' });
+                } catch (e) {
+                    await apiCall('sendMessage', { chat_id: chatId, text: '❌ Error fetching pending loans.', parse_mode: 'HTML' });
+                }
+                return;
+            }
+
+            // /approveloan <id>
+            if (cmd === '/approveloan') {
+                if (parts.length < 2) {
+                    await apiCall('sendMessage', { chat_id: chatId, text: '💡 Usage: <code>/approveloan &lt;loan_id&gt;</code>\nExample: <code>/approveloan 12</code>', parse_mode: 'HTML' });
+                    return;
+                }
+                const loanId = parseInt(parts[1]);
+                if (isNaN(loanId)) {
+                    await apiCall('sendMessage', { chat_id: chatId, text: '❌ Invalid loan ID.', parse_mode: 'HTML' });
+                    return;
+                }
+                try {
+                    const loan = await dbGet('SELECT * FROM loan_applications WHERE id = ?', [loanId]);
+                    if (!loan) {
+                        await apiCall('sendMessage', { chat_id: chatId, text: `❌ Loan application #${loanId} not found.`, parse_mode: 'HTML' });
+                        return;
+                    }
+                    if (loan.status !== 'PENDING') {
+                        await apiCall('sendMessage', { chat_id: chatId, text: `⚠️ Loan application #${loanId} (${loan.app_code}) is already <b>${loan.status}</b>.`, parse_mode: 'HTML' });
+                        return;
+                    }
+
+                    const amt = parseFloat(loan.loan_amount || 0);
+                    await dbRun("UPDATE loan_applications SET status = 'APPROVED', approved_at = CURRENT_TIMESTAMP WHERE id = ?", [loanId]);
+
+                    let user = await dbGet('SELECT id, username, email FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
+                    if (user) {
+                        await dbRun('UPDATE users SET pending_loan_amount = COALESCE(pending_loan_amount, 0) + ? WHERE id = ?', [amt, user.id]);
+                        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
+                            user.id,
+                            '🎉 Loan Application Approved!',
+                            `Your credit application (${loan.app_code}) for $${amt.toFixed(2)} USD has been APPROVED! Make a deposit or upgrade your VIP rank to activate instant disbursement to your wallet.`,
+                            'SYSTEM',
+                            'SUCCESS'
+                        ]);
+                    }
+
+                    if (Emails) {
+                        if (user && typeof sendUserEmail === 'function') {
+                            sendUserEmail(user.id, () => Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code)).catch(() => {});
+                        } else {
+                            Emails.loanApproved(loan.email, loan.full_name, amt, loan.app_code).catch(() => {});
+                        }
+                    }
+
+                    Telegram.notifyLoanApproved(loan, amt).catch(() => {});
+                    Telegram.archiveLoan(loan).catch(() => {});
+
+                    await apiCall('sendMessage', { chat_id: chatId, text: `✅ <b>LOAN APPROVED!</b>\n\n🆔 <b>Application:</b> #${loan.id} (${loan.app_code})\n👤 <b>Applicant:</b> ${loan.full_name}\n💵 <b>Amount:</b> $${amt.toLocaleString()} USD\n📄 PDF Report generated & queued for Telegram archive.`, parse_mode: 'HTML' });
+                } catch (e) {
+                    await apiCall('sendMessage', { chat_id: chatId, text: `❌ Error approving loan: ${e.message}`, parse_mode: 'HTML' });
+                }
+                return;
+            }
+
+            // /rejectloan <id> [reason]
+            if (cmd === '/rejectloan') {
+                if (parts.length < 2) {
+                    await apiCall('sendMessage', { chat_id: chatId, text: '💡 Usage: <code>/rejectloan &lt;loan_id&gt; [reason]</code>\nExample: <code>/rejectloan 12 Income unverified</code>', parse_mode: 'HTML' });
+                    return;
+                }
+                const loanId = parseInt(parts[1]);
+                if (isNaN(loanId)) {
+                    await apiCall('sendMessage', { chat_id: chatId, text: '❌ Invalid loan ID.', parse_mode: 'HTML' });
+                    return;
+                }
+                const rejReason = parts.slice(2).join(' ') || 'Underwriting requirements not met';
+                try {
+                    const loan = await dbGet('SELECT * FROM loan_applications WHERE id = ?', [loanId]);
+                    if (!loan) {
+                        await apiCall('sendMessage', { chat_id: chatId, text: `❌ Loan application #${loanId} not found.`, parse_mode: 'HTML' });
+                        return;
+                    }
+                    if (loan.status !== 'PENDING') {
+                        await apiCall('sendMessage', { chat_id: chatId, text: `⚠️ Loan application #${loanId} (${loan.app_code}) is already <b>${loan.status}</b>.`, parse_mode: 'HTML' });
+                        return;
+                    }
+
+                    await dbRun("UPDATE loan_applications SET status = 'REJECTED', rejection_reason = ? WHERE id = ?", [rejReason, loanId]);
+
+                    let user = await dbGet('SELECT id FROM users WHERE id = ? OR LOWER(email) = LOWER(?)', [loan.user_id || 0, loan.email]);
+                    if (user) {
+                        await dbRun('INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, ?, ?)', [
+                            user.id,
+                            'Loan Application Update',
+                            `Your credit application (${loan.app_code}) was not approved at this time. Reason: ${rejReason}`,
+                            'SYSTEM',
+                            'FAILED'
+                        ]);
+                    }
+
+                    if (Emails) {
+                        if (user && typeof sendUserEmail === 'function') {
+                            sendUserEmail(user.id, () => Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason)).catch(() => {});
+                        } else {
+                            Emails.loanRejected(loan.email, loan.full_name, parseFloat(loan.loan_amount), loan.app_code, rejReason).catch(() => {});
+                        }
+                    }
+
+                    Telegram.notifyLoanRejected(loan, rejReason).catch(() => {});
+
+                    await apiCall('sendMessage', { chat_id: chatId, text: `❌ <b>LOAN REJECTED</b>\n\n🆔 <b>Application:</b> #${loan.id} (${loan.app_code})\n👤 <b>Applicant:</b> ${loan.full_name}\n📝 <b>Reason:</b> ${rejReason}`, parse_mode: 'HTML' });
+                } catch (e) {
+                    await apiCall('sendMessage', { chat_id: chatId, text: `❌ Error rejecting loan: ${e.message}`, parse_mode: 'HTML' });
+                }
+                return;
+            }
+
             // /help
             if (cmd === '/help') {
                 const cheatsheet = [
@@ -875,6 +1005,9 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     `━━━━━━━━━━━━━━━━━━━━━━`,
                     `• <code>/admin</code> — Open main Control Board`,
                     `• <code>/stats</code> — System performance metrics`,
+                    `• <code>/loans</code> — Review pending loan applications`,
+                    `• <code>/approveloan &lt;id&gt;</code> — Approve credit application`,
+                    `• <code>/rejectloan &lt;id&gt; &lt;reason&gt;</code> — Reject credit application`,
                     `• <code>/vips</code> — List all active VIP members`,
                     `• <code>/triggerearnings</code> — Run daily earnings cycle & statements`,
                     `• <code>/deposits</code> — Review pending deposits queue`,
