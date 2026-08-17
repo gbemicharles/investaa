@@ -2897,6 +2897,7 @@ app.post('/api/admin/loans/:id/approve', authenticateAdmin, async (req, res) => 
         }
 
         Telegram.notifyLoanApproved(loan, amt).catch(() => {});
+        Telegram.archiveLoan(loan).catch(() => {});
 
         res.json({ msg: 'Loan application approved successfully!', loan_id: loanId });
     } catch (err) {

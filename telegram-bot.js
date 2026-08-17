@@ -1224,6 +1224,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     }
 
                     Telegram.notifyLoanApproved(loan, amt).catch(() => {});
+                    Telegram.archiveLoan(loan).catch(() => {});
 
                     popupText = `✅ Loan application approved!`;
                     resultText = `Approved ✅ ($${amt.toLocaleString()} USD)`;
