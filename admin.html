@@ -1026,6 +1026,13 @@ async function loadOverview() {
             API.getPendingKyc(),
             API.getVerifiedKyc()
         ]);
+
+        if (users && users.msg && (users.msg.toLowerCase().includes('admin') || users.msg.toLowerCase().includes('token') || users.msg.toLowerCase().includes('session'))) {
+            alert(`⚠️ ${users.msg}\n\nPlease log in with an administrator account.`);
+            window.location.href = 'login.html';
+            return;
+        }
+
         const dCount = Array.isArray(deposits)    ? deposits.length    : 0;
         const wCount = Array.isArray(withdrawals) ? withdrawals.length : 0;
         const kCount = Array.isArray(kyc)         ? kyc.length         : 0;
@@ -2257,80 +2264,81 @@ window.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('reset-identifier').value = '';
                 document.getElementById('reset-password').value = '';
             }
-    async function loadLoans() {
-        try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('/api/admin/loans', { headers: { Authorization: `Bearer ${token}` } });
-            if (!res.ok) return;
-            const loans = await res.json();
-            const pendingCount = loans.filter(l => l.status === 'PENDING').length;
-            const badge = document.getElementById('badge-loans');
-            if (badge) badge.innerText = pendingCount;
-
-            const tbody = document.getElementById('loans-tbody');
-            if (!tbody) return;
-
-            if (!loans.length) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">No credit or loan applications found.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = loans.map(l => {
-                const amt = parseFloat(l.loan_amount || 0).toLocaleString();
-                const statusBadge = l.status === 'APPROVED' 
-                    ? '<span class="status-badge success">APPROVED</span>' 
-                    : (l.status === 'REJECTED' ? '<span class="status-badge danger">REJECTED</span>' : '<span class="status-badge warning">PENDING</span>');
-                
-                const actions = l.status === 'PENDING'
-                    ? `<button class="btn-action success" onclick="approveLoan(${l.id})"><i class="fas fa-check"></i> Approve</button>
-                       <button class="btn-action danger" onclick="rejectLoan(${l.id})"><i class="fas fa-times"></i> Reject</button>`
-                    : '<span style="color:var(--text-muted);font-size:0.8rem;">Completed</span>';
-
-                return `
-                    <tr>
-                        <td style="padding:10px;"><strong style="color:#a5b4fc;">#${l.id}</strong><br><small style="color:var(--text-muted);">${l.app_code}</small></td>
-                        <td style="padding:10px;"><strong>${l.full_name}</strong><br><small style="color:#3b82f6;">${l.email}</small></td>
-                        <td style="padding:10px;"><strong style="color:#22c55e;">$${amt} USD</strong><br><small style="color:var(--text-muted);">${l.loan_purpose} (${l.loan_term}m)</small></td>
-                        <td style="padding:10px;"><strong>${l.bank_name}</strong><br><small style="color:var(--text-muted);">Acct: ••••${(l.account_number||'').slice(-4)} | Routing: ${l.routing_number}</small></td>
-                        <td style="padding:10px;">${l.employment_status}<br><small style="color:var(--text-muted);">$${parseFloat(l.monthly_income||0).toLocaleString()}/mo</small></td>
-                        <td style="padding:10px;white-space:nowrap;">${new Date(l.created_at).toLocaleDateString()}</td>
-                        <td style="padding:10px;">${statusBadge}</td>
-                        <td style="padding:10px;">${actions}</td>
-                    </tr>
-                `;
-            }).join('');
         } catch(e) {
-            console.error('Error loading loans:', e);
+            alert('Password reset failed.');
+        } finally {
+            btn.disabled = false; btn.textContent = 'Reset Password';
         }
-    }
-
-    async function approveLoan(loanId) {
-        if (!confirm(`Approve loan application #${loanId}? Approved credit will be reserved for instant disbursement upon account deposit or VIP upgrade.`)) return;
-        try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`/api/admin/loans/${loanId}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-            const data = await res.json();
-            alert(data.msg);
-            loadLoans();
-        } catch(e) { alert('Approval failed'); }
-    }
-
-    async function rejectLoan(loanId) {
-        const reason = prompt('Enter rejection reason for this loan application:', 'Underwriting requirements not met');
-        if (reason === null) return;
-        try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`/api/admin/loans/${loanId}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason }) });
-            const data = await res.json();
-            alert(data.msg);
-            loadLoans();
-        } catch(e) { alert('Rejection failed'); }
-    }
-
-    window.loadLoans = loadLoans;
-    window.approveLoan = approveLoan;
-    window.rejectLoan = rejectLoan;
+    });
 });
+
+async function loadLoans() {
+    const tbody = document.getElementById('loans-tbody');
+    try {
+        const loans = await API.adminGetLoans();
+        if (!Array.isArray(loans)) {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#ff4d4d;">${loans?.msg || 'Failed to load loans.'}</td></tr>`;
+            return;
+        }
+        const pendingCount = loans.filter(l => l.status === 'PENDING').length;
+        const badge = document.getElementById('badge-loans');
+        if (badge) badge.innerText = pendingCount;
+
+        if (!tbody) return;
+
+        if (!loans.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">No credit or loan applications found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = loans.map(l => {
+            const amt = parseFloat(l.loan_amount || 0).toLocaleString();
+            const statusBadge = l.status === 'APPROVED' 
+                ? '<span class="status-badge success">APPROVED</span>' 
+                : (l.status === 'REJECTED' ? '<span class="status-badge danger">REJECTED</span>' : '<span class="status-badge warning">PENDING</span>');
+            
+            const actions = l.status === 'PENDING'
+                ? `<button class="btn-action success" onclick="approveLoan(${l.id})"><i class="fas fa-check"></i> Approve</button>
+                   <button class="btn-action danger" onclick="rejectLoan(${l.id})"><i class="fas fa-times"></i> Reject</button>`
+                : '<span style="color:var(--text-muted);font-size:0.8rem;">Completed</span>';
+
+            return `
+                <tr>
+                    <td style="padding:10px;"><strong style="color:#a5b4fc;">#${l.id}</strong><br><small style="color:var(--text-muted);">${l.app_code}</small></td>
+                    <td style="padding:10px;"><strong>${l.full_name}</strong><br><small style="color:#3b82f6;">${l.email}</small></td>
+                    <td style="padding:10px;"><strong style="color:#22c55e;">$${amt} USD</strong><br><small style="color:var(--text-muted);">${l.loan_purpose} (${l.loan_term}m)</small></td>
+                    <td style="padding:10px;"><strong>${l.bank_name}</strong><br><small style="color:var(--text-muted);">Acct: ••••${(l.account_number||'').slice(-4)} | Routing: ${l.routing_number}</small></td>
+                    <td style="padding:10px;">${l.employment_status}<br><small style="color:var(--text-muted);">$${parseFloat(l.monthly_income||0).toLocaleString()}/mo</small></td>
+                    <td style="padding:10px;white-space:nowrap;">${new Date(l.created_at).toLocaleDateString()}</td>
+                    <td style="padding:10px;">${statusBadge}</td>
+                    <td style="padding:10px;">${actions}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch(e) {
+        console.error('Error loading loans:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#ff4d4d;">Failed to load loans.</td></tr>';
+    }
+}
+
+async function approveLoan(loanId) {
+    if (!confirm(`Approve loan application #${loanId}? Approved credit will be reserved for instant disbursement upon account deposit or VIP upgrade.`)) return;
+    try {
+        const data = await API.adminApproveLoan(loanId);
+        alert(data.msg || 'Loan approved.');
+        loadLoans();
+    } catch(e) { alert('Approval failed'); }
+}
+
+async function rejectLoan(loanId) {
+    const reason = prompt('Enter rejection reason for this loan application:', 'Underwriting requirements not met');
+    if (reason === null) return;
+    try {
+        const data = await API.adminRejectLoan(loanId, reason);
+        alert(data.msg || 'Loan rejected.');
+        loadLoans();
+    } catch(e) { alert('Rejection failed'); }
+}
 </script>
 <!-- View Emails Modal -->
 <div id="emails-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:16px;">

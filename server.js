@@ -729,9 +729,18 @@ function authenticate(req, res, next) {
 }
 
 function authenticateAdmin(req, res, next) {
-    authenticate(req, res, () => {
-        if (!req.user.is_admin) return res.status(403).json({ msg: 'Admin access required' });
-        next();
+    authenticate(req, res, async () => {
+        if (req.user && (req.user.is_admin === 1 || req.user.is_admin === true)) return next();
+        if (req.user && req.user.id) {
+            try {
+                const dbUser = await dbGet('SELECT is_admin FROM users WHERE id = ?', [req.user.id]);
+                if (dbUser && (dbUser.is_admin === 1 || dbUser.is_admin === true)) {
+                    req.user.is_admin = 1;
+                    return next();
+                }
+            } catch (e) {}
+        }
+        return res.status(403).json({ msg: 'Admin access required' });
     });
 }
 

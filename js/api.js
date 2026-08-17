@@ -431,8 +431,35 @@ const API = {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_URL}/admin/email/outreach`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token, 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ emails, subject, body, bonus_amount })
+        });
+        return res.json();
+    },
+
+    async adminGetLoans() {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/loans`, {
+            headers: { 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
+        });
+        return res.json();
+    },
+
+    async adminApproveLoan(id) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/loans/${id}/approve`, {
+            method: 'POST',
+            headers: { 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
+        });
+        return res.json();
+    },
+
+    async adminRejectLoan(id, reason) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/loans/${id}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token, 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ reason })
         });
         return res.json();
     }
