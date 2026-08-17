@@ -62,6 +62,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             const commands = [
                 { command: 'admin', description: '🎛️ Open Admin Control Board' },
                 { command: 'stats', description: '📊 System Financial Metrics' },
+                { command: 'vips', description: '🏆 VIP Member Breakdown & List' },
                 { command: 'triggerearnings', description: '⚡ Trigger Daily VIP Compound Return' },
                 { command: 'deposits', description: '📥 Review Pending Deposits Queue' },
                 { command: 'withdrawals', description: '📤 Review Pending Withdrawals Queue' },
@@ -90,6 +91,34 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
     registerBotCommands();
 
     // ════════════════════════════════════════════
+    //  VIP METRICS CALCULATOR HELPER
+    // ════════════════════════════════════════════
+    async function getVipMetrics() {
+        const counts = { BRONZE: 0, SILVER: 0, GOLD: 0, PLATINUM: 0, DIAMOND: 0, REGULAR: 0 };
+        const balances = { BRONZE: 0, SILVER: 0, GOLD: 0, PLATINUM: 0, DIAMOND: 0, REGULAR: 0 };
+
+        try {
+            const rows = await dbAll("SELECT vip_rank, COUNT(*) as count, COALESCE(SUM(balance), 0) as total_bal FROM users GROUP BY vip_rank");
+            if (Array.isArray(rows)) {
+                rows.forEach(r => {
+                    const rank = (r.vip_rank || 'REGULAR').toUpperCase();
+                    if (counts[rank] !== undefined) {
+                        counts[rank] = parseInt(r.count || 0);
+                        balances[rank] = parseFloat(r.total_bal || 0);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('[TELEGRAM-BOT] getVipMetrics error:', e.message);
+        }
+
+        const totalVips = counts.BRONZE + counts.SILVER + counts.GOLD + counts.PLATINUM + counts.DIAMOND;
+        const totalVipBalance = balances.BRONZE + balances.SILVER + balances.GOLD + balances.PLATINUM + balances.DIAMOND;
+
+        return { counts, balances, totalVips, totalVipBalance };
+    }
+
+    // ════════════════════════════════════════════
     //  ADMIN BOARD UI GENERATORS
     // ════════════════════════════════════════════
 
@@ -98,17 +127,18 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             inline_keyboard: [
                 [
                     { text: '📊 System Overview', callback_data: 'admin_overview' },
-                    { text: '👥 User Directory', callback_data: 'admin_users' }
+                    { text: '🏆 VIP Directory', callback_data: 'admin_vips' }
                 ],
                 [
-                    { text: '📥 Deposits Queue', callback_data: 'admin_pending_deposits' },
-                    { text: '📤 Withdrawals Queue', callback_data: 'admin_pending_withdrawals' }
+                    { text: '👥 All Users', callback_data: 'admin_users' },
+                    { text: '📥 Deposits Queue', callback_data: 'admin_pending_deposits' }
                 ],
                 [
-                    { text: '🪪 Pending KYC', callback_data: 'admin_pending_kyc' },
-                    { text: '⚡ Run Daily Earnings', callback_data: 'admin_run_earnings' }
+                    { text: '📤 Withdrawals Queue', callback_data: 'admin_pending_withdrawals' },
+                    { text: '🪪 Pending KYC', callback_data: 'admin_pending_kyc' }
                 ],
                 [
+                    { text: '⚡ Run Daily Earnings', callback_data: 'admin_run_earnings' },
                     { text: '🔄 Refresh Board', callback_data: 'admin_menu' }
                 ]
             ]
@@ -123,14 +153,25 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             const withPending = await dbGet("SELECT COUNT(*) as count FROM withdrawals WHERE status = 'PENDING'");
             const kycPending = await dbGet("SELECT COUNT(*) as count FROM kyc_submissions WHERE status = 'PENDING'");
 
+            const vip = await getVipMetrics();
+
             return [
                 `🎛️ <b>INVESTAA TELEGRAM ADMIN BOARD</b>`,
                 `━━━━━━━━━━━━━━━━━━━━━━`,
                 `Welcome, Admin! Select an option below to manage the platform in real time.`,
                 ``,
-                `📊 <b>System Performance Metrics:</b>`,
-                `• 👥 <b>Registered Members:</b> ${userCount?.count || 0}`,
+                `📊 <b>System Financial Metrics:</b>`,
+                `• 👥 <b>Total Members:</b> ${userCount?.count || 0}`,
                 `• 💰 <b>Total Active Balances:</b> $${parseFloat(totalBal?.sum || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`,
+                ``,
+                `🏆 <b>VIP Tier Breakdown (Bronze to Diamond):</b>`,
+                `• 🥉 <b>Bronze VIP (0.5%/d):</b> ${vip.counts.BRONZE} member${vip.counts.BRONZE !== 1 ? 's' : ''}`,
+                `• 🥈 <b>Silver VIP (0.75%/d):</b> ${vip.counts.SILVER} member${vip.counts.SILVER !== 1 ? 's' : ''}`,
+                `• 🥇 <b>Gold VIP (1.0%/d):</b> ${vip.counts.GOLD} member${vip.counts.GOLD !== 1 ? 's' : ''}`,
+                `• 💎 <b>Platinum VIP (1.5%/d):</b> ${vip.counts.PLATINUM} member${vip.counts.PLATINUM !== 1 ? 's' : ''}`,
+                `• 👑 <b>Diamond VIP (2.0%/d):</b> ${vip.counts.DIAMOND} member${vip.counts.DIAMOND !== 1 ? 's' : ''}`,
+                `• 🌟 <b>Total Active VIP Members:</b> ${vip.totalVips} ($${vip.totalVipBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT)`,
+                `• ⚪ <b>Regular (Free Tier):</b> ${vip.counts.REGULAR} member${vip.counts.REGULAR !== 1 ? 's' : ''}`,
                 ``,
                 `⏳ <b>Action Queues:</b>`,
                 `• 📥 <b>Pending Deposits:</b> ${depPending?.count || 0}`,
@@ -199,6 +240,8 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             const withPending = await dbGet("SELECT COUNT(*) as count FROM withdrawals WHERE status = 'PENDING'");
             const kycPending = await dbGet("SELECT COUNT(*) as count FROM kyc_submissions WHERE status = 'PENDING'");
 
+            const vip = await getVipMetrics();
+
             const text = [
                 `📊 <b>DETAILED SYSTEM OVERVIEW</b>`,
                 `━━━━━━━━━━━━━━━━━━━━━━`,
@@ -208,6 +251,15 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 `💵 <b>Total Member Balances:</b> $${parseFloat(balanceSum?.sum || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`,
                 `📥 <b>Total Approved Deposits:</b> $${parseFloat(depositSum?.sum || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`,
                 `📤 <b>Total Approved Withdrawals:</b> $${parseFloat(withdrawSum?.sum || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`,
+                ``,
+                `🏆 <b>VIP Rank Breakdown:</b>`,
+                `• 🥉 <b>Bronze VIP (0.5%/d):</b> ${vip.counts.BRONZE} ($${vip.balances.BRONZE.toFixed(2)})`,
+                `• 🥈 <b>Silver VIP (0.75%/d):</b> ${vip.counts.SILVER} ($${vip.balances.SILVER.toFixed(2)})`,
+                `• 🥇 <b>Gold VIP (1.0%/d):</b> ${vip.counts.GOLD} ($${vip.balances.GOLD.toFixed(2)})`,
+                `• 💎 <b>Platinum VIP (1.5%/d):</b> ${vip.counts.PLATINUM} ($${vip.balances.PLATINUM.toFixed(2)})`,
+                `• 👑 <b>Diamond VIP (2.0%/d):</b> ${vip.counts.DIAMOND} ($${vip.balances.DIAMOND.toFixed(2)})`,
+                `• 🌟 <b>Total Active VIPs:</b> ${vip.totalVips} ($${vip.totalVipBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })})`,
+                `• ⚪ <b>Regular (Free):</b> ${vip.counts.REGULAR} ($${vip.balances.REGULAR.toFixed(2)})`,
                 ``,
                 `⏳ <b>Current Pending Queues:</b>`,
                 `• Deposits: ${depPending?.count || 0}`,
@@ -220,10 +272,11 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             const keyboard = {
                 inline_keyboard: [
                     [
-                        { text: '⚡ Run Daily Earnings', callback_data: 'admin_run_earnings' },
-                        { text: '🔄 Refresh Stats', callback_data: 'admin_overview' }
+                        { text: '🏆 VIP Directory', callback_data: 'admin_vips' },
+                        { text: '⚡ Run Earnings', callback_data: 'admin_run_earnings' }
                     ],
                     [
+                        { text: '🔄 Refresh Stats', callback_data: 'admin_overview' },
                         { text: '🔙 Main Board', callback_data: 'admin_menu' }
                     ]
                 ]
@@ -247,6 +300,50 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             }
         } catch (err) {
             console.error('[TELEGRAM-BOT] sendSystemOverview error:', err.message);
+        }
+    }
+
+    async function sendVipDirectory(chatId) {
+        try {
+            const vips = await dbAll("SELECT id, username, email, balance, deposit_balance, vip_rank, last_earning_at FROM users WHERE vip_rank != 'REGULAR' ORDER BY balance DESC");
+            if (!vips || vips.length === 0) {
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: '🏆 <b>VIP Member Directory</b>\n\nThere are currently no users upgraded to VIP rank.',
+                    parse_mode: 'HTML',
+                    reply_markup: { inline_keyboard: [[{ text: '🔙 Main Board', callback_data: 'admin_menu' }]] }
+                });
+                return;
+            }
+
+            const EMOJI = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', PLATINUM: '💎', DIAMOND: '👑' };
+            const lines = [`🏆 <b>ACTIVE VIP MEMBER DIRECTORY (${vips.length})</b>`, '━━━━━━━━━━━━━━━━━━━━━━'];
+
+            vips.forEach(u => {
+                const emoji = EMOJI[u.vip_rank] || '🏆';
+                const bal = parseFloat(u.balance || 0).toFixed(2);
+                const dep = parseFloat(u.deposit_balance || 0).toFixed(2);
+                lines.push(`${emoji} <b>#${u.id}</b> | <code>${u.username}</code> | <b>${u.vip_rank}</b>\n   💵 Bal: $${bal} USDT | Dep: $${dep} USDT`);
+            });
+
+            lines.push('\n💡 <i>Send <code>/user &lt;username&gt;</code> to manage any VIP account.</i>');
+
+            const keyboard = {
+                inline_keyboard: [
+                    [
+                        { text: '🔙 Main Board', callback_data: 'admin_menu' }
+                    ]
+                ]
+            };
+
+            await apiCall('sendMessage', {
+                chat_id: chatId,
+                text: lines.join('\n'),
+                parse_mode: 'HTML',
+                reply_markup: keyboard
+            });
+        } catch (err) {
+            console.error('[TELEGRAM-BOT] sendVipDirectory error:', err.message);
         }
     }
 
@@ -521,6 +618,12 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             const parts = text.split(/\s+/);
             const cmd = parts[0].toLowerCase();
 
+            // /vips, /vip
+            if (cmd === '/vips' || cmd === '/vip') {
+                await sendVipDirectory(chatId);
+                return;
+            }
+
             // /triggerearnings, /runearnings
             if (cmd === '/triggerearnings' || cmd === '/runearnings') {
                 await handleTriggerEarnings(chatId);
@@ -709,6 +812,7 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     `━━━━━━━━━━━━━━━━━━━━━━`,
                     `• <code>/admin</code> — Open main Control Board`,
                     `• <code>/stats</code> — System performance metrics`,
+                    `• <code>/vips</code> — List all active VIP members`,
                     `• <code>/triggerearnings</code> — Run daily earnings cycle & statements`,
                     `• <code>/deposits</code> — Review pending deposits queue`,
                     `• <code>/withdrawals</code> — Review pending withdrawals queue`,
@@ -766,6 +870,12 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     reply_markup: keyboard
                 });
                 await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: 'Board updated.' });
+                return;
+            }
+
+            if (data === 'admin_vips') {
+                await sendVipDirectory(chatId);
+                await apiCall('answerCallbackQuery', { callback_query_id: queryId });
                 return;
             }
 
