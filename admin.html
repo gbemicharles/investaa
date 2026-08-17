@@ -1025,17 +1025,25 @@ function refreshAll() {
 // ════════════════════════════════════════════
 async function loadOverview() {
     try {
-        const [users, deposits, withdrawals, kyc, verifiedKyc, loans] = await Promise.all([
-            API.adminGetUsers(),
-            API.getPendingDeposits(),
-            API.adminGetPendingWithdrawals(),
-            API.getPendingKyc(),
-            API.getVerifiedKyc(),
-            API.adminGetLoans()
+        const [usersRes, depositsRes, withdrawalsRes, kycRes, verifiedKycRes, loansRes] = await Promise.allSettled([
+            API.adminGetUsers().catch(e => ({ msg: e.message })),
+            API.getPendingDeposits().catch(e => ({ msg: e.message })),
+            API.adminGetPendingWithdrawals().catch(e => ({ msg: e.message })),
+            API.getPendingKyc().catch(e => ({ msg: e.message })),
+            API.getVerifiedKyc().catch(e => ({ msg: e.message })),
+            API.adminGetLoans().catch(e => ({ msg: e.message }))
         ]);
 
-        if (users && users.msg && (users.msg.toLowerCase().includes('admin') || users.msg.toLowerCase().includes('token') || users.msg.toLowerCase().includes('session'))) {
-            alert(`⚠️ ${users.msg}\n\nPlease log in with an administrator account.`);
+        const users        = usersRes.status        === 'fulfilled' ? usersRes.value        : null;
+        const deposits     = depositsRes.status     === 'fulfilled' ? depositsRes.value     : null;
+        const withdrawals  = withdrawalsRes.status  === 'fulfilled' ? withdrawalsRes.value  : null;
+        const kyc          = kycRes.status          === 'fulfilled' ? kycRes.value          : null;
+        const verifiedKyc  = verifiedKycRes.status  === 'fulfilled' ? verifiedKycRes.value  : null;
+        const loans        = loansRes.status        === 'fulfilled' ? loansRes.value        : null;
+
+        const authErr = [users, deposits, withdrawals, kyc, verifiedKyc, loans].find(r => r && r.msg && (r.msg.toLowerCase().includes('admin') || r.msg.toLowerCase().includes('token') || r.msg.toLowerCase().includes('session')));
+        if (authErr) {
+            alert(`⚠️ ${authErr.msg}\n\nPlease log in with an administrator account.`);
             window.location.href = 'login.html';
             return;
         }
@@ -1044,7 +1052,7 @@ async function loadOverview() {
         const wCount = Array.isArray(withdrawals) ? withdrawals.length : 0;
         const kCount = Array.isArray(kyc)         ? kyc.length         : 0;
         const vCount = Array.isArray(verifiedKyc) ? verifiedKyc.length : 0;
-        const lCount = Array.isArray(loans)       ? loans.filter(l => l.status === 'PENDING').length : 0;
+        const lCount = Array.isArray(loans)       ? loans.filter(l => l && l.status === 'PENDING').length : 0;
 
         document.getElementById('ov-users').textContent        = Array.isArray(users) ? users.length : '—';
         document.getElementById('ov-deposits').textContent     = dCount;
@@ -1074,9 +1082,13 @@ function setBadge(id, count) {
 // ════════════════════════════════════════════
 async function loadPending() {
     const list = document.getElementById('pending-list');
+    if (!list) return;
     try {
         const deposits = await API.getPendingDeposits();
-        if (deposits.msg) { list.innerHTML = `<div style="text-align:center;padding:60px;color:#ff4d4d;">${deposits.msg}</div>`; return; }
+        if (!Array.isArray(deposits)) {
+            list.innerHTML = `<div style="text-align:center;padding:60px;color:#ff4d4d;">${deposits?.msg || 'Failed to load deposits.'}</div>`;
+            return;
+        }
         if (!deposits.length) { list.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">No pending deposits.</div>'; setBadge('badge-deposits',0); return; }
         setBadge('badge-deposits', deposits.length);
         list.innerHTML = '';
@@ -1090,8 +1102,8 @@ async function loadPending() {
             item.innerHTML = `
                 <div class="deposit-header">
                     <div>
-                        <h4 style="margin:0;">#${d.id} | ${d.username}</h4>
-                        <small style="color:var(--text-muted)">${d.email}</small>
+                        <h4 style="margin:0;">#${d.id} | ${d.username || 'N/A'}</h4>
+                        <small style="color:var(--text-muted)">${d.email || 'N/A'}</small>
                     </div>
                     <div style="display:flex;gap:8px;">
                         <span style="background:rgba(59,130,246,0.1);color:#3b82f6;border-radius:4px;padding:2px 8px;font-size:0.7rem;">${d.network || 'BITCOIN'}</span>
@@ -1101,11 +1113,11 @@ async function loadPending() {
                 <div class="deposit-details">
                     <div><span class="detail-label">USDT Amount</span><span class="detail-value" style="color:var(--accent-primary);">${parseFloat(d.usdt_amount||d.btc_amount||0).toFixed(2)} USDT</span></div>
                     <div><span class="detail-label">Crypto Equivalent</span><span class="detail-value">${parseFloat(d.crypto_amount||d.btc_amount||0).toFixed(8)} ${(d.network||'').split(' ')[0]}</span></div>
-                    <div><span class="detail-label">Exchange Rate</span><span class="detail-value" style="font-size:0.8rem;color:var(--accent-secondary);">$${d.exchange_rate ? d.exchange_rate.toLocaleString() : 'N/A'}</span></div>
-                    <div><span class="detail-label">Date</span><span class="detail-value">${new Date(d.created_at).toLocaleString()}</span></div>
+                    <div><span class="detail-label">Exchange Rate</span><span class="detail-value" style="font-size:0.8rem;color:var(--accent-secondary);">$${d.exchange_rate ? Number(d.exchange_rate).toLocaleString() : 'N/A'}</span></div>
+                    <div><span class="detail-label">Date</span><span class="detail-value">${d.created_at ? new Date(d.created_at).toLocaleString() : 'N/A'}</span></div>
                     <div style="grid-column:span 2;">
                         <span class="detail-label">TXID</span>
-                        <a href="${explorerUrl}" target="_blank" class="txid-link">${d.txid}</a>
+                        <a href="${explorerUrl}" target="_blank" class="txid-link">${d.txid || 'N/A'}</a>
                     </div>
                     <div style="grid-column:span 2;margin-top:8px;">
                         <span class="detail-label">Proof of Payment</span><br>
@@ -1149,9 +1161,13 @@ async function reject(id) {
 // ════════════════════════════════════════════
 async function loadWithdrawals() {
     const list = document.getElementById('withdrawals-list');
+    if (!list) return;
     try {
         const withdrawals = await API.adminGetPendingWithdrawals();
-        if (withdrawals.msg) { list.innerHTML = `<div style="text-align:center;padding:40px;color:#ff4d4d;">${withdrawals.msg}</div>`; return; }
+        if (!Array.isArray(withdrawals)) {
+            list.innerHTML = `<div style="text-align:center;padding:40px;color:#ff4d4d;">${withdrawals?.msg || 'Failed to load withdrawals.'}</div>`;
+            return;
+        }
         if (!withdrawals.length) { list.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">No pending withdrawals.</div>'; setBadge('badge-withdrawals',0); return; }
         setBadge('badge-withdrawals', withdrawals.length);
         list.innerHTML = '';
@@ -1162,8 +1178,8 @@ async function loadWithdrawals() {
             item.innerHTML = `
                 <div class="deposit-header">
                     <div>
-                        <h4 style="margin:0;">#${w.id} | ${w.username}</h4>
-                        <small style="color:var(--text-muted)">${w.email}</small>
+                        <h4 style="margin:0;">#${w.id} | ${w.username || 'N/A'}</h4>
+                        <small style="color:var(--text-muted)">${w.email || 'N/A'}</small>
                     </div>
                     <span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">PENDING</span>
                 </div>
@@ -1177,7 +1193,7 @@ async function loadWithdrawals() {
                             <button class="btn secondary" style="padding:5px 10px;font-size:0.7rem;flex-shrink:0;" onclick="copyText(this,${JSON.stringify(w.details||'').replace(/"/g,'&quot;')})"><i class="fas fa-copy"></i> Copy</button>
                         </div>
                     </div>
-                    <div><span class="detail-label">Date</span><span class="detail-value">${new Date(w.created_at).toLocaleString()}</span></div>
+                    <div><span class="detail-label">Date</span><span class="detail-value">${w.created_at ? new Date(w.created_at).toLocaleString() : 'N/A'}</span></div>
                 </div>
                 <div class="action-area">
                     <button class="btn primary" onclick="approveWithdrawal(${w.id})" style="padding:10px 20px;">Approve</button>
@@ -2291,9 +2307,12 @@ async function loadLoans() {
             if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#ff4d4d;">${loans?.msg || 'Failed to load loans.'}</td></tr>`;
             return;
         }
-        const pendingCount = loans.filter(l => l.status === 'PENDING').length;
+        const pendingCount = loans.filter(l => l && l.status === 'PENDING').length;
         const badge = document.getElementById('badge-loans');
-        if (badge) badge.innerText = pendingCount;
+        if (badge) {
+            badge.innerText = pendingCount;
+            badge.classList.toggle('show', pendingCount > 0);
+        }
 
         if (!tbody) return;
 
@@ -2303,26 +2322,27 @@ async function loadLoans() {
         }
 
         tbody.innerHTML = loans.map(l => {
+            if (!l) return '';
             const amt = parseFloat(l.loan_amount || 0).toLocaleString();
             const statusBadge = l.status === 'APPROVED' 
-                ? '<span class="status-badge success">APPROVED</span>' 
-                : (l.status === 'REJECTED' ? '<span class="status-badge danger">REJECTED</span>' : '<span class="status-badge warning">PENDING</span>');
+                ? '<span style="background:rgba(34,197,94,0.15);color:#22c55e;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">APPROVED</span>' 
+                : (l.status === 'REJECTED' ? '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">REJECTED</span>' : '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">PENDING</span>');
             
             const actions = l.status === 'PENDING'
-                ? `<button class="btn-action success" onclick="approveLoan(${l.id})"><i class="fas fa-check"></i> Approve</button>
-                   <button class="btn-action danger" onclick="rejectLoan(${l.id})"><i class="fas fa-times"></i> Reject</button>`
+                ? `<button class="btn primary" onclick="approveLoan(${l.id})" style="padding:5px 12px;font-size:0.78rem;background:linear-gradient(135deg,#10b981,#059669);"><i class="fas fa-check"></i> Approve</button>
+                   <button class="btn secondary" onclick="rejectLoan(${l.id})" style="padding:5px 12px;font-size:0.78rem;color:#ff4d4d;"><i class="fas fa-times"></i> Reject</button>`
                 : '<span style="color:var(--text-muted);font-size:0.8rem;">Completed</span>';
 
             return `
-                <tr>
-                    <td style="padding:10px;"><strong style="color:#a5b4fc;">#${l.id}</strong><br><small style="color:var(--text-muted);">${l.app_code}</small></td>
-                    <td style="padding:10px;"><strong>${l.full_name}</strong><br><small style="color:#3b82f6;">${l.email}</small></td>
-                    <td style="padding:10px;"><strong style="color:#22c55e;">$${amt} USD</strong><br><small style="color:var(--text-muted);">${l.loan_purpose} (${l.loan_term}m)</small></td>
-                    <td style="padding:10px;"><strong>${l.bank_name}</strong><br><small style="color:var(--text-muted);">Acct: ••••${(l.account_number||'').slice(-4)} | Routing: ${l.routing_number}</small></td>
-                    <td style="padding:10px;">${l.employment_status}<br><small style="color:var(--text-muted);">$${parseFloat(l.monthly_income||0).toLocaleString()}/mo</small></td>
-                    <td style="padding:10px;white-space:nowrap;">${new Date(l.created_at).toLocaleDateString()}</td>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                    <td style="padding:10px;"><strong style="color:#a5b4fc;">#${l.id}</strong><br><small style="color:var(--text-muted);">${l.app_code || ''}</small></td>
+                    <td style="padding:10px;"><strong>${l.full_name || 'N/A'}</strong><br><small style="color:#3b82f6;">${l.email || 'N/A'}</small></td>
+                    <td style="padding:10px;"><strong style="color:#22c55e;">$${amt} USD</strong><br><small style="color:var(--text-muted);">${l.loan_purpose || 'Personal'} (${l.loan_term || 12}m)</small></td>
+                    <td style="padding:10px;"><strong>${l.bank_name || 'N/A'}</strong><br><small style="color:var(--text-muted);">Acct: ••••${(l.account_number||'').slice(-4)} | Routing: ${l.routing_number || 'N/A'}</small></td>
+                    <td style="padding:10px;">${l.employment_status || 'N/A'}<br><small style="color:var(--text-muted);">$${parseFloat(l.monthly_income||0).toLocaleString()}/mo</small></td>
+                    <td style="padding:10px;white-space:nowrap;">${l.created_at ? new Date(l.created_at).toLocaleDateString() : 'N/A'}</td>
                     <td style="padding:10px;">${statusBadge}</td>
-                    <td style="padding:10px;">${actions}</td>
+                    <td style="padding:10px;"><div style="display:flex;gap:6px;">${actions}</div></td>
                 </tr>
             `;
         }).join('');

@@ -730,13 +730,19 @@ function authenticate(req, res, next) {
 
 function authenticateAdmin(req, res, next) {
     authenticate(req, res, async () => {
-        if (req.user && (req.user.is_admin === 1 || req.user.is_admin === true)) return next();
+        const isAdminVal = req.user?.is_admin;
+        if (isAdminVal == 1 || isAdminVal === true || String(isAdminVal).toLowerCase() === 'true') {
+            return next();
+        }
         if (req.user && req.user.id) {
             try {
                 const dbUser = await dbGet('SELECT is_admin FROM users WHERE id = ?', [req.user.id]);
-                if (dbUser && (dbUser.is_admin === 1 || dbUser.is_admin === true)) {
-                    req.user.is_admin = 1;
-                    return next();
+                if (dbUser) {
+                    const dbAdminVal = dbUser.is_admin;
+                    if (dbAdminVal == 1 || dbAdminVal === true || String(dbAdminVal).toLowerCase() === 'true') {
+                        req.user.is_admin = 1;
+                        return next();
+                    }
                 }
             } catch (e) {}
         }
