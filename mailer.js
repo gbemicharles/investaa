@@ -19,9 +19,23 @@ const SMTP_PASS = process.env.SMTP_PASS || '';
 const GMAIL_USER = process.env.GMAIL_USER || '';
 const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD || '';
 
-const FROM_NAME    = APP_NAME;
-const FROM_EMAIL   = SMTP_USER || GMAIL_USER;
-const SUPPORT_EMAIL = SMTP_USER || GMAIL_USER || 'support@investaa.site';
+const domain = (process.env.APP_URL || 'investaa.site')
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/.*$/, '')
+    .trim() || 'investaa.site';
+
+function cleanEmailDomain(email) {
+    if (!email || typeof email !== 'string') return null;
+    const clean = email.trim().toLowerCase();
+    if (!clean.includes('@') || clean.includes('hostinger.com') || clean.includes('gmail.com')) {
+        return null;
+    }
+    return clean;
+}
+
+const FROM_NAME     = process.env.FROM_NAME || process.env.APP_NAME || APP_NAME;
+const FROM_EMAIL    = process.env.FROM_EMAIL || cleanEmailDomain(SMTP_USER) || cleanEmailDomain(GMAIL_USER) || `support@${domain}`;
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || process.env.FROM_EMAIL || cleanEmailDomain(SMTP_USER) || cleanEmailDomain(GMAIL_USER) || `support@${domain}`;
 
 function makePrimaryTransporter() {
     if (!SMTP_USER || !SMTP_PASS) return null;
