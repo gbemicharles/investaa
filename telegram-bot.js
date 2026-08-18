@@ -208,10 +208,11 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     text: '⚡ <b>Triggering Daily Compound Earnings & Statement Dispatch...</b>',
                     parse_mode: 'HTML'
                 });
-                await applyDailyEarnings();
+                const res = await applyDailyEarnings(true);
+                const count = res && typeof res.processed === 'number' ? res.processed : 0;
                 await apiCall('sendMessage', {
                     chat_id: chatId,
-                    text: '✅ <b>Daily Earnings Cycle Executed!</b>\n\nVIP returns have been calculated, credited to user balances, and daily statement emails dispatched.',
+                    text: `✅ <b>Daily Earnings Cycle Executed!</b>\n\nVIP returns calculated, credited, and daily statement emails dispatched to <b>${count}</b> active member account(s).`,
                     parse_mode: 'HTML'
                 });
             } else {

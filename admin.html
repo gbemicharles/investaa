@@ -473,6 +473,7 @@
             <div class="card glass" style="padding:28px;">
                 <h3 style="margin:0 0 18px;font-size:1.1rem;"><i class="fas fa-bolt" style="color:#f59e0b;margin-right:8px;"></i>Quick Actions</h3>
                 <div style="display:flex;flex-wrap:wrap;gap:12px;">
+                    <button class="btn primary" onclick="triggerDailyEarningsAdmin()" style="padding:11px 22px;background:linear-gradient(135deg,#10b981,#059669);"><i class="fas fa-coins"></i> Run Daily Earnings & Statements</button>
                     <button class="btn primary" onclick="showPage('deposits', document.querySelector('[data-page=deposits]'))" style="padding:11px 22px;"><i class="fas fa-arrow-down-to-line"></i> Review Deposits</button>
                     <button class="btn secondary" onclick="showPage('withdrawals', document.querySelector('[data-page=withdrawals]'))" style="padding:11px 22px;"><i class="fas fa-arrow-up-from-line"></i> Review Withdrawals</button>
                     <button class="btn secondary" onclick="showPage('loans', document.querySelector('[data-page=loans]'))" style="padding:11px 22px;"><i class="fas fa-hand-holding-usd"></i> Review Credit Lines</button>
@@ -1018,6 +1019,22 @@ function refreshAll() {
     loadVerifiedKyc();
     loadLoans();
     loadUsers();
+}
+
+async function triggerDailyEarningsAdmin() {
+    if (!confirm('Run daily compound earnings and send investment statement emails to all active VIP members now?')) return;
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/admin/earnings/trigger', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        alert(data.msg || 'Daily earnings and statement emails processed successfully!');
+        loadOverview();
+    } catch (err) {
+        alert('Failed to trigger daily earnings: ' + err.message);
+    }
 }
 
 // ════════════════════════════════════════════

@@ -361,23 +361,26 @@ async function checkAndReleaseLoanDisbursement(userId) {
     }
 }
 
-async function applyDailyEarnings() {
+async function applyDailyEarnings(force = false) {
     try {
         const now = new Date();
         const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
 
-        // Fetch all VIP users with a positive balance whose last earning was >24h ago (or never)
-        const eligibleUsers = await dbAll(
-            `SELECT * FROM users WHERE vip_rank != 'REGULAR' AND balance > 0 AND (last_earning_at IS NULL OR last_earning_at <= $1)`,
-            [cutoff]
-        );
+        // Fetch all VIP users with a positive balance
+        // If force is true, credit/dispatch to all VIP users regardless of 24h timer
+        const sql = force
+            ? `SELECT * FROM users WHERE vip_rank != 'REGULAR' AND balance > 0`
+            : `SELECT * FROM users WHERE vip_rank != 'REGULAR' AND balance > 0 AND (last_earning_at IS NULL OR last_earning_at <= $1)`;
+
+        const eligibleUsers = await dbAll(sql, force ? [] : [cutoff]);
 
         if (eligibleUsers.length === 0) {
             console.log('[EARNINGS] No eligible users at this time.');
-            return;
+            return { processed: 0, msg: 'No eligible VIP users found at this time.' };
         }
 
-        console.log(`[EARNINGS] Processing ${eligibleUsers.length} eligible users...`);
+        console.log(`[EARNINGS] Processing ${eligibleUsers.length} eligible users (force: ${force})...`);
+        let count = 0;
 
         for (const user of eligibleUsers) {
             const rate = EARNING_RATES[user.vip_rank];
@@ -411,20 +414,23 @@ async function applyDailyEarnings() {
                 ]
             );
 
-            // Daily earning email statement (Only sent to BRONZE, SILVER, GOLD, and PLATINUM to manage email usage)
-            const ALLOWED_STATEMENT_RANKS = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'];
-            const userRank = (user.vip_rank || '').toUpperCase();
+            // Daily earning email statement — sent to ALL earning VIP tier members (BRONZE, SILVER, GOLD, PLATINUM, DIAMOND, etc.)
             const newBalance = parseFloat((balance + earning).toFixed(2));
-            if (user.email && process.env.ENABLE_DAILY_EARNING_EMAILS !== 'false' && ALLOWED_STATEMENT_RANKS.includes(userRank)) {
-                await sendUserEmail(user.id, () => Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance)).catch(e => console.error(`[EARNINGS] Failed to send daily statement email to ${user.email}:`, e.message));
+            if (user.email) {
+                await sendUserEmail(user.id, () => 
+                    Emails.dailyEarning(user.email, user.username, earning, balance, ratePercent, user.vip_rank, newBalance)
+                ).catch(e => console.error(`[EARNINGS] Failed to send daily statement email to ${user.email}:`, e.message));
             }
 
-            console.log(`[EARNINGS] Credited ${user.username}: +$${earning} (${ratePercent}% of $${balance})`);
+            count++;
+            console.log(`[EARNINGS] Credited & emailed statement to ${user.username} (${user.email}): +$${earning} (${ratePercent}% of $${balance})`);
         }
 
-        console.log('[EARNINGS] Daily earnings cycle complete.');
+        console.log(`[EARNINGS] Daily earnings cycle complete. Processed ${count} users.`);
+        return { processed: count, msg: `Successfully processed earnings and sent statement emails to ${count} VIP users.` };
     } catch (err) {
         console.error('[EARNINGS] Error during daily earnings run:', err.message);
+        throw err;
     }
 }
 
@@ -2307,6 +2313,16 @@ async function sendUserEmail(userId, emailFn) {
         }
     }
 }
+
+app.post('/api/admin/earnings/trigger', authenticateAdmin, async (req, res) => {
+    try {
+        const result = await applyDailyEarnings(true);
+        res.json({ success: true, msg: result.msg, processed: result.processed });
+    } catch (err) {
+        console.error('[ADMIN-EARNINGS-TRIGGER] Error:', err.message);
+        res.status(500).json({ msg: 'Failed to trigger daily earnings: ' + err.message });
+    }
+});
 
 app.post('/api/admin/email/outreach', authenticateAdmin, async (req, res) => {
     try {
