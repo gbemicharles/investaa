@@ -76,6 +76,9 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 { command: 'ban', description: '🚫 Ban User Account (/ban username)' },
                 { command: 'unban', description: '✅ Unban User Account (/unban username)' },
                 { command: 'resetpw', description: '🔑 Reset Password (/resetpw username pass)' },
+                { command: 'penalty', description: '⚠️ Inactivity Penalty Control & 24h Cooldown' },
+                { command: 'penaltywarn', description: '⚠️ Send Inactivity Warning Emails' },
+                { command: 'penaltyapply', description: '⚡ Apply 1% Penalty (24h Cooldown)' },
                 { command: 'help', description: '🛠️ Admin Commands Cheatsheet' }
             ];
 
@@ -111,8 +114,8 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     }
                 });
             }
-        } catch (e) {
-            console.error('[TELEGRAM-BOT] getVipMetrics error:', e.message);
+        } catch (err) {
+            console.error('[TELEGRAM-BOT] VIP Metrics query error:', err.message);
         }
 
         const totalVips = counts.BRONZE + counts.SILVER + counts.GOLD + counts.PLATINUM + counts.DIAMOND;
@@ -143,6 +146,9 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 [
                     { text: '🪪 Pending KYC', callback_data: 'admin_pending_kyc' },
                     { text: '⚡ Run Daily Earnings', callback_data: 'admin_run_earnings' }
+                ],
+                [
+                    { text: '⚠️ Inactivity Penalty', callback_data: 'admin_penalty' }
                 ],
                 [
                     { text: '🔄 Refresh Board', callback_data: 'admin_menu' }
@@ -229,6 +235,229 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 text: `❌ Error triggering earnings: ${err.message}`,
                 parse_mode: 'HTML'
             });
+        }
+    }
+
+    // ════════════════════════════════════════════
+    //  INACTIVITY PENALTY HELPERS & DISPATCHERS
+    // ════════════════════════════════════════════
+
+    async function getPenaltyCooldownStatus() {
+        try {
+            const r = await dbGet("SELECT value FROM app_settings WHERE key = 'penalty_last_applied' LIMIT 1");
+            if (!r || !r.value) return { onCooldown: false, remainingMs: 0, formatted: null };
+            const lastApplied = new Date(r.value).getTime();
+            const elapsed = Date.now() - lastApplied;
+            const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+            if (elapsed < COOLDOWN_MS) {
+                const remainingMs = COOLDOWN_MS - elapsed;
+                const h = Math.floor(remainingMs / 3600000);
+                const m = Math.floor((remainingMs % 3600000) / 60000);
+                const s = Math.floor((remainingMs % 60000) / 1000);
+                return {
+                    onCooldown: true,
+                    remainingMs,
+                    formatted: `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
+                };
+            }
+            return { onCooldown: false, remainingMs: 0, formatted: null };
+        } catch (e) {
+            return { onCooldown: false, remainingMs: 0, formatted: null };
+        }
+    }
+
+    async function getPenaltyDashboardCard() {
+        const cooldown = await getPenaltyCooldownStatus();
+        
+        let inactiveCount = 0;
+        let totalInactiveBal = 0;
+        try {
+            const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+            const rows = await dbAll(`
+                SELECT u.id, u.balance
+                FROM users u
+                LEFT JOIN deposits d ON d.user_id = u.id AND d.status = 'APPROVED'
+                WHERE (u.is_admin = 0 OR u.is_admin IS NULL)
+                  AND (u.is_banned IS NULL OR u.is_banned = 0)
+                  AND u.balance > 0
+                  AND u.vip_rank != 'REGULAR'
+                GROUP BY u.id, u.balance
+                HAVING MAX(d.created_at) IS NULL OR MAX(d.created_at) <= ?
+            `, [cutoff]);
+
+            if (Array.isArray(rows)) {
+                inactiveCount = rows.length;
+                totalInactiveBal = rows.reduce((sum, r) => sum + parseFloat(r.balance || 0), 0);
+            }
+        } catch (e) {
+            console.error('[TELEGRAM-BOT] Penalty query fallback error:', e.message);
+        }
+
+        const estPenalty = (totalInactiveBal * 0.01).toFixed(2);
+
+        let statusLine = '';
+        if (cooldown.onCooldown) {
+            statusLine = `⏳ <b>24-Hour Cooldown Active!</b>\n⏱️ Next penalty execution window opens in <b>${cooldown.formatted}</b>`;
+        } else {
+            statusLine = `✅ <b>Status: Ready to execute penalty</b>`;
+        }
+
+        const text = [
+            `⚠️ <b>INACTIVITY PENALTY CONTROL CENTER</b>`,
+            `━━━━━━━━━━━━━━━━━━━━━━`,
+            statusLine,
+            ``,
+            `📊 <b>Target Inactive Accounts:</b>`,
+            `• 👥 <b>Inactive Users (14+ days):</b> ${inactiveCount}`,
+            `• 💵 <b>Total Inactive Balance:</b> $${totalInactiveBal.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`,
+            `• 📉 <b>Estimated 1% Fee Deduction:</b> $${parseFloat(estPenalty).toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`,
+            ``,
+            `💡 <i>Execution will deduct 1% balance, log account transactions, send user notifications, and initiate the 24-hour countdown.</i>`
+        ].join('\n');
+
+        const keyboard = {
+            inline_keyboard: [
+                [
+                    { text: '⚠️ Send Inactivity Warning Emails', callback_data: 'penalty_warn' }
+                ],
+                [
+                    { 
+                        text: cooldown.onCooldown ? `⏳ Cooldown (${cooldown.formatted})` : '⚡ Apply 1% Inactivity Penalty', 
+                        callback_data: 'penalty_apply' 
+                    }
+                ],
+                [
+                    { text: '🔄 Refresh Status', callback_data: 'admin_penalty' },
+                    { text: '🔙 Admin Board', callback_data: 'admin_menu' }
+                ]
+            ]
+        };
+
+        return { text, keyboard, cooldown };
+    }
+
+    async function handlePenaltyWarn(chatId) {
+        try {
+            const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+            const rows = await dbAll(`
+                SELECT u.id, u.username, u.email, u.balance
+                FROM users u
+                LEFT JOIN deposits d ON d.user_id = u.id AND d.status = 'APPROVED'
+                WHERE (u.is_admin = 0 OR u.is_admin IS NULL)
+                  AND (u.is_banned IS NULL OR u.is_banned = 0)
+                  AND u.balance > 0
+                  AND u.vip_rank != 'REGULAR'
+                GROUP BY u.id, u.username, u.email, u.balance
+                HAVING MAX(d.created_at) IS NULL OR MAX(d.created_at) <= ?
+            `, [cutoff]);
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: 'ℹ️ <b>No Inactive Accounts Found</b>\nAll active users have recent deposit activity.',
+                    parse_mode: 'HTML'
+                });
+                return;
+            }
+
+            let count = 0;
+            for (const u of rows) {
+                if (Emails && u.email) {
+                    sendUserEmail(u.id, () => Emails.penaltyWarning(u.email, u.username, 14)).catch(() => {});
+                    count++;
+                }
+            }
+
+            await apiCall('sendMessage', {
+                chat_id: chatId,
+                text: `⚠️ <b>Inactivity Warning Emails Queued!</b>\n\nDispatched penalty warning notice emails to <b>${count}</b> inactive member account(s).`,
+                parse_mode: 'HTML'
+            });
+        } catch (err) {
+            console.error('[TELEGRAM-BOT] handlePenaltyWarn error:', err.message);
+            await apiCall('sendMessage', { chat_id: chatId, text: `❌ Error sending penalty warnings: ${err.message}`, parse_mode: 'HTML' });
+        }
+    }
+
+    async function handlePenaltyApply(chatId) {
+        try {
+            const cooldown = await getPenaltyCooldownStatus();
+            if (cooldown.onCooldown) {
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: `⏳ <b>24-Hour Penalty Cooldown Active!</b>\n\nA 1% penalty was already executed within the last 24 hours.\n⏱️ <code>${cooldown.formatted}</code> remaining until next execution window.`,
+                    parse_mode: 'HTML'
+                });
+                return;
+            }
+
+            const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+            const rows = await dbAll(`
+                SELECT u.id, u.username, u.email, u.balance
+                FROM users u
+                LEFT JOIN deposits d ON d.user_id = u.id AND d.status = 'APPROVED'
+                WHERE (u.is_admin = 0 OR u.is_admin IS NULL)
+                  AND (u.is_banned IS NULL OR u.is_banned = 0)
+                  AND u.balance > 0
+                  AND u.vip_rank != 'REGULAR'
+                GROUP BY u.id, u.username, u.email, u.balance
+                HAVING MAX(d.created_at) IS NULL OR MAX(d.created_at) <= ?
+            `, [cutoff]);
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: 'ℹ️ <b>No Inactive Accounts Found</b>\nNo users meet the 14-day inactivity criteria at this time.',
+                    parse_mode: 'HTML'
+                });
+                return;
+            }
+
+            const nowIso = new Date().toISOString();
+            await dbRun("INSERT INTO app_settings (key, value) VALUES ('penalty_last_applied', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [nowIso]);
+
+            let totalDeducted = 0;
+            let count = 0;
+
+            for (const u of rows) {
+                const bal = parseFloat(u.balance || 0);
+                const penalty = parseFloat((bal * 0.01).toFixed(2));
+                if (penalty <= 0) continue;
+
+                const newBal = parseFloat((bal - penalty).toFixed(2));
+
+                await dbRun("UPDATE users SET balance = ? WHERE id = ?", [newBal, u.id]);
+                await dbRun("INSERT INTO transactions (user_id, type, amount, details, status) VALUES (?, 'PENALTY', ?, ?, 'COMPLETED')", [
+                    u.id, penalty, `1% inactivity fee deduction (14+ days inactive)`
+                ]);
+                await dbRun("INSERT INTO notifications (user_id, title, message, type, status) VALUES (?, ?, ?, 'SYSTEM', 'WARNING')", [
+                    u.id,
+                    '⚠️ 1% Inactivity Fee Applied',
+                    `A 1% inactivity fee of $${penalty.toFixed(2)} USDT was deducted due to no deposit activity in 14+ days. Make a deposit to keep your account active!`
+                ]);
+
+                if (Emails && u.email) {
+                    sendUserEmail(u.id, () => Emails.penaltyApplied(u.email, u.username, penalty, newBal, 14)).catch(() => {});
+                }
+
+                totalDeducted += penalty;
+                count++;
+            }
+
+            const text = [
+                `⚡ <b>1% INACTIVITY PENALTY EXECUTED</b>`,
+                `━━━━━━━━━━━━━━━━━━━━━━`,
+                `• 👥 <b>Accounts Penalized:</b> ${count}`,
+                `• 💸 <b>Total Capital Deducted:</b> $${totalDeducted.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT`,
+                ``,
+                `⏳ <b>24-Hour Cooldown Initiated!</b>`,
+                `Next penalty execution window opens in <b>24h 00m 00s</b>.`
+            ].join('\n');
+
+            await apiCall('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML' });
+        } catch (err) {
+            console.error('[TELEGRAM-BOT] handlePenaltyApply error:', err.message);
+            await apiCall('sendMessage', { chat_id: chatId, text: `❌ Error applying penalty: ${err.message}`, parse_mode: 'HTML' });
         }
     }
 
@@ -999,6 +1228,30 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                 return;
             }
 
+            // /penalty
+            if (cmd === '/penalty') {
+                const card = await getPenaltyDashboardCard();
+                await apiCall('sendMessage', {
+                    chat_id: chatId,
+                    text: card.text,
+                    parse_mode: 'HTML',
+                    reply_markup: card.keyboard
+                });
+                return;
+            }
+
+            // /penaltywarn
+            if (cmd === '/penaltywarn') {
+                await handlePenaltyWarn(chatId);
+                return;
+            }
+
+            // /penaltyapply
+            if (cmd === '/penaltyapply') {
+                await handlePenaltyApply(chatId);
+                return;
+            }
+
             // /help
             if (cmd === '/help') {
                 const cheatsheet = [
@@ -1009,6 +1262,9 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
                     `• <code>/loans</code> — Review pending loan applications`,
                     `• <code>/approveloan &lt;id&gt;</code> — Approve credit application`,
                     `• <code>/rejectloan &lt;id&gt; &lt;reason&gt;</code> — Reject credit application`,
+                    `• <code>/penalty</code> — Inactivity penalty control board & 24h countdown`,
+                    `• <code>/penaltywarn</code> — Dispatch warning emails to inactive users`,
+                    `• <code>/penaltyapply</code> — Apply 1% inactivity penalty (enforces 24h cooldown)`,
                     `• <code>/vips</code> — List all active VIP members`,
                     `• <code>/triggerearnings</code> — Run daily earnings cycle & statements`,
                     `• <code>/deposits</code> — Review pending deposits queue`,
@@ -1079,6 +1335,50 @@ function startTelegramPolling(dbGet, dbRun, dbAll, sendUserEmail, Emails, applyD
             if (data === 'admin_run_earnings') {
                 await handleTriggerEarnings(chatId);
                 await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: 'Daily earnings executed.' });
+                return;
+            }
+
+            if (data === 'admin_penalty') {
+                const card = await getPenaltyDashboardCard();
+                await apiCall('editMessageText', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: card.text,
+                    parse_mode: 'HTML',
+                    reply_markup: card.keyboard
+                }).catch(async () => {
+                    await apiCall('sendMessage', {
+                        chat_id: chatId,
+                        text: card.text,
+                        parse_mode: 'HTML',
+                        reply_markup: card.keyboard
+                    });
+                });
+                await apiCall('answerCallbackQuery', { 
+                    callback_query_id: queryId, 
+                    text: card.cooldown.onCooldown ? `Cooldown active (${card.cooldown.formatted})` : 'Penalty control board updated.' 
+                });
+                return;
+            }
+
+            if (data === 'penalty_warn') {
+                await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: '⚠️ Processing warning emails...' });
+                await handlePenaltyWarn(chatId);
+                return;
+            }
+
+            if (data === 'penalty_apply') {
+                const cooldown = await getPenaltyCooldownStatus();
+                if (cooldown.onCooldown) {
+                    await apiCall('answerCallbackQuery', {
+                        callback_query_id: queryId,
+                        text: `⏳ Cooldown Active! Next penalty execution in ${cooldown.formatted}.`,
+                        show_alert: true
+                    });
+                    return;
+                }
+                await apiCall('answerCallbackQuery', { callback_query_id: queryId, text: '⚡ Applying 1% penalty...' });
+                await handlePenaltyApply(chatId);
                 return;
             }
 
